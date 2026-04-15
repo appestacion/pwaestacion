@@ -6,9 +6,19 @@ import { getFirestore } from 'firebase-admin/firestore'
 
 let adminApp
 if (!getApps().length) {
-  adminApp = initializeApp({
-    credential: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  })
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.error('ERROR: FIREBASE_SERVICE_ACCOUNT no esta configurada en Netlify')
+    adminApp = initializeApp({ projectId: 'missing-config' })
+  } else {
+    try {
+      adminApp = initializeApp({
+        credential: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      })
+    } catch (parseError) {
+      console.error('ERROR: FIREBASE_SERVICE_ACCOUNT JSON invalido:', parseError.message)
+      adminApp = initializeApp({ projectId: 'missing-config' })
+    }
+  }
 } else {
   adminApp = getApps()[0]
 }
@@ -19,6 +29,11 @@ const adminDb = getFirestore(adminApp)
 export default async (req, context) => {
   if (req.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Metodo no permitido' }) }
+  }
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.error('FIREBASE_SERVICE_ACCOUNT no configurada')
+    return { statusCode: 500, body: JSON.stringify({ error: 'Firebase Admin no configurado. Contacta al administrador del sitio.' }) }
   }
 
   try {
