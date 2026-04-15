@@ -1,0 +1,15 @@
+{
+  "name": "Sistema de Cierre",
+  "short_name": "Cierre ES",
+  "description": "Sistema de Cierre de Estación de Servicio - Gestión de turnos, lecturas y reportes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#CE1126",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

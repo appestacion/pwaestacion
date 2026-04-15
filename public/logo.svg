@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="20" fill="#CE1126"/>
+  <text x="60" y="75" text-anchor="middle" fill="white" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800">PDV</text>
+  <rect x="25" y="85" width="70" height="4" rx="2" fill="#FFD100"/>
+</svg>

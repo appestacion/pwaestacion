@@ -1,0 +1,96 @@
+// Reglas de Firestore para CIERREESMF
+// Copia y pega estas reglas en Firebase Console > Firestore > Reglas
+// Luego haz clic en "Publicar"
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // FUNCIONES AUXILIARES
+    // ==========================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'administrador';
+    }
+
+    function isActive() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+    }
+
+    // ==========================================
+    // COLECCIÓN: users
+    // Admin puede CRUD todo
+    // Usuario autenticado puede leer y actualizar su propio perfil (sin role ni active)
+    // ==========================================
+    match /users/{userId} {
+      allow create: if isAdmin();
+      allow read: if isAuthenticated();
+      allow update: if (isAdmin()) || (isAuthenticated() && request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active']));
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // COLECCIÓN: shifts (turnos)
+    // Supervisor puede crear y actualizar sus propios turnos
+    // Admin puede leer y gestionar todo
+    // ==========================================
+    match /shifts/{shiftId} {
+      allow create: if isAuthenticated() && isActive();
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && isActive() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // COLECCIÓN: gandolaReceptions
+    // Supervisor puede crear y actualizar sus propias recepciones
+    // Admin puede leer y gestionar todo
+    // ==========================================
+    match /gandolaReceptions/{receptionId} {
+      allow create: if isAuthenticated() && isActive();
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && isActive() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && isActive() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
+    // ==========================================
+    // COLECCIÓN: products (productos)
+    // Solo lectura para todos, escritura solo admin
+    // ==========================================
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // COLECCIÓN: settings (configuracion)
+    // Solo lectura para autenticados, escritura solo admin
+    // ==========================================
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // COLECCIÓN: inventory (inventario)
+    // Supervisor puede leer y actualizar, admin puede todo
+    // ==========================================
+    match /inventory/{itemName} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isActive();
+      allow delete: if isAdmin();
+    }
+  }
+}

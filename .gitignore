@@ -1,0 +1,74 @@
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# production build
+/dist
+/build
+
+# env files (NUNCA subir credenciales de Firebase)
+.env
+.env.local
+.env.*.local
+
+# Firebase
+.firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# logs
+*.log
+server.log
+dev.log
+dev.out.log
+
+# Vite
+*.local
+
+# Netlify
+.netlify
+netlify.toml.custom
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporal / working files
+test
+prompt
+.claude
+.z-ai-config
+local-*
+
+# Skills directory
+/skills/
+
+# Upload (archivos temporales)
+/upload/
