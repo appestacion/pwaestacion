@@ -49,3 +49,6 @@ export function isFirebaseConfigured() {
     config.projectId && config.projectId !== 'TU_PROJECT_ID'
   );
 }
+
+// Export para compatibilidad con firestore.js y otros servicios
+export { db, auth };
