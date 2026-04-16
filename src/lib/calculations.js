@@ -1,68 +1,42 @@
+// src/lib/calculations.js
 import { roundDown2, roundDownTo10 } from './formatters.js';
 
-/**
- * Calculate liters sold for a pump reading
- */
 export function calcLitersSold(reading) {
   return reading.finalReading - reading.initialReading;
 }
 
-/**
- * Calculate total Bs from cortes + adicionales for an island
- */
 export function calcBsTotal(island) {
   const cortesBsSum = island.cortesBs.reduce((sum, val) => sum + val, 0);
   return cortesBsSum + island.bsAdicionales;
 }
 
-/**
- * Calculate total USD from cortes + adicionales for an island
- */
 export function calcUSDTotal(island) {
   const cortesUSDSum = island.cortesUSD.reduce((sum, val) => sum + val, 0);
   return cortesUSDSum + island.usdAdicionales;
 }
 
-/**
- * Calculate PV total USD from 3 montos
- */
 export function calcPVTotalUSD(monto1, monto2, monto3) {
   return monto1 + monto2 + monto3;
 }
 
-/**
- * Convert PV Bs to USD using tasa
- */
 export function pvBsToUSD(pvTotalBs, tasa) {
   if (tasa === 0) return 0;
   return pvTotalBs / tasa;
 }
 
-/**
- * Convert PV USD to Bs using tasa
- */
 export function pvUSDToBs(pvTotalUSD, tasa) {
   return pvTotalUSD * tasa;
 }
 
-/**
- * Convert USD to equivalent liters (price per liter = tasa/2)
- */
 export function usdToLiters(usd, tasa) {
   if (tasa === 0) return 0;
   return (usd * 2) / tasa;
 }
 
-/**
- * Calculate total liters sold across all islands
- */
 export function calcTotalLitersSold(readings) {
   return readings.reduce((sum, r) => sum + r.litersSold, 0);
 }
 
-/**
- * Calculate liters sold per island
- */
 export function calcLitersByIsland(readings) {
   const result = { 1: 0, 2: 0, 3: 0 };
   for (const r of readings) {
@@ -71,16 +45,10 @@ export function calcLitersByIsland(readings) {
   return result;
 }
 
-/**
- * Litros equivalentes (referencia) = litros vendidos / 2
- */
 export function calcLitersRef(litersSold) {
   return litersSold / 2;
 }
 
-/**
- * Calculate Biblia (financial summary) for all islands
- */
 export function calculateBiblia(shift) {
   const litersByIsland = calcLitersByIsland(shift.pumpReadings);
 
@@ -88,12 +56,19 @@ export function calculateBiblia(shift) {
     const bsTotal = calcBsTotal(island);
     const bsInUSD = shift.tasa1 > 0 ? bsTotal / shift.tasa1 : 0;
     const usdTotal = calcUSDTotal(island);
-    const puntoTotal = island.pvTotalUSD + island.pv2TotalUSD;
-    const ueTotal = island.ueUSD;
-    const valesMonto = island.valesMonto;
-    const transferenciaMonto = island.transferenciaMonto;
+    const pv1Total = island.pvTotalUSD || 0;
+    const pv1TotalBs = island.pvTotalBs || 0;
+    const pv2Total = island.pv2TotalUSD || 0;
+    const pv2TotalBs = island.pv2TotalBs || 0;
+    const puntoTotal = pv1Total + pv2Total;
+    const valesMonto = Array.isArray(island.vales)
+      ? island.vales.reduce((s, v) => s + (v.monto || 0), 0)
+      : (island.valesMonto || 0);
+    const transferenciaMonto = Array.isArray(island.transferencias)
+      ? island.transferencias.reduce((s, t) => s + (t.monto || 0), 0)
+      : (island.transferenciaMonto || 0);
 
-    const ingresosTotalUSD = bsInUSD + usdTotal + puntoTotal + ueTotal + valesMonto + transferenciaMonto;
+    const ingresosTotalUSD = bsInUSD + usdTotal + puntoTotal + valesMonto + transferenciaMonto;
     const litersRef = calcLitersRef(litersByIsland[island.islandId] || 0);
     const propinaCalculo = ingresosTotalUSD - litersRef;
     const propinaUSD = propinaCalculo > 0 ? roundDown2(propinaCalculo) : 0;
@@ -106,8 +81,11 @@ export function calculateBiblia(shift) {
       bsTotal,
       bsInUSD,
       usdTotal,
+      pv1Total,
+      pv1TotalBs,
+      pv2Total,
+      pv2TotalBs,
       puntoTotal,
-      ueTotal,
       valesDescripcion: island.valesDescripcion,
       valesMonto,
       transferenciaDescripcion: island.transferenciaDescripcion,
@@ -120,17 +98,17 @@ export function calculateBiblia(shift) {
   });
 }
 
-/**
- * Calculate Biblia totals (sum of all islands)
- */
 export function calculateBibliaTotals(biblia) {
   return {
     totalLitersRef: biblia.reduce((s, b) => s + b.litersRef, 0),
     totalBs: biblia.reduce((s, b) => s + b.bsTotal, 0),
     totalBsInUSD: biblia.reduce((s, b) => s + b.bsInUSD, 0),
     totalUSD: biblia.reduce((s, b) => s + b.usdTotal, 0),
+    totalPv1: biblia.reduce((s, b) => s + b.pv1Total, 0),
+    totalPv1Bs: biblia.reduce((s, b) => s + b.pv1TotalBs, 0),
+    totalPv2: biblia.reduce((s, b) => s + b.pv2Total, 0),
+    totalPv2Bs: biblia.reduce((s, b) => s + b.pv2TotalBs, 0),
     totalPunto: biblia.reduce((s, b) => s + b.puntoTotal, 0),
-    totalUE: biblia.reduce((s, b) => s + b.ueTotal, 0),
     totalVales: biblia.reduce((s, b) => s + b.valesMonto, 0),
     totalTransferencia: biblia.reduce((s, b) => s + b.transferenciaMonto, 0),
     totalIngresosUSD: biblia.reduce((s, b) => s + b.ingresosTotalUSD, 0),
@@ -139,9 +117,6 @@ export function calculateBibliaTotals(biblia) {
   };
 }
 
-/**
- * Calculate Cuadre PV (POS balance) for all islands
- */
 export function calculateCuadrePV(shift) {
   return shift.islands.map((island) => {
     const pvTotalUSD = island.pvTotalUSD;
@@ -164,9 +139,6 @@ export function calculateCuadrePV(shift) {
   });
 }
 
-/**
- * Calculate Cuadre PV totals
- */
 export function calculateCuadrePVTotals(rows, tasa1, tasa2) {
   const totalPVUSD = rows.reduce((s, r) => s + r.pvTotalUSD, 0);
   const totalPVBs = rows.reduce((s, r) => s + r.pvTotalBs, 0);
@@ -188,9 +160,6 @@ export function calculateCuadrePVTotals(rows, tasa1, tasa2) {
   };
 }
 
-/**
- * Calculate inventory for all products
- */
 export function calculateInventory(products, initialStock, islandsSold) {
   return products.map((product) => {
     let totalVendido = 0;

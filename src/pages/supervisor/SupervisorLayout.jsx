@@ -1,3 +1,4 @@
+// src/pages/supervisor/SupervisorLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';

@@ -1,3 +1,4 @@
+// src/config/constants.js
 export const PRODUCTS_LIST = [
   { name: 'FLEX METANOL', category: 'aditivo' },
   { name: 'POWER BOOSTER', category: 'aditivo' },

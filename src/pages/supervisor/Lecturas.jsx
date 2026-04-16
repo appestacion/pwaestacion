@@ -1,3 +1,4 @@
+// src/pages/supervisor/Lecturas.jsx
 import React, { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -17,7 +18,7 @@ import Chip from '@mui/material/Chip';
 import SaveIcon from '@mui/icons-material/Save';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatNumber } from '../../lib/formatters.js';
-import { TANK_LABELS, ISLAND_IDS, PUMP_NUMBERS, SHIFT_LABELS } from '../../config/constants.js';
+import { TANK_LABELS, SHIFT_LABELS } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function Lecturas() {
@@ -70,7 +71,7 @@ export default function Lecturas() {
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Chip
-            label={SHIFT_LABELS[currentShift.operatorShiftType]}
+            label={SHIFT_LABELS[currentShift.operatorShiftType] || ''}
             color={isNocturno ? 'primary' : 'secondary'}
             variant="outlined"
             size="small"
@@ -142,44 +143,36 @@ export default function Lecturas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ISLAND_IDS.map((islandId) =>
-                  PUMP_NUMBERS.map((pumpNumber) => {
-                    const idx = currentShift.pumpReadings.findIndex(
-                      (r) => r.islandId === islandId && r.pumpNumber === pumpNumber
-                    );
-                    const reading = currentShift.pumpReadings[idx];
-                    return (
-                      <TableRow key={`${islandId}-${pumpNumber}`}>
-                        <TableCell>{islandId === 1 ? 'Isla 1' : islandId === 2 ? 'Isla 2' : 'Isla 3'}</TableCell>
-                        <TableCell>Surtidor {pumpNumber}</TableCell>
-                        <TableCell align="right">
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={reading.initialReading || ''}
-                            onChange={(e) => handlePumpChange(idx, 'initialReading', e.target.value)}
-                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={reading.finalReading || ''}
-                            onChange={(e) => handlePumpChange(idx, 'finalReading', e.target.value)}
-                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                          />
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: '#2E7D32' }}
-                        >
-                          {formatNumber(reading.litersSold, 0)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
+                {(currentShift.pumpReadings || []).map((reading, idx) => (
+                  <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
+                    <TableCell>Isla {reading.islandId}</TableCell>
+                    <TableCell>Surtidor {reading.pumpNumber}</TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        type="number"
+                        variant="standard"
+                        value={reading.initialReading || ''}
+                        onChange={(e) => handlePumpChange(idx, 'initialReading', e.target.value)}
+                        sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        type="number"
+                        variant="standard"
+                        value={reading.finalReading || ''}
+                        onChange={(e) => handlePumpChange(idx, 'finalReading', e.target.value)}
+                        sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                      />
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: '#2E7D32' }}
+                    >
+                      {formatNumber(reading.litersSold, 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -208,9 +201,9 @@ export default function Lecturas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {currentShift.tankReadings.map((tank, idx) => (
+                {(currentShift.tankReadings || []).map((tank, idx) => (
                   <TableRow key={tank.tankId}>
-                    <TableCell>{TANK_LABELS[tank.tankId]}</TableCell>
+                    <TableCell>{TANK_LABELS[tank.tankId] || `Tanque ${tank.tankId}`}</TableCell>
                     <TableCell align="right">
                       <TextField
                         type="number"

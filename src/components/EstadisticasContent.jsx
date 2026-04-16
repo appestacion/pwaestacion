@@ -1,3 +1,4 @@
+// src/components/EstadisticasContent.jsx
 import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';

@@ -1,3 +1,4 @@
+// src/pages/supervisor/RecepcionGandola.jsx
 import React, { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';

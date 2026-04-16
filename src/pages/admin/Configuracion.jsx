@@ -1,3 +1,4 @@
+// src/pages/admin/Configuracion.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -9,40 +10,59 @@ import Grid from '@mui/material/Grid';
 import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
+import Chip from '@mui/material/Chip';
 import SaveIcon from '@mui/icons-material/Save';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
+import SyncIcon from '@mui/icons-material/Sync';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function Configuracion() {
-  const { config, loadConfig, updateConfig, resetConfig } = useConfigStore();
+  const { config, firestoreActive, loadConfig, updateConfig, resetConfig } = useConfigStore();
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState('');
 
   useEffect(() => {
     loadConfig();
+    return () => useConfigStore.getState().cleanup();
+  }, [loadConfig]);
+
+  useEffect(() => {
     if (config.stationLogo) {
       setPreview(config.stationLogo);
     }
-  }, [loadConfig]);
+  }, [config.stationLogo]);
+
+  // Formatear fecha de última actualización de tasa
+  const formatLastUpdate = () => {
+    if (!config.lastRateUpdate) return null;
+    try {
+      const date = config.lastRateUpdate.toDate
+        ? config.lastRateUpdate.toDate()
+        : new Date(config.lastRateUpdate);
+      return date.toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+    } catch {
+      return null;
+    }
+  };
+
+  const lastUpdateStr = formatLastUpdate();
 
   const handleLogoUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
       enqueueSnackbar({ message: 'Solo se permiten archivos de imagen', variant: 'error' });
       return;
     }
-
     if (file.size > 2 * 1024 * 1024) {
       enqueueSnackbar({ message: 'La imagen no debe superar 2MB', variant: 'error' });
       return;
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64 = e.target.result;
@@ -144,13 +164,8 @@ export default function Configuracion() {
             ) : (
               <Box
                 sx={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 2,
-                  bgcolor: 'grey.100',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
                 <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.400' }} />
@@ -184,26 +199,51 @@ export default function Configuracion() {
                 </Button>
               )}
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Imagen PNG o JPG, máximo 2MB. Se muestra en el login y sidebar.
+                Imagen PNG o JPG, máximo 2MB
               </Typography>
             </Box>
           </Box>
-
-          {/* Preview */}
-          {preview && (
-            <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-              Vista previa: El logo aparecerá en la pantalla de login, en el menú lateral (sidebar) y en la cabecera de los reportes PDF generados.
-            </Alert>
-          )}
         </CardContent>
       </Card>
 
       {/* Exchange Rate */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
-            Tasa de Cambio BCV
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.main' }}>
+              Tasa de Cambio BCV
+            </Typography>
+            {firestoreActive ? (
+              <Chip
+                icon={<SyncIcon />}
+                label="Auto-actualización activa"
+                color="success"
+                size="small"
+                variant="outlined"
+              />
+            ) : (
+              <Chip
+                icon={<WifiOffIcon />}
+                label="Modo local (sin Firebase)"
+                color="default"
+                size="small"
+                variant="outlined"
+              />
+            )}
+          </Box>
+
+          {firestoreActive && (
+            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Rotación automática de tasas
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                Cada vez que la API actualiza: tasa2 actual pasa a tasa1, y la nueva tasa se guarda como tasa2.
+                Horario: Lun-Vie, 3:00 PM - 10:00 PM, cada 3 minutos.
+              </Typography>
+            </Alert>
+          )}
+
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
               <TextField
@@ -213,7 +253,8 @@ export default function Configuracion() {
                 value={config.tasa1 || ''}
                 onChange={(e) => updateConfig({ tasa1: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
-                helperText="Tasa principal para el turno PM"
+                helperText="Tasa principal"
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
@@ -224,8 +265,26 @@ export default function Configuracion() {
                 value={config.tasa2 || ''}
                 onChange={(e) => updateConfig({ tasa2: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
-                helperText="Segunda tasa para el turno AM"
+                helperText="Segunda tasa"
+                InputLabelProps={{ shrink: true }}
               />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              {firestoreActive && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                    Fuente: {config.rateSource || 'N/A'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                    Fecha valor: {config.fechaValor || 'N/A'}
+                  </Typography>
+                  {lastUpdateStr && (
+                    <Typography variant="caption" sx={{ color: 'success.main', display: 'block' }}>
+                      Última actualización: {lastUpdateStr}
+                    </Typography>
+                  )}
+                </Box>
+              )}
             </Grid>
           </Grid>
         </CardContent>

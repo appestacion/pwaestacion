@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/pages/admin/Usuarios.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -19,9 +20,15 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import useStore from '../../store/useStore.js';
 import { enqueueSnackbar } from 'notistack';
 
@@ -31,17 +38,31 @@ export default function Usuarios() {
   const updateUser = useStore((state) => state.updateUser);
   const deleteUser = useStore((state) => state.deleteUser);
 
-  const [users, setUsers] = React.useState([]);
-
-  const loadUsers = React.useCallback(async () => {
-    const data = await getAllUsers();
-    setUsers(data);
-  }, [getAllUsers]);
-
-  React.useEffect(() => { loadUsers(); }, [loadUsers]);
+  const [users, setUsers] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'supervisor' });
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await getAllUsers();
+      const arr = Array.isArray(data) ? data : [];
+      // Spread para no mutar el array original del store
+      const sorted = [...arr].sort((a, b) => {
+        // Administradores primero
+        if (a.role === 'administrador' && b.role !== 'administrador') return -1;
+        if (a.role !== 'administrador' && b.role === 'administrador') return 1;
+        // Luego por nombre alfabeticamente
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      setUsers(sorted);
+    } catch (err) {
+      console.error('Error cargando usuarios:', err);
+      setUsers([]);
+    }
+  }, [getAllUsers]);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const handleOpenNew = () => {
     setEditingUser(null);
@@ -51,7 +72,7 @@ export default function Usuarios() {
 
   const handleOpenEdit = (user) => {
     setEditingUser(user);
-    setForm({ name: user.name, email: user.email, password: '', role: user.role });
+    setForm({ name: user.name, email: user.email || '', password: '', role: user.role });
     setDialogOpen(true);
   };
 
@@ -76,14 +97,20 @@ export default function Usuarios() {
         await updateUser(editingUser.id, updates);
         enqueueSnackbar('Usuario actualizado', { variant: 'success' });
       } else {
-        await createUser({ name: form.name, email: form.email, password: form.password, role: form.role });
+        await createUser({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: form.role,
+          active: true,
+        });
         enqueueSnackbar('Usuario creado', { variant: 'success' });
       }
 
       setDialogOpen(false);
       loadUsers();
     } catch (err) {
-      enqueueSnackbar(err.message, { variant: 'error' });
+      enqueueSnackbar(err.message || 'Error al guardar usuario', { variant: 'error' });
     }
   };
 
@@ -93,7 +120,7 @@ export default function Usuarios() {
       enqueueSnackbar(`Usuario ${user.active ? 'desactivado' : 'activado'}`, { variant: 'info' });
       loadUsers();
     } catch (err) {
-      enqueueSnackbar(err.message, { variant: 'error' });
+      enqueueSnackbar(err.message || 'Error al cambiar estado', { variant: 'error' });
     }
   };
 
@@ -107,7 +134,7 @@ export default function Usuarios() {
       enqueueSnackbar('Usuario eliminado', { variant: 'success' });
       loadUsers();
     } catch (err) {
-      enqueueSnackbar(err.message, { variant: 'error' });
+      enqueueSnackbar(err.message || 'Error al eliminar usuario', { variant: 'error' });
     }
   };
 
@@ -117,7 +144,7 @@ export default function Usuarios() {
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>Gestion de Usuarios</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Crear y administrar usuarios del sistema
+            {users.filter(u => u.active).length} activos de {users.length} totales
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<PersonAddIcon />} onClick={handleOpenNew}>
@@ -131,7 +158,7 @@ export default function Usuarios() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Nombre</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Usuario</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Correo</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Rol</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Estado</TableCell>
@@ -140,14 +167,31 @@ export default function Usuarios() {
               </TableHead>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id} hover>
-                    <TableCell sx={{ fontWeight: 500 }}>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
+                  <TableRow key={user.id} hover sx={{ opacity: user.active ? 1 : 0.5 }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: 32, height: 32, borderRadius: '8px',
+                          bgcolor: user.role === 'administrador' ? '#CE112615' : '#00339915',
+                          color: user.role === 'administrador' ? '#CE1126' : '#003399',
+                        }}>
+                          {user.role === 'administrador'
+                            ? <AdminPanelSettingsIcon sx={{ fontSize: 18 }} />
+                            : <SupervisorAccountIcon sx={{ fontSize: 18 }} />}
+                        </Box>
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                          {user.name}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem' }}>{user.email}</TableCell>
                     <TableCell>
                       <Chip
                         label={user.role === 'administrador' ? 'Admin' : 'Supervisor'}
-                        color={user.role === 'administrador' ? 'primary' : 'secondary'}
+                        color={user.role === 'administrador' ? 'error' : 'info'}
                         size="small"
+                        sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                       />
                     </TableCell>
                     <TableCell align="center">
@@ -171,7 +215,9 @@ export default function Usuarios() {
                 {users.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>No hay usuarios registrados</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        No hay usuarios registrados
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 )}
@@ -217,16 +263,17 @@ export default function Usuarios() {
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label="Rol"
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              >
-                <option value="supervisor">Supervisor</option>
-                <option value="administrador">Administrador</option>
-              </TextField>
+              <FormControl fullWidth>
+                <InputLabel>Rol</InputLabel>
+                <Select
+                  value={form.role}
+                  label="Rol"
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                >
+                  <MenuItem value="supervisor">Supervisor</MenuItem>
+                  <MenuItem value="administrador">Administrador</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
         </DialogContent>

@@ -1,3 +1,4 @@
+// src/store/useGandolaStore.js
 import { create } from 'zustand';
 import { generateId, getVenezuelaDateString } from '../lib/formatters.js';
 import { cmToLiters } from '../lib/conversions.js';

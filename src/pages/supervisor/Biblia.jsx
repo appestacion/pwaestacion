@@ -1,3 +1,4 @@
+// src/pages/supervisor/Biblia.jsx
 import React, { useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -14,7 +15,6 @@ import Alert from '@mui/material/Alert';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { calculateBiblia, calculateBibliaTotals } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
-import { ISLAND_LABELS } from '../../config/constants.js';
 
 export default function Biblia() {
   const { currentShift, loadCurrentShift } = useCierreStore();
@@ -39,12 +39,18 @@ export default function Biblia() {
 
   if (!totals) return null;
 
+  const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+  const hasTasa2 = isNocturno && (currentShift.tasa2 || 0) > 0;
+
+  const getIslandLabel = (islandId) => `Isla ${islandId}`;
+
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Biblia</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Resumen financiero por isla — {currentShift.date} — Tasa: {formatBs(currentShift.tasa1)}
+          {hasTasa2 && ` / Tasa 2: ${formatBs(currentShift.tasa2)}`}
         </Typography>
       </Box>
 
@@ -60,8 +66,14 @@ export default function Biblia() {
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Bs Total</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Bs→$</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">USD</TableCell>
-                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">PV</TableCell>
-                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">UE</TableCell>
+                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">
+                    PV ({currentShift.tasa1})
+                  </TableCell>
+                  {hasTasa2 && (
+                    <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">
+                      PV ({currentShift.tasa2})
+                    </TableCell>
+                  )}
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Vales</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Transf.</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Ingresos $</TableCell>
@@ -72,14 +84,16 @@ export default function Biblia() {
               <TableBody>
                 {biblia.map((b) => (
                   <TableRow key={b.islandId} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{ISLAND_LABELS[b.islandId]}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{getIslandLabel(b.islandId)}</TableCell>
                     <TableCell>{b.operatorName || '—'}</TableCell>
                     <TableCell align="right">{formatNumber(b.litersRef, 2)}</TableCell>
                     <TableCell align="right">{formatBs(b.bsTotal)}</TableCell>
                     <TableCell align="right">{formatUSD(b.bsInUSD)}</TableCell>
                     <TableCell align="right">{formatUSD(b.usdTotal)}</TableCell>
-                    <TableCell align="right">{formatUSD(b.puntoTotal)}</TableCell>
-                    <TableCell align="right">{formatUSD(b.ueTotal)}</TableCell>
+                    <TableCell align="right">{formatUSD(b.pv1Total)}</TableCell>
+                    {hasTasa2 && (
+                      <TableCell align="right">{formatUSD(b.pv2Total)}</TableCell>
+                    )}
                     <TableCell align="right">{formatUSD(b.valesMonto)}</TableCell>
                     <TableCell align="right">{formatUSD(b.transferenciaMonto)}</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700, color: 'success.main' }}>
@@ -125,11 +139,13 @@ export default function Biblia() {
                     {formatUSD(totals.totalUSD)}
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F5F5F5' }}>
-                    {formatUSD(totals.totalPunto)}
+                    {formatUSD(totals.totalPv1)}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F5F5F5' }}>
-                    {formatUSD(totals.totalUE)}
-                  </TableCell>
+                  {hasTasa2 && (
+                    <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F5F5F5' }}>
+                      {formatUSD(totals.totalPv2)}
+                    </TableCell>
+                  )}
                   <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F5F5F5' }}>
                     {formatUSD(totals.totalVales)}
                   </TableCell>

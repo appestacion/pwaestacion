@@ -1,3 +1,4 @@
+// src/lib/conversions.js
 // cm-to-liters conversion - exact lookup matching Excel VLOOKUP FALSE
 import { CM_TO_LITERS_TABLE } from '../config/constants.js';
 

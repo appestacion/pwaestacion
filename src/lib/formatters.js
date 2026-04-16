@@ -1,3 +1,4 @@
+// src/lib/formatters.js
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 

@@ -1,3 +1,4 @@
+// src/store/useProductStore.js
 import { create } from 'zustand';
 import { PRODUCTS_LIST, DEFAULT_PRODUCT_PRICES } from '../config/constants.js';
 import { getProducts, createProduct, updateProduct } from '../services/firestore.js';
@@ -8,18 +9,30 @@ const useProductStore = create((set, get) => ({
   loadProducts: async () => {
     try {
       const products = await getProducts();
-      set({ products });
+      // Si Firestore devuelve vacio, usar productos por defecto
+      if (products && products.length > 0) {
+        set({ products });
+      } else {
+        const fallback = PRODUCTS_LIST.map((p, i) => ({
+          id: `prod-${(i + 1).toString().padStart(3, '0')}`,
+          name: p.name,
+          priceUSD: DEFAULT_PRODUCT_PRICES[p.name] || 5.00,
+          category: p.category,
+          active: true,
+        }));
+        set({ products: fallback });
+      }
     } catch (err) {
       console.error('Error loading products:', err.message);
       // Fallback to defaults
-      const products = PRODUCTS_LIST.map((p, i) => ({
+      const fallback = PRODUCTS_LIST.map((p, i) => ({
         id: `prod-${(i + 1).toString().padStart(3, '0')}`,
         name: p.name,
         priceUSD: DEFAULT_PRODUCT_PRICES[p.name] || 5.00,
         category: p.category,
         active: true,
       }));
-      set({ products });
+      set({ products: fallback });
     }
   },
 

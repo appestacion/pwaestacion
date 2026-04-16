@@ -1,3 +1,4 @@
+// src/hooks/useUserRole.js
 import useStore from '../store/useStore.js';
 
 export default function useUserRole() {

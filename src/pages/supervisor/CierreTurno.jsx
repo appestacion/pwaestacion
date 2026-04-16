@@ -1,3 +1,4 @@
+// src/pages/supervisor/Biblia.jsx
 import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -25,7 +26,6 @@ import CurrencyInput from '../../components/common/CurrencyInput.jsx';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { formatBs, formatUSD } from '../../lib/formatters.js';
-import { ISLAND_LABELS } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function CierreTurno() {
@@ -51,7 +51,8 @@ export default function CierreTurno() {
   }, [loadCurrentShift, loadProducts]);
 
   const handleSave = () => {
-    [1, 2, 3].forEach((id) => recalcIslandPV(id));
+    const ids = (currentShift?.islands || []).map((i) => i.islandId);
+    ids.forEach((id) => recalcIslandPV(id));
     saveCurrentShift();
     enqueueSnackbar({ message: 'Cierre guardado correctamente', variant: 'success' });
   };
@@ -72,13 +73,58 @@ export default function CierreTurno() {
     setProductQty(1);
   };
 
+  const handleAddVale = (islandId) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const vales = [...(existing?.vales || []), { monto: 0, descripcion: '' }];
+    updateIslandField(islandId, 'vales', vales);
+  };
+
+  const handleRemoveVale = (islandId, idx) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const vales = [...(existing?.vales || [])];
+    vales.splice(idx, 1);
+    updateIslandField(islandId, 'vales', vales);
+  };
+
+  const handleUpdateVale = (islandId, idx, field, value) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const vales = [...(existing?.vales || [])];
+    vales[idx] = { ...vales[idx], [field]: value };
+    updateIslandField(islandId, 'vales', vales);
+  };
+
+  const handleAddTransferencia = (islandId) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const transferencias = [...(existing?.transferencias || []), { monto: 0, descripcion: '' }];
+    updateIslandField(islandId, 'transferencias', transferencias);
+  };
+
+  const handleRemoveTransferencia = (islandId, idx) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const transferencias = [...(existing?.transferencias || [])];
+    transferencias.splice(idx, 1);
+    updateIslandField(islandId, 'transferencias', transferencias);
+  };
+
+  const handleUpdateTransferencia = (islandId, idx, field, value) => {
+    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+    const transferencias = [...(existing?.transferencias || [])];
+    transferencias[idx] = { ...transferencias[idx], [field]: value };
+    updateIslandField(islandId, 'transferencias', transferencias);
+  };
+
   if (!currentShift) {
     return <Alert severity="warning">No hay un turno activo. Ve al Dashboard e inicia un turno.</Alert>;
   }
 
   const activeProducts = products.filter((p) => p.active);
-  // NOCTURNO (7PM-7AM) uses 2 tasas, DIURNO (7AM-7PM) uses 1 tasa
   const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+  const tasa1 = currentShift.tasa1 || 1;
+
+  const islandLabels = {};
+  (currentShift.islands || []).forEach((isl, idx) => {
+    islandLabels[isl.islandId] = `Isla ${isl.islandId}`;
+  });
 
   return (
     <Box>
@@ -101,17 +147,21 @@ export default function CierreTurno() {
         scrollButtons="auto"
         sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 600 } }}
       >
-        <Tab label={ISLAND_LABELS[1]} />
-        <Tab label={ISLAND_LABELS[2]} />
-        <Tab label={ISLAND_LABELS[3]} />
+        {(currentShift.islands || []).map((isl) => (
+          <Tab key={isl.islandId} label={islandLabels[isl.islandId]} />
+        ))}
       </Tabs>
 
-      {[1, 2, 3].map((islandId) => {
-        const island = currentShift.islands.find((i) => i.islandId === islandId);
-        if (activeTab !== islandId - 1) return null;
+      {(currentShift.islands || []).map((island, tabIndex) => {
+        if (activeTab !== tabIndex) return null;
+        const iid = island.islandId;
+        const totalCortesBs = (island.cortesBs || []).reduce((s, v) => s + v, 0) + (island.bsAdicionales || 0);
+        const totalCortesBsInUSD = tasa1 > 0 ? totalCortesBs / tasa1 : 0;
+        const totalVales = (island.vales || []).reduce((s, v) => s + (v.monto || 0), 0);
+        const totalTransferencias = (island.transferencias || []).reduce((s, t) => s + (t.monto || 0), 0);
 
         return (
-          <Box key={islandId}>
+          <Box key={iid}>
             {/* Operator Name */}
             <Card sx={{ mb: 2 }}>
               <CardContent>
@@ -119,9 +169,9 @@ export default function CierreTurno() {
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={`Operador ${ISLAND_LABELS[islandId]}`}
-                      value={island.operatorName}
-                      onChange={(e) => updateIslandField(islandId, 'operatorName', e.target.value)}
+                      label={`Operador ${islandLabels[iid]}`}
+                      value={island.operatorName || ''}
+                      onChange={(e) => updateIslandField(iid, 'operatorName', e.target.value)}
                     />
                   </Grid>
                 </Grid>
@@ -135,12 +185,12 @@ export default function CierreTurno() {
                   Cortes en Bolivares
                 </Typography>
                 <Grid container spacing={1}>
-                  {island.cortesBs.map((val, idx) => (
+                  {(island.cortesBs || []).map((val, idx) => (
                     <Grid item xs={6} sm={4} md={3} key={idx}>
                       <CurrencyInput
                         label={`Corte ${idx + 1}`}
                         value={val}
-                        onChange={(v) => updateCorteBs(islandId, idx, v)}
+                        onChange={(v) => updateCorteBs(iid, idx, v)}
                         currency="BS"
                       />
                     </Grid>
@@ -148,14 +198,19 @@ export default function CierreTurno() {
                   <Grid item xs={6} sm={4} md={3}>
                     <CurrencyInput
                       label="Bs. Adicionales"
-                      value={island.bsAdicionales}
-                      onChange={(v) => updateIslandField(islandId, 'bsAdicionales', v)}
+                      value={island.bsAdicionales || 0}
+                      onChange={(v) => updateIslandField(iid, 'bsAdicionales', v)}
                       currency="BS"
                     />
                   </Grid>
                 </Grid>
                 <Box sx={{ mt: 1, textAlign: 'right' }}>
-                  <Chip label={`Total Bs: ${formatBs(island.cortesBs.reduce((s, v) => s + v, 0) + island.bsAdicionales)}`} color="primary" size="small" />
+                  <Chip
+                    label={`Total: ${formatBs(totalCortesBs)} = ${formatUSD(totalCortesBsInUSD)}`}
+                    color="primary"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
                 </Box>
               </CardContent>
             </Card>
@@ -167,12 +222,12 @@ export default function CierreTurno() {
                   Cortes en Dolares
                 </Typography>
                 <Grid container spacing={1}>
-                  {island.cortesUSD.map((val, idx) => (
+                  {(island.cortesUSD || []).map((val, idx) => (
                     <Grid item xs={6} sm={4} md={3} key={idx}>
                       <CurrencyInput
                         label={`Corte ${idx + 1}`}
                         value={val}
-                        onChange={(v) => updateCorteUSD(islandId, idx, v)}
+                        onChange={(v) => updateCorteUSD(iid, idx, v)}
                         currency="USD"
                       />
                     </Grid>
@@ -180,14 +235,18 @@ export default function CierreTurno() {
                   <Grid item xs={6} sm={4} md={3}>
                     <CurrencyInput
                       label="$ Adicionales"
-                      value={island.usdAdicionales}
-                      onChange={(v) => updateIslandField(islandId, 'usdAdicionales', v)}
+                      value={island.usdAdicionales || 0}
+                      onChange={(v) => updateIslandField(iid, 'usdAdicionales', v)}
                       currency="USD"
                     />
                   </Grid>
                 </Grid>
                 <Box sx={{ mt: 1, textAlign: 'right' }}>
-                  <Chip label={`Total $: ${formatUSD(island.cortesUSD.reduce((s, v) => s + v, 0) + island.usdAdicionales)}`} color="success" size="small" />
+                  <Chip
+                    label={`Total: ${formatUSD((island.cortesUSD || []).reduce((s, v) => s + v, 0) + (island.usdAdicionales || 0))}`}
+                    color="success"
+                    size="small"
+                  />
                 </Box>
               </CardContent>
             </Card>
@@ -196,98 +255,98 @@ export default function CierreTurno() {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
-                  Punto de Venta (Tasa 1)
+                  Punto de Venta (Tasa: {formatBs(tasa1)})
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={4}>
                     <CurrencyInput
-                      label="Monto 1 ($)"
-                      value={island.pvMonto1}
+                      label="Monto 1 (Bs.)"
+                      value={island.pvMonto1 || 0}
                       onChange={(v) => {
-                        updateIslandField(islandId, 'pvMonto1', v);
-                        setTimeout(() => recalcIslandPV(islandId), 0);
+                        updateIslandField(iid, 'pvMonto1', v);
+                        setTimeout(() => recalcIslandPV(iid), 0);
                       }}
-                      currency="USD"
+                      currency="BS"
                     />
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <CurrencyInput
-                      label="Monto 2 ($)"
-                      value={island.pvMonto2}
+                      label="Monto 2 (Bs.)"
+                      value={island.pvMonto2 || 0}
                       onChange={(v) => {
-                        updateIslandField(islandId, 'pvMonto2', v);
-                        setTimeout(() => recalcIslandPV(islandId), 0);
+                        updateIslandField(iid, 'pvMonto2', v);
+                        setTimeout(() => recalcIslandPV(iid), 0);
                       }}
-                      currency="USD"
+                      currency="BS"
                     />
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <CurrencyInput
-                      label="Monto 3 ($)"
-                      value={island.pvMonto3}
+                      label="Monto 3 (Bs.)"
+                      value={island.pvMonto3 || 0}
                       onChange={(v) => {
-                        updateIslandField(islandId, 'pvMonto3', v);
-                        setTimeout(() => recalcIslandPV(islandId), 0);
+                        updateIslandField(iid, 'pvMonto3', v);
+                        setTimeout(() => recalcIslandPV(iid), 0);
                       }}
-                      currency="USD"
+                      currency="BS"
                     />
                   </Grid>
                 </Grid>
                 <Divider sx={{ my: 2 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                   <Typography variant="body2">
-                    <strong>Total PV:</strong> {formatUSD(island.pvTotalUSD)} = {formatBs(island.pvTotalBs)}
+                    <strong>Total PV:</strong> {formatBs(island.pvTotalBs || 0)} = {formatUSD(island.pvTotalUSD || 0)}
                   </Typography>
                 </Box>
               </CardContent>
             </Card>
 
-            {/* PV Tasa 2 - ONLY for NOCTURNO shift (7PM-7AM) */}
+            {/* PV Tasa 2 - SOLO para turno NOCTURNO */}
             {isNocturno && (
               <Card sx={{ mb: 2 }}>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'info.main' }}>
-                    Punto de Venta (Tasa 2) — Turno Nocturno
+                    Punto de Venta (Tasa: {formatBs(currentShift.tasa2 || 0)})
                   </Typography>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={4}>
                       <CurrencyInput
-                        label="PV2 Monto 1 ($)"
-                        value={island.pv2Monto1}
+                        label="PV2 Monto 1 (Bs.)"
+                        value={island.pv2Monto1 || 0}
                         onChange={(v) => {
-                          updateIslandField(islandId, 'pv2Monto1', v);
-                          setTimeout(() => recalcIslandPV(islandId), 0);
+                          updateIslandField(iid, 'pv2Monto1', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
                         }}
-                        currency="USD"
+                        currency="BS"
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
                       <CurrencyInput
-                        label="PV2 Monto 2 ($)"
-                        value={island.pv2Monto2}
+                        label="PV2 Monto 2 (Bs.)"
+                        value={island.pv2Monto2 || 0}
                         onChange={(v) => {
-                          updateIslandField(islandId, 'pv2Monto2', v);
-                          setTimeout(() => recalcIslandPV(islandId), 0);
+                          updateIslandField(iid, 'pv2Monto2', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
                         }}
-                        currency="USD"
+                        currency="BS"
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
                       <CurrencyInput
-                        label="PV2 Monto 3 ($)"
-                        value={island.pv2Monto3}
+                        label="PV2 Monto 3 (Bs.)"
+                        value={island.pv2Monto3 || 0}
                         onChange={(v) => {
-                          updateIslandField(islandId, 'pv2Monto3', v);
-                          setTimeout(() => recalcIslandPV(islandId), 0);
+                          updateIslandField(iid, 'pv2Monto3', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
                         }}
-                        currency="USD"
+                        currency="BS"
                       />
                     </Grid>
                   </Grid>
-                  {island.pv2TotalUSD > 0 && (
+                  {(island.pv2TotalBs || 0) > 0 && (
                     <Box sx={{ mt: 1 }}>
                       <Typography variant="body2">
-                        <strong>Total PV2:</strong> {formatUSD(island.pv2TotalUSD)} = {formatBs(island.pv2TotalBs)}
+                        <strong>Total PV2:</strong> {formatBs(island.pv2TotalBs || 0)} = {formatUSD(island.pv2TotalUSD || 0)}
                       </Typography>
                     </Box>
                   )}
@@ -295,53 +354,98 @@ export default function CierreTurno() {
               </Card>
             )}
 
-            {/* UE, Vales, Transferencias */}
+            {/* Vales */}
             <Card sx={{ mb: 2 }}>
               <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-                  Otros Ingresos
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="UE ($)"
-                      value={island.ueUSD}
-                      onChange={(v) => updateIslandField(islandId, 'ueUSD', v)}
-                      currency="USD"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="Vales ($)"
-                      value={island.valesMonto}
-                      onChange={(v) => updateIslandField(islandId, 'valesMonto', v)}
-                      currency="USD"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="Transferencia ($)"
-                      value={island.transferenciaMonto}
-                      onChange={(v) => updateIslandField(islandId, 'transferenciaMonto', v)}
-                      currency="USD"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Descripcion Vales"
-                      value={island.valesDescripcion}
-                      onChange={(e) => updateIslandField(islandId, 'valesDescripcion', e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Descripcion Transferencia"
-                      value={island.transferenciaDescripcion}
-                      onChange={(e) => updateIslandField(islandId, 'transferenciaDescripcion', e.target.value)}
-                    />
-                  </Grid>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Vales ($)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Chip label={`Total: ${formatUSD(totalVales)}`} color="success" size="small" />
+                    <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => handleAddVale(iid)}>
+                      Agregar
+                    </Button>
+                  </Box>
+                </Box>
+                {(island.vales || []).length === 0 && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>No hay vales registrados.</Typography>
+                )}
+                <Grid container spacing={1}>
+                  {(island.vales || []).map((vale, idx) => (
+                    <React.Fragment key={idx}>
+                      <Grid item xs={5} sm={4}>
+                        <CurrencyInput
+                          label={`Vale ${idx + 1} ($)`}
+                          value={vale.monto || 0}
+                          onChange={(v) => handleUpdateVale(iid, idx, 'monto', v)}
+                          currency="USD"
+                        />
+                      </Grid>
+                      <Grid item xs={5} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Descripcion"
+                          size="small"
+                          value={vale.descripcion || ''}
+                          onChange={(e) => handleUpdateVale(iid, idx, 'descripcion', e.target.value)}
+                        />
+                      </Grid>
+                      <Grid item xs={2} sm={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IconButton size="small" color="error" onClick={() => handleRemoveVale(iid, idx)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Grid>
+                    </React.Fragment>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
+
+            {/* Transferencias */}
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Transferencias ($)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Chip label={`Total: ${formatUSD(totalTransferencias)}`} color="success" size="small" />
+                    <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => handleAddTransferencia(iid)}>
+                      Agregar
+                    </Button>
+                  </Box>
+                </Box>
+                {(island.transferencias || []).length === 0 && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>No hay transferencias registradas.</Typography>
+                )}
+                <Grid container spacing={1}>
+                  {(island.transferencias || []).map((transf, idx) => (
+                    <React.Fragment key={idx}>
+                      <Grid item xs={5} sm={4}>
+                        <CurrencyInput
+                          label={`Transf. ${idx + 1} ($)`}
+                          value={transf.monto || 0}
+                          onChange={(v) => handleUpdateTransferencia(iid, idx, 'monto', v)}
+                          currency="USD"
+                        />
+                      </Grid>
+                      <Grid item xs={5} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Descripcion"
+                          size="small"
+                          value={transf.descripcion || ''}
+                          onChange={(e) => handleUpdateTransferencia(iid, idx, 'descripcion', e.target.value)}
+                        />
+                      </Grid>
+                      <Grid item xs={2} sm={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IconButton size="small" color="error" onClick={() => handleRemoveTransferencia(iid, idx)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Grid>
+                    </React.Fragment>
+                  ))}
                 </Grid>
               </CardContent>
             </Card>
@@ -379,14 +483,14 @@ export default function CierreTurno() {
                   <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
-                    onClick={() => handleAddProduct(islandId)}
+                    onClick={() => handleAddProduct(iid)}
                     disabled={!selectedProduct}
                   >
                     Agregar
                   </Button>
                 </Box>
 
-                {island.productsSold.length > 0 && (
+                {(island.productsSold || []).length > 0 && (
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
@@ -399,7 +503,7 @@ export default function CierreTurno() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {island.productsSold.map((ps, idx) => {
+                        {(island.productsSold || []).map((ps, idx) => {
                           const prod = activeProducts.find((p) => p.name === ps.productName);
                           const price = prod?.priceUSD || 0;
                           return (
@@ -414,7 +518,7 @@ export default function CierreTurno() {
                                 <IconButton
                                   size="small"
                                   color="error"
-                                  onClick={() => removeProductSold(islandId, idx)}
+                                  onClick={() => removeProductSold(iid, idx)}
                                 >
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>

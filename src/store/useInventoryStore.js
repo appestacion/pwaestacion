@@ -1,3 +1,4 @@
+// src/store/useInventoryStore.js
 import { create } from 'zustand';
 import { PRODUCTS_LIST } from '../config/constants.js';
 import { getInventory, updateInventoryItem } from '../services/firestore.js';
