@@ -1,5 +1,4 @@
-// src/pages/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -9,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Avatar from '@mui/material/Avatar';
+import CircularProgress from '@mui/material/CircularProgress';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
@@ -26,25 +26,36 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const login = useStore((state) => state.login);
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const user = useStore((state) => state.user);
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(user.role === 'administrador' ? '/admin' : '/', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
       const success = await login(email, password);
       if (success) {
-        const user = useStore.getState().user;
-        navigate(user?.role === 'administrador' ? '/admin' : '/');
-      } else {
-        setError('Credenciales incorrectas');
+        await new Promise((r) => setTimeout(r, 300));
+        const currentUser = useStore.getState().user;
+        if (currentUser) {
+          navigate(currentUser.role === 'administrador' ? '/admin' : '/', { replace: true });
+        }
       }
     } catch (err) {
-      setError(err.message || 'Error de conexion');
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -60,7 +71,6 @@ export default function LoginPage() {
     >
       <Card sx={{ maxWidth: 420, width: '100%', borderRadius: 3, overflow: 'visible' }}>
         <CardContent sx={{ p: 4 }}>
-          {/* Logo */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             {config.stationLogo ? (
               <Avatar
@@ -111,7 +121,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Correo electronico"
+              label="Correo Electronico"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -157,21 +167,9 @@ export default function LoginPage() {
               disabled={loading || !email || !password}
               sx={{ py: 1.5, fontSize: '1rem' }}
             >
-              {loading ? 'Ingresando...' : 'Iniciar Sesion'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesion'}
             </Button>
           </form>
-
-          <Box sx={{ mt: 3, p: 2, bgcolor: '#F8F8FA', borderRadius: 2 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 1 }}>
-              Credenciales por Defecto:
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-              Admin: <strong>admin@pdv-smf.com</strong> / <strong>admin123</strong>
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-              Supervisor: <strong>supervisor@pdv-smf.com</strong> / <strong>super123</strong>
-            </Typography>
-          </Box>
         </CardContent>
       </Card>
     </Box>

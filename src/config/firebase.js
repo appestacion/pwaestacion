@@ -1,7 +1,7 @@
 // src/config/firebase.js
-// Configuración del cliente Firebase
+// Configuracion del cliente Firebase con Authentication
 // Reemplaza estos valores con los de tu proyecto Firebase
-// Consígalos en: Firebase Console → Project Settings → Your apps → Firebase SDK snippet
+// Consigalos en: Firebase Console -> Project Settings -> Your apps -> Firebase SDK snippet
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
@@ -19,6 +19,8 @@ const firebaseConfig = {
 let app = null;
 let db = null;
 let auth = null;
+let secondaryApp = null;
+let secondaryAuth = null;
 
 export function getFirebaseApp() {
   if (!app) {
@@ -41,7 +43,19 @@ export function getFirebaseAuth() {
   return auth;
 }
 
-// Verificar si Firebase está configurado correctamente
+/**
+ * Auth secundario para crear usuarios sin cerrar la sesion del admin actual.
+ * Usa una instancia de Firebase App separada.
+ */
+export function getSecondaryAuth() {
+  if (!secondaryAuth) {
+    secondaryApp = initializeApp(firebaseConfig, 'secondary-admin-auth');
+    secondaryAuth = getAuth(secondaryApp);
+  }
+  return secondaryAuth;
+}
+
+// Verificar si Firebase esta configurado correctamente
 export function isFirebaseConfigured() {
   const config = firebaseConfig;
   return (
@@ -49,6 +63,3 @@ export function isFirebaseConfigured() {
     config.projectId && config.projectId !== 'TU_PROJECT_ID'
   );
 }
-
-// Export para compatibilidad con firestore.js y otros servicios
-export { db, auth };

@@ -1,15 +1,15 @@
 // src/store/useConfigStore.js
-// Store de configuración con Firebase Firestore (tiempo real) + localStorage (fallback offline)
+// Configuracion con Firebase Firestore (tiempo real) + localStorage (fallback offline)
 
 import { create } from 'zustand';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { isFirebaseConfigured, getDb } from '../config/firebase.js';
-import { STORAGE_KEYS } from '../services/demoData.js';
+import { STORAGE_KEYS } from '../services/storage.js';
 
 const defaultConfig = {
   tasa1: 50.00,
   tasa2: 0,
-  stationName: 'Mi Estación de Servicio',
+  stationName: 'Mi Estacion de Servicio',
   stationRif: 'J-00000000-0',
   stationAddress: 'Venezuela',
   stationPhone: '',
@@ -21,7 +21,6 @@ const defaultConfig = {
   islandsCount: 3,
   pumpsPerIsland: 2,
   maxCortes: 12,
-  // Metadatos de la tasa automática (solo lectura, vienen del cron)
   previousTasa2: null,
   fechaValor: null,
   lastRateUpdate: null,
@@ -35,12 +34,7 @@ const useConfigStore = create((set, get) => ({
   firestoreActive: false,
   loading: true,
 
-  /**
-   * Cargar configuración: Firestore en tiempo real si está disponible,
-   * si no, localStorage como fallback
-   */
   loadConfig: () => {
-    // 1. Cargar desde localStorage primero (rápido)
     const localData = localStorage.getItem(STORAGE_KEYS.CONFIG);
     if (localData) {
       try {
@@ -51,7 +45,6 @@ const useConfigStore = create((set, get) => ({
       }
     }
 
-    // 2. Si Firebase está configurado, escuchar Firestore en tiempo real
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -64,7 +57,6 @@ const useConfigStore = create((set, get) => ({
               const firestoreData = docSnap.data();
               const newConfig = {
                 ...get().config,
-                // Solo sincronizar las tasas y metadatos (el resto viene del admin manual)
                 tasa1: firestoreData.tasa1 ?? get().config.tasa1,
                 tasa2: firestoreData.tasa2 ?? get().config.tasa2,
                 previousTasa2: firestoreData.previousTasa2 ?? null,
@@ -73,11 +65,8 @@ const useConfigStore = create((set, get) => ({
                 rateSource: firestoreData.rateSource ?? null,
               };
               set({ config: newConfig, firestoreActive: true, loading: false });
-
-              // También guardar en localStorage como cache
               localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(newConfig));
             } else {
-              // Documento no existe en Firestore, crearlo con valores actuales
               setDoc(configRef, {
                 tasa1: get().config.tasa1,
                 tasa2: get().config.tasa2,
@@ -99,7 +88,6 @@ const useConfigStore = create((set, get) => ({
           },
           (error) => {
             console.error('Error Firestore onSnapshot:', error);
-            // Fallback: ya cargamos localStorage arriba
             set({ firestoreActive: false, loading: false });
           }
         );
@@ -108,23 +96,15 @@ const useConfigStore = create((set, get) => ({
         set({ firestoreActive: false, loading: false });
       }
     } else {
-      // Firebase no configurado, usar solo localStorage
       set({ firestoreActive: false, loading: false });
     }
   },
 
-  /**
-   * Actualizar configuración
-   * Escribe en localStorage siempre + Firestore si está disponible
-   */
   updateConfig: (updates) => {
     const newConfig = { ...get().config, ...updates };
     set({ config: newConfig });
-
-    // Siempre guardar en localStorage
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(newConfig));
 
-    // Si Firestore está activo, sincronizar
     if (get().firestoreActive && isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -138,9 +118,6 @@ const useConfigStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Restaurar configuración por defecto
-   */
   resetConfig: () => {
     set({ config: defaultConfig });
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(defaultConfig));
@@ -172,9 +149,6 @@ const useConfigStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Limpiar listener de Firestore al desmontar
-   */
   cleanup: () => {
     if (unsubscribeSnapshot) {
       unsubscribeSnapshot();

@@ -24,11 +24,13 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import Tooltip from '@mui/material/Tooltip';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
+import KeyIcon from '@mui/icons-material/Key';
 import useStore from '../../store/useStore.js';
 import { enqueueSnackbar } from 'notistack';
 
@@ -37,22 +39,21 @@ export default function Usuarios() {
   const createUser = useStore((state) => state.createUser);
   const updateUser = useStore((state) => state.updateUser);
   const deleteUser = useStore((state) => state.deleteUser);
+  const sendPasswordReset = useStore((state) => state.sendPasswordReset);
 
   const [users, setUsers] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'supervisor' });
+  const [loading, setLoading] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
       const data = await getAllUsers();
       const arr = Array.isArray(data) ? data : [];
-      // Spread para no mutar el array original del store
       const sorted = [...arr].sort((a, b) => {
-        // Administradores primero
         if (a.role === 'administrador' && b.role !== 'administrador') return -1;
         if (a.role !== 'administrador' && b.role === 'administrador') return 1;
-        // Luego por nombre alfabeticamente
         return (a.name || '').localeCompare(b.name || '');
       });
       setUsers(sorted);
@@ -72,7 +73,7 @@ export default function Usuarios() {
 
   const handleOpenEdit = (user) => {
     setEditingUser(user);
-    setForm({ name: user.name, email: user.email || '', password: '', role: user.role });
+    setForm({ name: user.name || '', email: user.email || '', password: '', role: user.role });
     setDialogOpen(true);
   };
 
@@ -90,11 +91,13 @@ export default function Usuarios() {
       return;
     }
 
+    setLoading(true);
     try {
       if (editingUser) {
-        const updates = { name: form.name, role: form.role };
-        if (form.password) updates.password = form.password;
-        await updateUser(editingUser.id, updates);
+        await updateUser(editingUser.id, {
+          name: form.name,
+          role: form.role,
+        });
         enqueueSnackbar('Usuario actualizado', { variant: 'success' });
       } else {
         await createUser({
@@ -104,13 +107,15 @@ export default function Usuarios() {
           role: form.role,
           active: true,
         });
-        enqueueSnackbar('Usuario creado', { variant: 'success' });
+        enqueueSnackbar('Usuario creado exitosamente', { variant: 'success' });
       }
 
       setDialogOpen(false);
       loadUsers();
     } catch (err) {
       enqueueSnackbar(err.message || 'Error al guardar usuario', { variant: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,6 +140,15 @@ export default function Usuarios() {
       loadUsers();
     } catch (err) {
       enqueueSnackbar(err.message || 'Error al eliminar usuario', { variant: 'error' });
+    }
+  };
+
+  const handleResetPassword = async (user) => {
+    try {
+      await sendPasswordReset(user.email);
+      enqueueSnackbar(`Correo de recuperacion enviado a ${user.email}`, { variant: 'success' });
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Error al enviar correo', { variant: 'error' });
     }
   };
 
@@ -167,7 +181,7 @@ export default function Usuarios() {
               </TableHead>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id} hover sx={{ opacity: user.active ? 1 : 0.5 }}>
+                  <TableRow key={user.id || user.uid} hover sx={{ opacity: user.active !== false ? 1 : 0.5 }}>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{
@@ -196,13 +210,18 @@ export default function Usuarios() {
                     </TableCell>
                     <TableCell align="center">
                       <Switch
-                        checked={user.active}
+                        checked={user.active !== false}
                         onChange={() => handleToggleActive(user)}
                         color="success"
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="right">
+                      <Tooltip title="Enviar correo de recuperacion de contrasena">
+                        <IconButton size="small" onClick={() => handleResetPassword(user)} color="warning">
+                          <KeyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <IconButton size="small" onClick={() => handleOpenEdit(user)} color="primary">
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -227,7 +246,7 @@ export default function Usuarios() {
         </CardContent>
       </Card>
 
-      {/* Create/Edit Dialog */}
+      {/* Dialog Crear/Editar */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600 }}>
           {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
@@ -253,15 +272,17 @@ export default function Usuarios() {
                 helperText={editingUser ? 'El correo no se puede cambiar' : ''}
               />
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label={editingUser ? 'Nueva Contrasena (dejar vacio para no cambiar)' : 'Contrasena (minimo 6 caracteres)'}
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </Grid>
+            {!editingUser && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Contrasena (minimo 6 caracteres)"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+              </Grid>
+            )}
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Rol</InputLabel>
@@ -278,9 +299,11 @@ export default function Usuarios() {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} color="inherit">Cancelar</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+          <Button onClick={() => setDialogOpen(false)} color="inherit" disabled={loading}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} variant="contained" disabled={loading}>
+            {loading ? 'Guardando...' : editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
           </Button>
         </DialogActions>
       </Dialog>

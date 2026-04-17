@@ -1,17 +1,29 @@
-// src/pages/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import useStore from '../store/useStore.js';
 
 export default function ProtectedRoute() {
-  const user = useStore((state) => state.user);
-  const loading = useStore((state) => state.loading);
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const authLoading = useStore((state) => state.authLoading);
 
-  if (loading) {
-    return null; // App.jsx shows the loading spinner
+  if (authLoading && !isAuthenticated) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
-  if (!user) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

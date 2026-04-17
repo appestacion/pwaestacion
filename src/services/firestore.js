@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore'
-import { db } from '../config/firebase'
+import { getDb } from '../config/firebase'
+const db = getDb()
 
 // Utilidad: Manejo de errores de permisos
 const handlePermissionError = (error, context) => {

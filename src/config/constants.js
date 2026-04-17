@@ -195,27 +195,6 @@ export const SUPERVISOR_CLOSES_SHIFT = {
   'PM': 'DIURNO',
 };
 
-export const DEMO_USERS = [
-  {
-    id: 'user-admin-001',
-    name: 'Administrador',
-    username: 'admin',
-    password: 'admin123',
-    role: 'administrador',
-    active: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-sup-001',
-    name: 'Supervisor Turno',
-    username: 'supervisor',
-    password: 'super123',
-    role: 'supervisor',
-    active: true,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export const CATEGORY_LABELS = {
   aditivo: 'Aditivo',
   aceite: 'Aceite',

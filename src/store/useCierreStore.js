@@ -1,5 +1,5 @@
 // src/store/useCierreStore.js
-// Store de cierres de turno con Firebase Firestore (historial) + localStorage (turno activo)
+// Store de cierres de turno con Firebase Firestore en tiempo real + localStorage (offline)
 
 import { create } from 'zustand';
 import { useConfigStore } from './useConfigStore.js';
@@ -7,6 +7,10 @@ import { generateId, getVenezuelaDateString } from '../lib/formatters.js';
 import { calcLitersSold } from '../lib/calculations.js';
 import { cmToLiters } from '../lib/conversions.js';
 import { isFirebaseConfigured, getDb } from '../config/firebase.js';
+import {
+  collection, doc, setDoc, updateDoc,
+  query, where, orderBy, limit, onSnapshot, getDocs, getDoc,
+} from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   CURRENT_SHIFT: 'pdv_current_shift',
@@ -83,10 +87,8 @@ function createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, 
   };
 }
 
-// Migrate old island format to new format
 function migrateIsland(isl, maxCortes) {
   const migrated = { ...isl };
-
   if (!Array.isArray(migrated.vales)) {
     if (migrated.valesMonto > 0) {
       migrated.vales = [{ monto: migrated.valesMonto || 0, descripcion: migrated.valesDescripcion || '' }];
@@ -96,7 +98,6 @@ function migrateIsland(isl, maxCortes) {
   }
   delete migrated.valesMonto;
   delete migrated.valesDescripcion;
-
   if (!Array.isArray(migrated.transferencias)) {
     if (migrated.transferenciaMonto > 0) {
       migrated.transferencias = [{ monto: migrated.transferenciaMonto || 0, descripcion: migrated.transferenciaDescripcion || '' }];
@@ -106,7 +107,6 @@ function migrateIsland(isl, maxCortes) {
   }
   delete migrated.transferenciaMonto;
   delete migrated.transferenciaDescripcion;
-
   if (!Array.isArray(migrated.cortesBs) || migrated.cortesBs.length !== maxCortes) {
     const old = migrated.cortesBs || [];
     migrated.cortesBs = new Array(maxCortes).fill(0).map((_, i) => old[i] || 0);
@@ -115,14 +115,12 @@ function migrateIsland(isl, maxCortes) {
     const old = migrated.cortesUSD || [];
     migrated.cortesUSD = new Array(maxCortes).fill(0).map((_, i) => old[i] || 0);
   }
-
   return migrated;
 }
 
 function ensureShiftStructure(shift, config = {}) {
   if (!shift) return shift;
   const maxCortes = config.maxCortes || 12;
-
   const template = createEmptyShift(
     shift.operatorShiftType || 'DIURNO',
     shift.supervisorShiftType || 'PM',
@@ -130,43 +128,40 @@ function ensureShiftStructure(shift, config = {}) {
     shift.tasa2 || 0,
     config
   );
-
   return {
     ...template,
     ...shift,
     id: shift.id || template.id,
     pumpReadings: Array.isArray(shift.pumpReadings) && shift.pumpReadings.length > 0
-      ? shift.pumpReadings
-      : template.pumpReadings,
+      ? shift.pumpReadings : template.pumpReadings,
     tankReadings: Array.isArray(shift.tankReadings) && shift.tankReadings.length > 0
-      ? shift.tankReadings
-      : template.tankReadings,
+      ? shift.tankReadings : template.tankReadings,
     islands: Array.isArray(shift.islands) && shift.islands.length > 0
-      ? shift.islands.map((isl) => migrateIsland(isl, maxCortes))
-      : template.islands,
+      ? shift.islands.map((isl) => migrateIsland(isl, maxCortes)) : template.islands,
   };
 }
 
-/**
- * Guardar un turno cerrado en Firestore
- */
-async function saveShiftToFirestore(shift) {
-  if (!isFirebaseConfigured()) return false;
-  try {
-    const { doc, setDoc } = await import('firebase/firestore');
-    const db = getDb();
-    const shiftRef = doc(db, 'shifts', shift.id);
-    const cleanShift = JSON.parse(JSON.stringify(shift));
-    await setDoc(shiftRef, cleanShift, { merge: true });
-    console.log('Turno guardado en Firestore:', shift.id);
-    return true;
-  } catch (error) {
-    console.error('Error guardando turno en Firestore:', error);
-    return false;
-  }
+let unsubscribeCurrentShift = null;
+let unsubscribeShiftsHistory = null;
+let syncTimeout = null;
+
+function debounceSyncToFirestore(shift) {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    saveShiftToFirestore(shift);
+  }, 2000);
 }
 
-let unsubscribeShiftsHistory = null;
+async function saveShiftToFirestore(shift) {
+  if (!isFirebaseConfigured() || !shift?.id) return;
+  try {
+    const db = getDb();
+    const cleanShift = JSON.parse(JSON.stringify(shift));
+    await setDoc(doc(db, 'shifts', shift.id), cleanShift, { merge: true });
+  } catch (error) {
+    console.error('Error sincronizando turno a Firestore:', error);
+  }
+}
 
 const useCierreStore = create((set, get) => ({
   currentShift: null,
@@ -174,20 +169,69 @@ const useCierreStore = create((set, get) => ({
   firestoreActive: false,
   loadingHistory: false,
 
-  initNewShift: (supervisorShiftType, tasa1, tasa2) => {
+  initNewShift: async (supervisorShiftType, tasa1, tasa2) => {
     const config = useConfigStore.getState().config || {};
     const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
     const shift = createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, config);
+
     set({ currentShift: shift });
     localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(shift));
+
+    if (isFirebaseConfigured()) {
+      try {
+        const db = getDb();
+        await setDoc(doc(db, 'shifts', shift.id), {
+          ...shift,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Error creando turno en Firestore:', error);
+      }
+    }
   },
 
   loadCurrentShift: () => {
     const data = localStorage.getItem(STORAGE_KEYS.CURRENT_SHIFT);
     if (data) {
-      const parsed = JSON.parse(data);
-      const config = useConfigStore.getState().config || {};
-      set({ currentShift: ensureShiftStructure(parsed, config) });
+      try {
+        const parsed = JSON.parse(data);
+        const config = useConfigStore.getState().config || {};
+        set({ currentShift: ensureShiftStructure(parsed, config) });
+      } catch (e) {
+        console.error('Error parseando turno actual:', e);
+      }
+    }
+
+    if (isFirebaseConfigured()) {
+      try {
+        const db = getDb();
+        const q = query(
+          collection(db, 'shifts'),
+          where('status', '==', 'en_progreso'),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        );
+
+        if (unsubscribeCurrentShift) unsubscribeCurrentShift();
+
+        unsubscribeCurrentShift = onSnapshot(
+          q,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              const shiftData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+              const config = useConfigStore.getState().config || {};
+              const shift = ensureShiftStructure(shiftData, config);
+              set({ currentShift: shift, firestoreActive: true });
+              localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(shift));
+            }
+          },
+          (error) => {
+            console.error('Error Firestore onSnapshot (currentShift):', error);
+          }
+        );
+      } catch (error) {
+        console.error('Error escuchando turno actual:', error);
+      }
     }
   },
 
@@ -195,6 +239,7 @@ const useCierreStore = create((set, get) => ({
     const { currentShift } = get();
     if (currentShift) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(currentShift));
+      debounceSyncToFirestore(currentShift);
     }
   },
 
@@ -208,6 +253,7 @@ const useCierreStore = create((set, get) => ({
     updated.pumpReadings[index] = reading;
     set({ currentShift: updated });
     localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   updateTankReading: (index, field, value) => {
@@ -222,6 +268,7 @@ const useCierreStore = create((set, get) => ({
     updated.tankReadings[index] = tank;
     set({ currentShift: updated });
     localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   updateIslandField: (islandId, field, value) => {
@@ -232,6 +279,8 @@ const useCierreStore = create((set, get) => ({
       isl.islandId === islandId ? { ...isl, [field]: value } : isl
     );
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   updateCorteBs: (islandId, index, value) => {
@@ -245,6 +294,8 @@ const useCierreStore = create((set, get) => ({
       return { ...isl, cortesBs: newCortes };
     });
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   updateCorteUSD: (islandId, index, value) => {
@@ -258,9 +309,10 @@ const useCierreStore = create((set, get) => ({
       return { ...isl, cortesUSD: newCortes };
     });
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
-  // PV montos are in Bs. - recalc converts to USD
   recalcIslandPV: (islandId) => {
     const { currentShift } = get();
     if (!currentShift) return;
@@ -274,6 +326,8 @@ const useCierreStore = create((set, get) => ({
       return { ...isl, pvTotalUSD, pvTotalBs, pv2TotalUSD, pv2TotalBs };
     });
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   setGandolaLiters: (liters) => {
@@ -281,12 +335,17 @@ const useCierreStore = create((set, get) => ({
     if (!currentShift) return;
     const updated = { ...currentShift, gandolaLiters: liters };
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   updateTasa: (field, value) => {
     const { currentShift } = get();
     if (!currentShift) return;
-    set({ currentShift: { ...currentShift, [field]: value } });
+    const updated = { ...currentShift, [field]: value };
+    set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   closeShift: () => {
@@ -294,12 +353,10 @@ const useCierreStore = create((set, get) => ({
     if (!currentShift) return;
     const updated = { ...currentShift };
     updated.pumpReadings = updated.pumpReadings.map((r) => ({
-      ...r,
-      litersSold: calcLitersSold(r),
+      ...r, litersSold: calcLitersSold(r),
     }));
     updated.tankReadings = updated.tankReadings.map((r) => ({
-      ...r,
-      liters: cmToLiters(r.cm),
+      ...r, liters: cmToLiters(r.cm),
     }));
     updated.islands = updated.islands.map((isl) => {
       const pvTotalBs = (isl.pvMonto1 || 0) + (isl.pvMonto2 || 0) + (isl.pvMonto3 || 0);
@@ -315,13 +372,11 @@ const useCierreStore = create((set, get) => ({
       closedAt: new Date().toISOString(),
     };
 
-    // localStorage: siempre
     const newHistory = [closedShift, ...shiftsHistory].slice(0, 50);
     set({ currentShift: null, shiftsHistory: newHistory });
     localStorage.removeItem(STORAGE_KEYS.CURRENT_SHIFT);
     localStorage.setItem(STORAGE_KEYS.SHIFTS, JSON.stringify(newHistory));
 
-    // Firestore: guardar el turno cerrado (async, no bloquea)
     saveShiftToFirestore(closedShift);
   },
 
@@ -334,6 +389,8 @@ const useCierreStore = create((set, get) => ({
       return { ...isl, productsSold: [...(isl.productsSold || []), product] };
     });
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
   removeProductSold: (islandId, index) => {
@@ -347,51 +404,37 @@ const useCierreStore = create((set, get) => ({
       return { ...isl, productsSold: newProducts };
     });
     set({ currentShift: updated });
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(updated));
+    debounceSyncToFirestore(updated);
   },
 
-  /**
-   * Cargar historial de turnos: Firestore si disponible, si no localStorage
-   */
   loadShiftsHistory: async () => {
-    // 1. Siempre cargar de localStorage primero (rápido)
     const localData = localStorage.getItem(STORAGE_KEYS.SHIFTS);
     if (localData) {
       try {
-        const parsed = JSON.parse(localData);
-        set({ shiftsHistory: parsed });
+        set({ shiftsHistory: JSON.parse(localData) });
       } catch (e) {
         console.error('Error parseando historial localStorage:', e);
       }
     }
 
-    // 2. Si Firebase está configurado, escuchar Firestore en tiempo real
     if (isFirebaseConfigured()) {
       try {
-        const { collection, query, orderBy, onSnapshot } = await import('firebase/firestore');
         const db = getDb();
         const shiftsRef = collection(db, 'shifts');
 
-        // Cancelar listener anterior si existe
-        if (unsubscribeShiftsHistory) {
-          unsubscribeShiftsHistory();
-        }
+        if (unsubscribeShiftsHistory) unsubscribeShiftsHistory();
 
         unsubscribeShiftsHistory = onSnapshot(
-          query(shiftsRef, orderBy('closedAt', 'desc')),
+          query(shiftsRef, where('status', '==', 'cerrado'), orderBy('createdAt', 'desc')),
           (snapshot) => {
-            const firestoreShifts = [];
-            snapshot.forEach((docSnap) => {
-              firestoreShifts.push(docSnap.data());
-            });
-
+            const firestoreShifts = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
             const config = useConfigStore.getState().config || {};
             const completeShifts = firestoreShifts
               .map((s) => ensureShiftStructure(s, config))
               .slice(0, 50);
 
             set({ shiftsHistory: completeShifts, firestoreActive: true, loadingHistory: false });
-
-            // Cache en localStorage
             localStorage.setItem(STORAGE_KEYS.SHIFTS, JSON.stringify(completeShifts));
           },
           (error) => {
@@ -399,7 +442,6 @@ const useCierreStore = create((set, get) => ({
             set({ firestoreActive: false, loadingHistory: false });
           }
         );
-
         set({ firestoreActive: true, loadingHistory: true });
       } catch (error) {
         console.error('Error cargando historial de Firestore:', error);
@@ -410,123 +452,84 @@ const useCierreStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Obtener turnos de una fecha específica (para historial diario)
-   * Retorna ambos turnos de un día: AM y PM
-   */
   loadShiftsByDate: async (date) => {
     if (isFirebaseConfigured()) {
       try {
-        const { collection, query, where, orderBy, getDocs } = await import('firebase/firestore');
         const db = getDb();
-        const shiftsRef = collection(db, 'shifts');
-        const q = query(shiftsRef, where('date', '==', date), orderBy('closedAt', 'desc'));
+        const q = query(
+          collection(db, 'shifts'),
+          where('date', '==', date),
+          orderBy('createdAt', 'desc')
+        );
         const snapshot = await getDocs(q);
-
-        const shifts = [];
-        snapshot.forEach((docSnap) => {
-          shifts.push(docSnap.data());
-        });
-
+        const shifts = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         const config = useConfigStore.getState().config || {};
         return shifts.map((s) => ensureShiftStructure(s, config));
       } catch (error) {
         console.error('Error consultando turnos por fecha:', error);
       }
     }
-
-    // Fallback: buscar en localStorage
     const localData = localStorage.getItem(STORAGE_KEYS.SHIFTS);
     if (localData) {
       try {
         const all = JSON.parse(localData);
         const config = useConfigStore.getState().config || {};
-        return all
-          .filter((s) => s.date === date)
-          .map((s) => ensureShiftStructure(s, config));
-      } catch (e) {
-        return [];
-      }
+        return all.filter((s) => s.date === date).map((s) => ensureShiftStructure(s, config));
+      } catch (e) { return []; }
     }
     return [];
   },
 
-  /**
-   * Obtener un turno específico por ID (para regenerar PDFs)
-   */
   getShiftById: async (id) => {
-    // Primero buscar en el historial local (rápido)
     const { shiftsHistory } = get();
     const found = shiftsHistory.find((s) => s.id === id);
     if (found) return found;
 
-    // Si Firebase disponible, buscar en Firestore
     if (isFirebaseConfigured()) {
       try {
-        const { doc, getDoc } = await import('firebase/firestore');
         const db = getDb();
-        const shiftRef = doc(db, 'shifts', id);
-        const docSnap = await getDoc(shiftRef);
-
+        const docSnap = await getDoc(doc(db, 'shifts', id));
         if (docSnap.exists()) {
-          const shiftData = docSnap.data();
+          const shiftData = { id: docSnap.id, ...docSnap.data() };
           const config = useConfigStore.getState().config || {};
           return ensureShiftStructure(shiftData, config);
         }
       } catch (error) {
-        console.error('Error buscando turno por ID en Firestore:', error);
+        console.error('Error buscando turno por ID:', error);
       }
     }
-
     return null;
   },
 
-  /**
-   * Obtener lista de fechas que tienen turnos cerrados
-   * Útil para el calendario de historial diario
-   */
   loadDatesWithShifts: async () => {
     if (isFirebaseConfigured()) {
       try {
-        const { collection, getDocs } = await import('firebase/firestore');
         const db = getDb();
-        const shiftsRef = collection(db, 'shifts');
-        const snapshot = await getDocs(shiftsRef);
-
+        const snapshot = await getDocs(query(collection(db, 'shifts'), where('status', '==', 'cerrado')));
         const dates = new Set();
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           if (data.date) dates.add(data.date);
         });
-
         return Array.from(dates).sort().reverse();
       } catch (error) {
-        console.error('Error consultando fechas con turnos:', error);
+        console.error('Error consultando fechas:', error);
       }
     }
-
-    // Fallback: localStorage
     const localData = localStorage.getItem(STORAGE_KEYS.SHIFTS);
     if (localData) {
       try {
         const all = JSON.parse(localData);
-        const dates = new Set(all.map((s) => s.date).filter(Boolean));
-        return Array.from(dates).sort().reverse();
-      } catch (e) {
-        return [];
-      }
+        return Array.from(new Set(all.map((s) => s.date).filter(Boolean))).sort().reverse();
+      } catch (e) { return []; }
     }
     return [];
   },
 
-  /**
-   * Limpiar listener de Firestore
-   */
   cleanup: () => {
-    if (unsubscribeShiftsHistory) {
-      unsubscribeShiftsHistory();
-      unsubscribeShiftsHistory = null;
-    }
+    if (unsubscribeCurrentShift) { unsubscribeCurrentShift(); unsubscribeCurrentShift = null; }
+    if (unsubscribeShiftsHistory) { unsubscribeShiftsHistory(); unsubscribeShiftsHistory = null; }
+    if (syncTimeout) { clearTimeout(syncTimeout); syncTimeout = null; }
   },
 }));
 
