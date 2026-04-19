@@ -4,9 +4,7 @@
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:8888',
-  'https://appestacion.netlify.app/'
-  // Agrega tu dominio de Netlify aquí:
-  // 'https://tu-proyecto.netlify.app',
+  'https://appestacion.netlify.app',
 ].filter(Boolean);
 
 /**

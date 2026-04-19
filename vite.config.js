@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icons/*.png', 'logo.svg'],
       manifest: {
-        name: 'CIERREESMF',
-        short_name: 'CIERREESMF',
+        name: 'Sistema de Cierre',
+        short_name: 'Cierre ES',
         description: 'Sistema de Cierre de Estacion de Servicio PDV Venezuela',
         start_url: '/',
         display: 'standalone',

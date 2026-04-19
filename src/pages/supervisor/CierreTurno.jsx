@@ -197,7 +197,7 @@ export default function CierreTurno() {
                   ))}
                   <Grid item xs={6} sm={4} md={3}>
                     <CurrencyInput
-                      label="Bs. Adicionales"
+                      label="UE Bs."
                       value={island.bsAdicionales || 0}
                       onChange={(v) => updateIslandField(iid, 'bsAdicionales', v)}
                       currency="BS"
@@ -234,7 +234,7 @@ export default function CierreTurno() {
                   ))}
                   <Grid item xs={6} sm={4} md={3}>
                     <CurrencyInput
-                      label="$ Adicionales"
+                      label="UE $"
                       value={island.usdAdicionales || 0}
                       onChange={(v) => updateIslandField(iid, 'usdAdicionales', v)}
                       currency="USD"

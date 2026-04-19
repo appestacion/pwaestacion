@@ -1,6 +1,6 @@
 // netlify/functions/auto-update-rate.js
 // Actualización automática de tasa de cambio USD/VES (CRON)
-// SEGURIDAD: Requiere header secreto (X-Cron-Secret) para invocaciones automáticas
+// SEGURIDAD: Requiere header secreto (X-Cron-Secret) O query param (?secret=xxx)
 //           o autenticación Firebase para invocaciones manuales
 //
 // LÓGICA DE ROTACIÓN:
@@ -42,13 +42,21 @@ const UPDATE_INTERVAL = 3;
 
 /**
  * Verificar si la petición viene del CRON (cron-job.org)
- * o de un usuario autenticado con Firebase
+ * Acepta: header X-Cron-Secret O query param ?secret=xxx
  */
 function verifyCronOrAuth(event) {
+  // Opción 1: Header X-Cron-Secret
   const cronHeader = event.headers?.['x-cron-secret'] || event.headers?.['X-Cron-Secret'];
   if (CRON_SECRET && cronHeader === CRON_SECRET) {
     return { authenticated: true, isCron: true, uid: 'system', role: 'system' };
   }
+
+  // Opción 2: Query parameter ?secret= (compatible con cron-job.org)
+  const querySecret = event.queryStringParameters?.secret || event.queryStringParameters?.Secret;
+  if (CRON_SECRET && querySecret === CRON_SECRET) {
+    return { authenticated: true, isCron: true, uid: 'system', role: 'system' };
+  }
+
   return null;
 }
 

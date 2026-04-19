@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -12,6 +13,7 @@ import { useConfigStore } from './store/useConfigStore.js';
 import { useInventoryStore } from './store/useInventoryStore.js';
 import { useGandolaStore } from './store/useGandolaStore.js';
 import { useNetworkStore } from './store/useNetworkStore.js';
+import { updatePWAIdentity } from './services/pwaIdentity.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -34,6 +36,8 @@ import CuadrePV from './pages/supervisor/CuadrePV.jsx';
 import Inventario from './pages/supervisor/Inventario.jsx';
 import RecepcionGandola from './pages/supervisor/RecepcionGandola.jsx';
 import GenerarPDF from './pages/supervisor/GenerarPDF.jsx';
+import ReporteLecturaRecepcion from './pages/supervisor/ReporteLecturaRecepcion.jsx';
+import Estadisticas from './pages/supervisor/Estadisticas.jsx';
 
 function AppInitializer({ children }) {
   const initAuth = useStore((state) => state.initAuth);
@@ -43,6 +47,17 @@ function AppInitializer({ children }) {
   const loadStock = useInventoryStore((state) => state.loadStock);
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
   const initNetwork = useNetworkStore((state) => state.init);
+
+  // Suscribirse al nombre y color de la estacion para actualizar PWA dinamicamente
+  const stationName = useConfigStore((state) => state.stationName);
+  const stationColorPrimary = useConfigStore((state) => state.stationColorPrimary);
+
+  // Actualizar la identidad de la PWA cuando cambie el nombre o color de la estacion
+  useEffect(() => {
+    if (stationName && stationName !== 'Mi Estacion de Servicio') {
+      updatePWAIdentity(stationName, stationColorPrimary);
+    }
+  }, [stationName, stationColorPrimary]);
 
   useEffect(() => {
     initNetwork();
@@ -62,7 +77,7 @@ function RoleRedirect() {
   const location = useLocation();
   const user = useStore((state) => state.user);
 
-  if (user?.role === 'administrador' && (location.pathname === '/' || location.pathname === '/lecturas' || location.pathname === '/cierre' || location.pathname === '/biblia' || location.pathname === '/cuadre-pv' || location.pathname === '/inventario' || location.pathname === '/generar-pdf' || location.pathname === '/recepcion-gandola')) {
+  if (user?.role === 'administrador' && (location.pathname === '/' || location.pathname === '/lecturas' || location.pathname === '/cierre' || location.pathname === '/reporte' || location.pathname === '/biblia' || location.pathname === '/cuadre-pv' || location.pathname === '/inventario' || location.pathname === '/generar-pdf' || location.pathname === '/recepcion-gandola' || location.pathname === '/estadisticas')) {
     return <Navigate to="/admin" replace />;
   }
 
@@ -99,11 +114,13 @@ export default function App() {
                   <Route index element={<SupervisorDashboard />} />
                   <Route path="lecturas" element={<Lecturas />} />
                   <Route path="cierre" element={<CierreTurno />} />
+                  <Route path="reporte" element={<ReporteLecturaRecepcion />} />
                   <Route path="biblia" element={<Biblia />} />
                   <Route path="cuadre-pv" element={<CuadrePV />} />
                   <Route path="inventario" element={<Inventario />} />
                   <Route path="recepcion-gandola" element={<RecepcionGandola />} />
                   <Route path="generar-pdf" element={<GenerarPDF />} />
+                  <Route path="estadisticas" element={<Estadisticas />} />
                 </Route>
               </Route>
 
