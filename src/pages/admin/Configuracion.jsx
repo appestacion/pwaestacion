@@ -11,20 +11,22 @@ import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
-import SaveIcon from '@mui/icons-material/Save';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import SyncIcon from '@mui/icons-material/Sync';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
+import CircularProgress from '@mui/material/CircularProgress';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useConfigStore } from '../../store/useConfigStore.js';
+import { uploadImageToImgbb } from '../../lib/imgbbUpload.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function Configuracion() {
   const { config, firestoreActive, loadConfig, updateConfig, resetConfig } = useConfigStore();
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -37,7 +39,6 @@ export default function Configuracion() {
     }
   }, [config.stationLogo]);
 
-  // Formatear fecha de última actualización de tasa
   const formatLastUpdate = () => {
     if (!config.lastRateUpdate) return null;
     try {
@@ -52,25 +53,42 @@ export default function Configuracion() {
 
   const lastUpdateStr = formatLastUpdate();
 
-  const handleLogoUpload = (event) => {
+  const handleLogoUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       enqueueSnackbar({ message: 'Solo se permiten archivos de imagen', variant: 'error' });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      enqueueSnackbar({ message: 'La imagen no debe superar 2MB', variant: 'error' });
+    if (file.size > 5 * 1024 * 1024) {
+      enqueueSnackbar({ message: 'La imagen no debe superar 5MB', variant: 'error' });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target.result;
-      setPreview(base64);
-      updateConfig({ stationLogo: base64 });
-      enqueueSnackbar({ message: 'Logo actualizado correctamente', variant: 'success' });
-    };
-    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const localPreview = URL.createObjectURL(file);
+      setPreview(localPreview);
+
+      const result = await uploadImageToImgbb(file);
+
+      updateConfig({ stationLogo: result.url });
+
+      enqueueSnackbar({
+        message: 'Logo subido a imgbb correctamente',
+        variant: 'success',
+      });
+    } catch (error) {
+      console.error('Error subiendo logo:', error);
+      setPreview(config.stationLogo || '');
+      enqueueSnackbar({
+        message: `Error al subir imagen: ${error.message}`,
+        variant: 'error',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleRemoveLogo = () => {
@@ -88,9 +106,9 @@ export default function Configuracion() {
     }
   };
 
-  const handleSave = () => {
-    enqueueSnackbar({ message: 'Configuración guardada correctamente', variant: 'success' });
-  };
+  // Formatear a 2 decimales para mostrar en los campos de tasa
+  const tasa1Display = config.tasa1 != null ? parseFloat(config.tasa1).toFixed(2) : '';
+  const tasa2Display = config.tasa2 != null ? parseFloat(config.tasa2).toFixed(2) : '';
 
   return (
     <Box>
@@ -154,23 +172,36 @@ export default function Configuracion() {
             Logo de la Estación
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-            {preview ? (
-              <Avatar
-                src={preview}
-                alt={config.stationName}
-                sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100' }}
-                variant="rounded"
-              />
-            ) : (
-              <Box
-                sx={{
-                  width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.400' }} />
-              </Box>
-            )}
+            <Box sx={{ position: 'relative' }}>
+              {preview ? (
+                <Avatar
+                  src={preview}
+                  alt={config.stationName}
+                  sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100' }}
+                  variant="rounded"
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.400' }} />
+                </Box>
+              )}
+              {uploading && (
+                <Box
+                  sx={{
+                    position: 'absolute', inset: 0, borderRadius: 2,
+                    bgcolor: 'rgba(0,0,0,0.4)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <CircularProgress size={28} sx={{ color: 'white' }} />
+                </Box>
+              )}
+            </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <input
                 type="file"
@@ -178,16 +209,18 @@ export default function Configuracion() {
                 ref={fileInputRef}
                 style={{ display: 'none' }}
                 onChange={handleLogoUpload}
+                disabled={uploading}
               />
               <Button
                 variant="outlined"
                 size="small"
-                startIcon={<UploadFileIcon />}
+                startIcon={uploading ? <CircularProgress size={16} /> : <CloudUploadIcon />}
                 onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
               >
-                Subir Logo
+                {uploading ? 'Subiendo a imgbb...' : 'Subir Logo'}
               </Button>
-              {preview && (
+              {preview && !uploading && (
                 <Button
                   variant="text"
                   size="small"
@@ -199,8 +232,13 @@ export default function Configuracion() {
                 </Button>
               )}
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Imagen PNG o JPG, máximo 2MB
+                Imagen PNG o JPG, máximo 5MB. Se guarda en imgbb (nube).
               </Typography>
+              {preview && !preview.startsWith('blob:') && (
+                <Typography variant="caption" sx={{ color: 'success.main' }}>
+                  Imagen hospedada en imgbb
+                </Typography>
+              )}
             </Box>
           </Box>
         </CardContent>
@@ -250,11 +288,12 @@ export default function Configuracion() {
                 fullWidth
                 label="Tasa 1 (Bs. por $)"
                 type="number"
-                value={config.tasa1 || ''}
+                value={tasa1Display}
                 onChange={(e) => updateConfig({ tasa1: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
                 helperText="Tasa principal"
                 InputLabelProps={{ shrink: true }}
+                inputProps={{ step: '0.01', min: 0 }}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
@@ -262,19 +301,17 @@ export default function Configuracion() {
                 fullWidth
                 label="Tasa 2 (Bs. por $)"
                 type="number"
-                value={config.tasa2 || ''}
+                value={tasa2Display}
                 onChange={(e) => updateConfig({ tasa2: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
                 helperText="Segunda tasa"
                 InputLabelProps={{ shrink: true }}
+                inputProps={{ step: '0.01', min: 0 }}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               {firestoreActive && (
                 <Box sx={{ mt: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                    Fuente: {config.rateSource || 'N/A'}
-                  </Typography>
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                     Fecha valor: {config.fechaValor || 'N/A'}
                   </Typography>
@@ -372,7 +409,7 @@ export default function Configuracion() {
       </Card>
 
       {/* Actions */}
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Button
           variant="outlined"
           color="warning"
@@ -380,9 +417,6 @@ export default function Configuracion() {
           onClick={handleReset}
         >
           Restaurar Valores por Defecto
-        </Button>
-        <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave}>
-          Guardar Configuración
         </Button>
       </Box>
     </Box>

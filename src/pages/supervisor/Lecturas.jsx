@@ -6,7 +6,6 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -15,11 +14,10 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
-import SaveIcon from '@mui/icons-material/Save';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatNumber } from '../../lib/formatters.js';
 import { TANK_LABELS, SHIFT_LABELS } from '../../config/constants.js';
-import { enqueueSnackbar } from 'notistack';
 
 export default function Lecturas() {
   const {
@@ -28,7 +26,6 @@ export default function Lecturas() {
     updateTankReading,
     setGandolaLiters,
     updateTasa,
-    saveCurrentShift,
     loadCurrentShift,
   } = useCierreStore();
 
@@ -46,10 +43,7 @@ export default function Lecturas() {
     updateTankReading(index, field, num);
   };
 
-  const handleSave = () => {
-    saveCurrentShift();
-    enqueueSnackbar({ message: 'Lecturas guardadas correctamente', variant: 'success' });
-  };
+  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real (debounce 2s)
 
   if (!currentShift) {
     return (
@@ -76,9 +70,7 @@ export default function Lecturas() {
             variant="outlined"
             size="small"
           />
-          <Button variant="contained" onClick={handleSave} startIcon={<SaveIcon />}>
-            Guardar
-          </Button>
+          <Chip label="Auto-guardado" color="success" size="small" variant="outlined" icon={<CloudSyncIcon />} />
         </Box>
       </Box>
 

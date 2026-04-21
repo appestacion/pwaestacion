@@ -1,60 +1,76 @@
 /**
  * pwaIdentity.js
- * 
- * Actualiza dinamicamente el nombre de la PWA (manifest + titulo)
- * con el nombre de la estacion configurada por el usuario.
- * 
- * Se ejecuta despues de que loadConfig() carga el stationName
- * desde localStorage/Firestore.
+ *
+ * Actualiza dinamicamente la identidad de la PWA:
+ * - Nombre de la app (manifest + titulo)
+ * - Iconos (si hay logo subido a imgbb)
+ * - Favicon del navegador
+ * - Splash screen (via manifest)
+ *
+ * Se ejecuta despues de que loadConfig() carga la config desde Firestore.
  */
 
 let _lastStationName = null;
 let _manifestBlobUrl = null;
 
 /**
- * Actualiza el manifest PWA y el titulo del documento
- * con el nombre de la estacion proporcionado.
- * 
- * @param {string} stationName - Nombre de la estacion (ej: "Estacion San Martin")
- * @param {string} [colorPrimary] - Color primario opcional para el theme_color del manifest
+ * Actualiza el manifest PWA, el titulo del documento y el favicon
+ * con el nombre, color y logo de la estacion.
+ *
+ * @param {string} stationName - Nombre de la estacion
+ * @param {string} [colorPrimary] - Color primario para theme_color
+ * @param {string} [logoUrl] - URL del logo (imgbb) para usar como icono
  */
-export function updatePWAIdentity(stationName, colorPrimary) {
+export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
   if (!stationName || stationName === _lastStationName) return;
   _lastStationName = stationName;
 
   // 1. Actualizar el titulo de la pestana del navegador
   document.title = stationName;
 
-  // 2. Crear un manifest dinamico con el nombre de la estacion
+  // 2. Actualizar el favicon con el logo si existe
+  updateFavicon(logoUrl, colorPrimary);
+
+  // 3. Actualizar apple-touch-icon
+  updateAppleTouchIcon(logoUrl);
+
+  // 4. Crear un manifest dinamico con el nombre y logo de la estacion
   try {
-    // Obtener el manifest actual desde el link existente
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (!manifestLink) {
       console.warn('[PWA Identity] No se encontro <link rel="manifest">');
       return;
     }
 
-    // Construir el nuevo manifest con el nombre de la estacion
+    const shortName = stationName.length > 12 ? stationName.substring(0, 12) : stationName;
+
+    // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
+    const icons = logoUrl
+      ? [
+          { src: logoUrl, sizes: '192x192', type: 'image/png' },
+          { src: logoUrl, sizes: '512x512', type: 'image/png' },
+          { src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ]
+      : [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ];
+
     const dynamicManifest = {
       name: stationName,
-      short_name: stationName.length > 12 ? stationName.substring(0, 12) : stationName,
+      short_name: shortName,
       description: `Sistema de Cierre - ${stationName}`,
       start_url: '/',
       display: 'standalone',
       background_color: '#F5F5F5',
       theme_color: colorPrimary || '#CE1126',
       orientation: 'any',
-      icons: [
-        { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-      ],
+      icons,
     };
 
-    // Crear Blob URL con el manifest actualizado
     const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
 
-    // Liberar el Blob URL anterior si existe para evitar fuga de memoria
     if (_manifestBlobUrl) {
       URL.revokeObjectURL(_manifestBlobUrl);
     }
@@ -62,8 +78,79 @@ export function updatePWAIdentity(stationName, colorPrimary) {
     _manifestBlobUrl = URL.createObjectURL(manifestBlob);
     manifestLink.href = _manifestBlobUrl;
 
-    console.log(`[PWA Identity] Manifest actualizado: "${stationName}"`);
+    console.log(`[PWA Identity] Manifest actualizado: "${stationName}"${logoUrl ? ' (con logo imgbb)' : ''}`);
   } catch (error) {
     console.error('[PWA Identity] Error actualizando manifest:', error);
+  }
+}
+
+/**
+ * Actualiza el favicon del navegador.
+ * Si hay logo de imgbb, lo usa. Si no, genera un favicon con la inicial
+ * del nombre de la estacion y el color primario.
+ */
+function updateFavicon(logoUrl, colorPrimary) {
+  try {
+    let faviconLink = document.querySelector('link[rel="icon"][type="image/x-icon"]') ||
+                      document.querySelector('link[rel="icon"]') ||
+                      document.querySelector('link[rel="shortcut icon"]');
+
+    if (!faviconLink) {
+      faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      document.head.appendChild(faviconLink);
+    }
+
+    if (logoUrl) {
+      // Usar el logo de imgbb como favicon
+      faviconLink.type = 'image/png';
+      faviconLink.href = logoUrl;
+    } else {
+      // Generar favicon con la inicial del nombre
+      const stationName = _lastStationName || 'C';
+      const initial = stationName.charAt(0).toUpperCase();
+      const color = colorPrimary || '#CE1126';
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+
+      // Fondo circular con el color primario
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 64, 64);
+
+      // Letra blanca centrada
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 40px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(initial, 32, 34);
+
+      faviconLink.type = 'image/png';
+      faviconLink.href = canvas.toDataURL('image/png');
+    }
+  } catch (error) {
+    console.error('[PWA Identity] Error actualizando favicon:', error);
+  }
+}
+
+/**
+ * Actualiza el apple-touch-icon (icono en iOS/Safari).
+ */
+function updateAppleTouchIcon(logoUrl) {
+  try {
+    let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+
+    if (!appleIcon) {
+      appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(appleIcon);
+    }
+
+    if (logoUrl) {
+      appleIcon.href = logoUrl;
+    }
+  } catch (error) {
+    console.error('[PWA Identity] Error actualizando apple-touch-icon:', error);
   }
 }

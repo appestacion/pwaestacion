@@ -6,7 +6,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 import theme from './theme/theme.js';
 import useStore from './store/useStore.js';
-import { initDefaultData } from './services/storage.js';
 import { useCierreStore } from './store/useCierreStore.js';
 import { useProductStore } from './store/useProductStore.js';
 import { useConfigStore } from './store/useConfigStore.js';
@@ -48,21 +47,23 @@ function AppInitializer({ children }) {
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
   const initNetwork = useNetworkStore((state) => state.init);
 
-  // Suscribirse al nombre y color de la estacion para actualizar PWA dinamicamente
-  const stationName = useConfigStore((state) => state.stationName);
-  const stationColorPrimary = useConfigStore((state) => state.stationColorPrimary);
+  // Suscribirse al nombre, color y logo de la estacion para actualizar PWA
+  const config = useConfigStore((state) => state.config);
 
-  // Actualizar la identidad de la PWA cuando cambie el nombre o color de la estacion
+  // Actualizar la identidad de la PWA cuando cambie la config de la estacion
   useEffect(() => {
-    if (stationName && stationName !== 'Mi Estacion de Servicio') {
-      updatePWAIdentity(stationName, stationColorPrimary);
+    if (config.stationName && config.stationName !== 'Mi Estacion de Servicio') {
+      updatePWAIdentity(
+        config.stationName,
+        config.stationColorPrimary,
+        config.stationLogo
+      );
     }
-  }, [stationName, stationColorPrimary]);
+  }, [config.stationName, config.stationColorPrimary, config.stationLogo]);
 
   useEffect(() => {
     initNetwork();
     initAuth();
-    initDefaultData();
     loadConfig();
     loadProducts();
     loadStock();

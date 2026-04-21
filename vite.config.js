@@ -12,7 +12,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'icons/*.png', 'logo.svg'],
       manifest: {
         name: 'Sistema de Cierre',
-        short_name: 'Cierre ES',
+        short_name: 'Cierre',
         description: 'Sistema de Cierre de Estacion de Servicio PDV Venezuela',
         start_url: '/',
         display: 'standalone',

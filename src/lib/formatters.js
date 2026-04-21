@@ -70,13 +70,23 @@ export function toInputDate(date) {
 
 /**
  * Get current date in Venezuela timezone (America/Caracas)
+ * Usa Intl.DateTimeFormat con zona horaria explicita para evitar
+ * problemas de offset en servidores locales (netlify dev) u otros paises.
  */
 export function getVenezuelaDate() {
   const now = new Date();
-  const venezuelaOffset = -4 * 60; // UTC-4
-  const localOffset = now.getTimezoneOffset();
-  const diff = localOffset - venezuelaOffset;
-  return new Date(now.getTime() + diff * 60 * 1000);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Caracas',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+
+  const year = parseInt(parts.find((p) => p.type === 'year').value);
+  const month = parseInt(parts.find((p) => p.type === 'month').value);
+  const day = parseInt(parts.find((p) => p.type === 'day').value);
+
+  return new Date(year, month - 1, day);
 }
 
 /**

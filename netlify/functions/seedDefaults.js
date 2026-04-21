@@ -42,7 +42,7 @@ export const handler = async (event) => {
     const PRODUCTS_LIST = [
       { name: 'FLEX METANOL', category: 'aditivo', priceUSD: 2.50 },
       { name: 'POWER BOOSTER', category: 'aditivo', priceUSD: 3.00 },
-      { name: 'STP OCTANAJE PEQUENO NARANJA', category: 'aditivo', priceUSD: 3.50 },
+      { name: 'STP OCTANAJE PEQUEÑO NARANJA', category: 'aditivo', priceUSD: 3.50 },
       { name: 'STP NEGRO', category: 'aditivo', priceUSD: 4.00 },
       { name: 'STP GRIS', category: 'aditivo', priceUSD: 3.50 },
       { name: 'STP BLANCO', category: 'aditivo', priceUSD: 3.00 },

@@ -1,4 +1,4 @@
-// src/pages/supervisor/Biblia.jsx
+// src/pages/supervisor/CierreTurno.jsx
 import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -19,14 +19,15 @@ import Tab from '@mui/material/Tab';
 import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
-import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import MenuItem from '@mui/material/MenuItem';
 import CurrencyInput from '../../components/common/CurrencyInput.jsx';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
+import { useConfigStore } from '../../store/useConfigStore.js';
 import { formatBs, formatUSD } from '../../lib/formatters.js';
-import { enqueueSnackbar } from 'notistack';
 
 export default function CierreTurno() {
   const {
@@ -36,11 +37,11 @@ export default function CierreTurno() {
     updateCorteBs,
     updateCorteUSD,
     recalcIslandPV,
-    saveCurrentShift,
     addProductSold,
     removeProductSold,
   } = useCierreStore();
   const { products, loadProducts } = useProductStore();
+  const maxCortes = useConfigStore((s) => s.config.maxCortes) || 12;
   const [activeTab, setActiveTab] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
@@ -50,12 +51,8 @@ export default function CierreTurno() {
     loadProducts();
   }, [loadCurrentShift, loadProducts]);
 
-  const handleSave = () => {
-    const ids = (currentShift?.islands || []).map((i) => i.islandId);
-    ids.forEach((id) => recalcIslandPV(id));
-    saveCurrentShift();
-    enqueueSnackbar({ message: 'Cierre guardado correctamente', variant: 'success' });
-  };
+  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real (debounce 2s)
+  // No se necesita boton de guardar.
 
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
@@ -135,9 +132,7 @@ export default function CierreTurno() {
             Registro de cortes, PV, vales y productos — {currentShift.date}
           </Typography>
         </Box>
-        <Button variant="contained" onClick={handleSave} startIcon={<SaveIcon />}>
-          Guardar Cierre
-        </Button>
+        <Chip label="Auto-guardado en la nube" color="success" size="small" variant="outlined" icon={<CloudSyncIcon />} />
       </Box>
 
       <Tabs
@@ -155,8 +150,11 @@ export default function CierreTurno() {
       {(currentShift.islands || []).map((island, tabIndex) => {
         if (activeTab !== tabIndex) return null;
         const iid = island.islandId;
-        const totalCortesBs = (island.cortesBs || []).reduce((s, v) => s + v, 0) + (island.bsAdicionales || 0);
+        const cortesBsArray = (island.cortesBs || []).slice(0, maxCortes);
+        const cortesUSDArray = (island.cortesUSD || []).slice(0, maxCortes);
+        const totalCortesBs = cortesBsArray.reduce((s, v) => s + v, 0) + (island.bsAdicionales || 0);
         const totalCortesBsInUSD = tasa1 > 0 ? totalCortesBs / tasa1 : 0;
+        const totalCortesUSD = cortesUSDArray.reduce((s, v) => s + v, 0) + (island.usdAdicionales || 0);
         const totalVales = (island.vales || []).reduce((s, v) => s + (v.monto || 0), 0);
         const totalTransferencias = (island.transferencias || []).reduce((s, t) => s + (t.monto || 0), 0);
 
@@ -185,7 +183,7 @@ export default function CierreTurno() {
                   Cortes en Bolivares
                 </Typography>
                 <Grid container spacing={1}>
-                  {(island.cortesBs || []).map((val, idx) => (
+                  {cortesBsArray.map((val, idx) => (
                     <Grid item xs={6} sm={4} md={3} key={idx}>
                       <CurrencyInput
                         label={`Corte ${idx + 1}`}
@@ -222,7 +220,7 @@ export default function CierreTurno() {
                   Cortes en Dolares
                 </Typography>
                 <Grid container spacing={1}>
-                  {(island.cortesUSD || []).map((val, idx) => (
+                  {cortesUSDArray.map((val, idx) => (
                     <Grid item xs={6} sm={4} md={3} key={idx}>
                       <CurrencyInput
                         label={`Corte ${idx + 1}`}
@@ -243,7 +241,7 @@ export default function CierreTurno() {
                 </Grid>
                 <Box sx={{ mt: 1, textAlign: 'right' }}>
                   <Chip
-                    label={`Total: ${formatUSD((island.cortesUSD || []).reduce((s, v) => s + v, 0) + (island.usdAdicionales || 0))}`}
+                    label={`Total: ${formatUSD(totalCortesUSD)}`}
                     color="success"
                     size="small"
                   />
@@ -293,10 +291,13 @@ export default function CierreTurno() {
                   </Grid>
                 </Grid>
                 <Divider sx={{ my: 2 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                  <Typography variant="body2">
-                    <strong>Total PV:</strong> {formatBs(island.pvTotalBs || 0)} = {formatUSD(island.pvTotalUSD || 0)}
-                  </Typography>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Chip
+                    label={`Total PV: ${formatBs(island.pvTotalBs || 0)} = ${formatUSD(island.pvTotalUSD || 0)}`}
+                    color="secondary"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
                 </Box>
               </CardContent>
             </Card>
@@ -343,13 +344,15 @@ export default function CierreTurno() {
                       />
                     </Grid>
                   </Grid>
-                  {(island.pv2TotalBs || 0) > 0 && (
-                    <Box sx={{ mt: 1 }}>
-                      <Typography variant="body2">
-                        <strong>Total PV2:</strong> {formatBs(island.pv2TotalBs || 0)} = {formatUSD(island.pv2TotalUSD || 0)}
-                      </Typography>
-                    </Box>
-                  )}
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Chip
+                      label={`Total PV2: ${formatBs(island.pv2TotalBs || 0)} = ${formatUSD(island.pv2TotalUSD || 0)}`}
+                      color="info"
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
                 </CardContent>
               </Card>
             )}
@@ -467,9 +470,9 @@ export default function CierreTurno() {
                     sx={{ minWidth: 250 }}
                   >
                     {activeProducts.map((p) => (
-                      <option key={p.id} value={p.name}>
+                      <MenuItem key={p.id} value={p.name}>
                         {p.name} (${p.priceUSD.toFixed(2)})
-                      </option>
+                      </MenuItem>
                     ))}
                   </TextField>
                   <TextField

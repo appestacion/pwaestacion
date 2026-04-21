@@ -16,11 +16,11 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
-import SaveIcon from '@mui/icons-material/Save';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import MenuItem from '@mui/material/MenuItem';
 import { useGandolaStore } from '../../store/useGandolaStore.js';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatNumber } from '../../lib/formatters.js';
@@ -30,7 +30,6 @@ import { enqueueSnackbar } from 'notistack';
 const PRODUCT_TYPES = [
   { value: 'gasolina_95', label: 'Gasolina 95 Octanos' },
   { value: 'gasolina_91', label: 'Gasolina 91 Octanos' },
-  { value: 'diesel', label: 'Diesel' },
 ];
 
 export default function RecepcionGandola() {
@@ -42,7 +41,6 @@ export default function RecepcionGandola() {
     updateTankReception,
     closeReception,
     cancelReception,
-    saveCurrentReception,
   } = useGandolaStore();
 
   const { currentShift } = useCierreStore();
@@ -56,10 +54,7 @@ export default function RecepcionGandola() {
     enqueueSnackbar({ message: 'Recepcion de Gandola iniciada', variant: 'info' });
   };
 
-  const handleSave = () => {
-    saveCurrentReception();
-    enqueueSnackbar({ message: 'Datos guardados correctamente', variant: 'success' });
-  };
+  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real
 
   const handleClose = () => {
     closeReception();
@@ -71,7 +66,6 @@ export default function RecepcionGandola() {
     enqueueSnackbar({ message: 'Recepcion cancelada', variant: 'warning' });
   };
 
-  // Calculate totals
   const totalLitersBefore = currentReception
     ? currentReception.tankReadings.reduce((s, t) => s + t.litersBefore, 0)
     : 0;
@@ -106,7 +100,6 @@ export default function RecepcionGandola() {
               Iniciar Recepcion de Gandola
             </Button>
 
-            {/* Shift info */}
             {currentShift && (
               <Box sx={{ mt: 3 }}>
                 <Chip label={`Turno activo: ${currentShift.date}`} color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
@@ -162,7 +155,7 @@ export default function RecepcionGandola() {
                     onChange={(e) => updateReceptionField('productType', e.target.value)}
                   >
                     {PRODUCT_TYPES.map((pt) => (
-                      <option key={pt.value} value={pt.value}>{pt.label}</option>
+                      <MenuItem key={pt.value} value={pt.value}>{pt.label}</MenuItem>
                     ))}
                   </TextField>
                 </Grid>
@@ -206,7 +199,6 @@ export default function RecepcionGandola() {
                     {currentReception.tankReadings.map((tank, idx) => (
                       <TableRow key={tank.tankId}>
                         <TableCell sx={{ fontWeight: 600 }}>{TANK_LABELS[tank.tankId]}</TableCell>
-                        {/* Before */}
                         <TableCell align="right" sx={{ bgcolor: '#FFF8E1' }}>
                           <TextField
                             type="number"
@@ -221,7 +213,6 @@ export default function RecepcionGandola() {
                         <TableCell align="right" sx={{ bgcolor: '#FFF8E1', fontWeight: 600, color: 'text.secondary' }}>
                           {formatNumber(tank.litersBefore, 0)}
                         </TableCell>
-                        {/* After */}
                         <TableCell align="right" sx={{ bgcolor: '#F1F8E9' }}>
                           <TextField
                             type="number"
@@ -236,7 +227,6 @@ export default function RecepcionGandola() {
                         <TableCell align="right" sx={{ bgcolor: '#F1F8E9', fontWeight: 600, color: 'text.secondary' }}>
                           {formatNumber(tank.litersAfter, 0)}
                         </TableCell>
-                        {/* Difference */}
                         <TableCell
                           align="right"
                           sx={{
@@ -255,7 +245,6 @@ export default function RecepcionGandola() {
 
               <Divider sx={{ my: 2 }} />
 
-              {/* Totals */}
               <Grid container spacing={2}>
                 <Grid item xs={4}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Total Antes</Typography>
@@ -279,9 +268,6 @@ export default function RecepcionGandola() {
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={handleCancel}>
               Cancelar Recepcion
-            </Button>
-            <Button variant="outlined" startIcon={<SaveIcon />} onClick={handleSave}>
-              Guardar Progreso
             </Button>
             <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleClose}>
               Cerrar Recepcion

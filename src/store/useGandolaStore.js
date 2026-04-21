@@ -1,8 +1,8 @@
 // src/store/useGandolaStore.js
-// Recepcion de gandolas con Firestore en tiempo real + localStorage (offline cache)
+// Recepcion de gandolas con Firestore en tiempo real.
+// Cloud-only — no localStorage fallback.
 
 import { create } from 'zustand';
-import { STORAGE_KEYS } from '../services/storage.js';
 import { generateId, getVenezuelaDateString } from '../lib/formatters.js';
 import { cmToLiters } from '../lib/conversions.js';
 import { isFirebaseConfigured, getDb } from '../config/firebase.js';
@@ -43,19 +43,7 @@ const useGandolaStore = create((set, get) => ({
   receptionsHistory: [],
   firestoreActive: false,
 
-  /**
-   * Cargar recepcion actual: localStorage primero, luego Firestore
-   */
   loadCurrentReception: () => {
-    const data = localStorage.getItem(STORAGE_KEYS.GANDOLA_CURRENT);
-    if (data) {
-      try {
-        set({ currentReception: JSON.parse(data) });
-      } catch (e) {
-        console.error('Error parseando recepcion localStorage:', e);
-      }
-    }
-
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -72,10 +60,8 @@ const useGandolaStore = create((set, get) => ({
             if (!snapshot.empty) {
               const reception = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
               set({ currentReception: reception, firestoreActive: true });
-              localStorage.setItem(STORAGE_KEYS.GANDOLA_CURRENT, JSON.stringify(reception));
             } else {
               set({ currentReception: null });
-              localStorage.removeItem(STORAGE_KEYS.GANDOLA_CURRENT);
             }
           },
           (error) => {
@@ -88,19 +74,7 @@ const useGandolaStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Cargar historial de recepciones en tiempo real
-   */
   loadReceptionsHistory: () => {
-    const data = localStorage.getItem(STORAGE_KEYS.GANDOLA_HISTORY);
-    if (data) {
-      try {
-        set({ receptionsHistory: JSON.parse(data) });
-      } catch (e) {
-        console.error('Error parseando historial gandola:', e);
-      }
-    }
-
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -116,7 +90,6 @@ const useGandolaStore = create((set, get) => ({
               .map((d) => ({ id: d.id, ...d.data() }))
               .slice(0, 100);
             set({ receptionsHistory: history, firestoreActive: true });
-            localStorage.setItem(STORAGE_KEYS.GANDOLA_HISTORY, JSON.stringify(history));
           },
           (error) => {
             console.error('Error Firestore onSnapshot (receptions):', error);
@@ -132,7 +105,6 @@ const useGandolaStore = create((set, get) => ({
     const reception = createEmptyGandolaReception();
 
     set({ currentReception: reception });
-    localStorage.setItem(STORAGE_KEYS.GANDOLA_CURRENT, JSON.stringify(reception));
 
     if (isFirebaseConfigured()) {
       try {
@@ -150,8 +122,13 @@ const useGandolaStore = create((set, get) => ({
 
   saveCurrentReception: () => {
     const { currentReception } = get();
-    if (currentReception) {
-      localStorage.setItem(STORAGE_KEYS.GANDOLA_CURRENT, JSON.stringify(currentReception));
+    if (currentReception && isFirebaseConfigured()) {
+      try {
+        const db = getDb();
+        setDoc(doc(db, 'gandolaReceptions', currentReception.id), currentReception, { merge: true });
+      } catch (error) {
+        console.error('Error guardando recepcion en Firestore:', error);
+      }
     }
   },
 
@@ -160,7 +137,6 @@ const useGandolaStore = create((set, get) => ({
     if (!currentReception) return;
     const updated = { ...currentReception, [field]: value };
     set({ currentReception: updated });
-    localStorage.setItem(STORAGE_KEYS.GANDOLA_CURRENT, JSON.stringify(updated));
 
     if (isFirebaseConfigured() && currentReception.id) {
       try {
@@ -193,7 +169,6 @@ const useGandolaStore = create((set, get) => ({
     tank.litersDifference = tank.litersAfter - tank.litersBefore;
 
     set({ currentReception: updated });
-    localStorage.setItem(STORAGE_KEYS.GANDOLA_CURRENT, JSON.stringify(updated));
 
     if (isFirebaseConfigured() && currentReception.id) {
       try {
@@ -208,18 +183,15 @@ const useGandolaStore = create((set, get) => ({
   },
 
   closeReception: async () => {
-    const { currentReception, receptionsHistory } = get();
+    const { currentReception } = get();
     if (!currentReception) return;
     const closed = {
       ...currentReception,
       status: 'completada',
       closedAt: new Date().toISOString(),
     };
-    const newHistory = [closed, ...receptionsHistory].slice(0, 100);
 
-    set({ currentReception: null, receptionsHistory: newHistory });
-    localStorage.removeItem(STORAGE_KEYS.GANDOLA_CURRENT);
-    localStorage.setItem(STORAGE_KEYS.GANDOLA_HISTORY, JSON.stringify(newHistory));
+    set({ currentReception: null });
 
     if (isFirebaseConfigured() && currentReception.id) {
       try {
@@ -238,7 +210,6 @@ const useGandolaStore = create((set, get) => ({
   cancelReception: async () => {
     const { currentReception } = get();
     set({ currentReception: null });
-    localStorage.removeItem(STORAGE_KEYS.GANDOLA_CURRENT);
 
     if (isFirebaseConfigured() && currentReception?.id) {
       try {

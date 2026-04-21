@@ -1,10 +1,10 @@
 // src/store/useConfigStore.js
-// Configuracion con Firebase Firestore (tiempo real) + localStorage (fallback offline)
+// Configuracion con Firebase Firestore (tiempo real).
+// Cloud-only — no localStorage fallback.
 
 import { create } from 'zustand';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { isFirebaseConfigured, getDb } from '../config/firebase.js';
-import { STORAGE_KEYS } from '../services/storage.js';
 
 const defaultConfig = {
   tasa1: 50.00,
@@ -35,16 +35,6 @@ const useConfigStore = create((set, get) => ({
   loading: true,
 
   loadConfig: () => {
-    const localData = localStorage.getItem(STORAGE_KEYS.CONFIG);
-    if (localData) {
-      try {
-        const parsed = JSON.parse(localData);
-        set({ config: { ...defaultConfig, ...parsed } });
-      } catch (e) {
-        console.error('Error parseando config localStorage:', e);
-      }
-    }
-
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -59,13 +49,24 @@ const useConfigStore = create((set, get) => ({
                 ...get().config,
                 tasa1: firestoreData.tasa1 ?? get().config.tasa1,
                 tasa2: firestoreData.tasa2 ?? get().config.tasa2,
+                stationName: firestoreData.stationName ?? get().config.stationName,
+                stationRif: firestoreData.stationRif ?? get().config.stationRif,
+                stationAddress: firestoreData.stationAddress ?? get().config.stationAddress,
+                stationPhone: firestoreData.stationPhone ?? get().config.stationPhone,
+                stationLogo: firestoreData.stationLogo ?? get().config.stationLogo,
+                stationColorPrimary: firestoreData.stationColorPrimary ?? get().config.stationColorPrimary,
+                stationColorSecondary: firestoreData.stationColorSecondary ?? get().config.stationColorSecondary,
+                stationColorAccent: firestoreData.stationColorAccent ?? get().config.stationColorAccent,
+                tanksCount: firestoreData.tanksCount ?? get().config.tanksCount,
+                islandsCount: firestoreData.islandsCount ?? get().config.islandsCount,
+                pumpsPerIsland: firestoreData.pumpsPerIsland ?? get().config.pumpsPerIsland,
+                maxCortes: firestoreData.maxCortes ?? get().config.maxCortes,
                 previousTasa2: firestoreData.previousTasa2 ?? null,
                 fechaValor: firestoreData.fechaValor ?? null,
                 lastRateUpdate: firestoreData.lastRateUpdate ?? null,
                 rateSource: firestoreData.rateSource ?? null,
               };
               set({ config: newConfig, firestoreActive: true, loading: false });
-              localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(newConfig));
             } else {
               setDoc(configRef, {
                 tasa1: get().config.tasa1,
@@ -103,9 +104,8 @@ const useConfigStore = create((set, get) => ({
   updateConfig: (updates) => {
     const newConfig = { ...get().config, ...updates };
     set({ config: newConfig });
-    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(newConfig));
 
-    if (get().firestoreActive && isFirebaseConfigured()) {
+    if (isFirebaseConfigured()) {
       try {
         const db = getDb();
         const configRef = doc(db, 'settings', 'app_config');
@@ -120,9 +120,8 @@ const useConfigStore = create((set, get) => ({
 
   resetConfig: () => {
     set({ config: defaultConfig });
-    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(defaultConfig));
 
-    if (get().firestoreActive && isFirebaseConfigured()) {
+    if (isFirebaseConfigured()) {
       try {
         const db = getDb();
         const configRef = doc(db, 'settings', 'app_config');
@@ -133,6 +132,7 @@ const useConfigStore = create((set, get) => ({
           stationRif: defaultConfig.stationRif,
           stationAddress: defaultConfig.stationAddress,
           stationPhone: defaultConfig.stationPhone,
+          stationLogo: '',
           stationColorPrimary: defaultConfig.stationColorPrimary,
           stationColorSecondary: defaultConfig.stationColorSecondary,
           stationColorAccent: defaultConfig.stationColorAccent,
