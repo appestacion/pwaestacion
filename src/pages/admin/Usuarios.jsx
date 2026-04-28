@@ -278,6 +278,7 @@ export default function Usuarios() {
                   fullWidth
                   label="Contrasena (minimo 6 caracteres)"
                   type="password"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />

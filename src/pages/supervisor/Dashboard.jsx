@@ -17,17 +17,46 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import NightlightIcon from '@mui/icons-material/Nightlight';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useNavigate } from 'react-router-dom';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { formatBs, formatNumber } from '../../lib/formatters.js';
 import { calcTotalLitersSold, calcLitersByIsland } from '../../lib/calculations.js';
-import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS, SUPERVISOR_CLOSES_SHIFT, ISLAND_LABELS } from '../../config/constants.js';
+import { SHIFT_LABELS, SHIFT_LABELS_SHORT, SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT, ISLAND_LABELS } from '../../config/constants.js';
+
+// Datos de cada tarjeta de turno supervisor
+const SHIFT_CARDS = {
+  AM: {
+    key: 'AM',
+    label: '1TS',
+    fullLabel: '1TS (6:00 AM - 2:00 PM)',
+    closesLabel: 'Cierra 2TO Nocturno (7:00 PM - 7:00 AM)',
+    closesLabelMobile: 'Cierra 2TO Nocturno',
+    color: '#CE1126',
+    icon: <NightlightIcon />,
+  },
+  PM: {
+    key: 'PM',
+    label: '2TS',
+    fullLabel: '2TS (2:00 PM - 10:00 PM)',
+    closesLabel: 'Cierra 1TO Diurno (7:00 AM - 7:00 PM)',
+    closesLabelMobile: 'Cierra 1TO Diurno',
+    color: '#003399',
+    icon: <WbSunnyIcon />,
+  },
+};
 
 export default function SupervisorDashboard() {
   const { currentShift, initNewShift, closeShift } = useCierreStore();
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isXs = useMediaQuery(theme.breakpoints.down('xs'));
 
   const handleStartShift = (supervisorShiftType) => {
     initNewShift(supervisorShiftType, config.tasa1, config.tasa2);
@@ -47,73 +76,156 @@ export default function SupervisorDashboard() {
     { label: 'Biblia', icon: <BookIcon />, path: '/biblia', color: '#FFD100' },
     { label: 'Cuadre PV', icon: <PointOfSaleIcon />, path: '/cuadre-pv', color: '#00A651' },
     { label: 'Inventario', icon: <InventoryIcon />, path: '/inventario', color: '#FF6600' },
-    { label: 'Recepción Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
+    { label: 'Recepcion Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
     { label: 'Generar PDF', icon: <PictureAsPdfIcon />, path: '/generar-pdf', color: '#666666' },
   ];
 
   return (
     <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+      {/* Header */}
+      <Box sx={{ mb: isMobile ? 2 : 3 }}>
+        <Typography
+          variant={isMobile ? 'h6' : 'h5'}
+          sx={{ fontWeight: 700 }}
+        >
           Dashboard Supervisor
         </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary', fontSize: isXs ? '0.75rem' : '0.875rem' }}
+        >
           Control de operaciones del turno
         </Typography>
       </Box>
 
       {!currentShift ? (
-        <Card sx={{ mb: 3 }}>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-              No hay un turno activo. Selecciona tu turno de supervisor para comenzar el cierre del turno de operadores correspondiente.
-            </Alert>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<PlayArrowIcon />}
-                onClick={() => handleStartShift('AM')}
-                sx={{ px: 4 }}
-              >
-                Turno Supervisor 6:00 AM - 2:00 PM
-              </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                startIcon={<PlayArrowIcon />}
-                onClick={() => handleStartShift('PM')}
-                sx={{ px: 4, borderColor: 'secondary.main', color: 'secondary.main' }}
-              >
-                Turno Supervisor 2:00 PM - 10:00 PM
-              </Button>
-            </Box>
-            <Box sx={{ mt: 3, display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Chip
-                label="6AM → Cierra Turno Nocturno (7PM-7AM)"
-                sx={{ fontWeight: 600 }}
-                color="primary"
-                variant="outlined"
-              />
-              <Chip
-                label="2PM → Cierra Turno Diurno (7AM-7PM)"
-                sx={{ fontWeight: 600 }}
-                color="secondary"
-                variant="outlined"
-              />
-            </Box>
-          </CardContent>
-        </Card>
-      ) : (
+        /* ========== SIN TURNO ACTIVO ========== */
         <>
-          {/* Active Shift Card */}
-          <Card sx={{ mb: 3, borderLeft: '4px solid', borderColor: currentShift.status === 'en_progreso' ? 'success.main' : 'grey.400' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-                <Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      {SUPERVISOR_SHIFT_LABELS[currentShift.supervisorShiftType]}
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontSize: isXs ? '0.78rem' : undefined }}>
+            No hay un turno activo. Selecciona tu turno de supervisor para comenzar el cierre del turno de operadores correspondiente.
+          </Alert>
+
+          {/* Tarjetas de turno - cada una con su info de cierre dentro */}
+          <Grid container spacing={isMobile ? 2 : 3}>
+            {Object.values(SHIFT_CARDS).map((shiftCard) => (
+              <Grid item xs={12} sm={6} key={shiftCard.key}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderLeft: '4px solid',
+                    borderColor: shiftCard.color,
+                    transition: 'all 0.2s',
+                    '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
+                  }}
+                >
+                  <CardContent
+                    sx={{
+                      textAlign: 'center',
+                      py: isMobile ? 3 : 4,
+                      px: isMobile ? 2 : 3,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 1.5,
+                    }}
+                  >
+                    {/* Icono + Label del turno */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: isMobile ? 48 : 56,
+                        height: isMobile ? 48 : 56,
+                        borderRadius: '12px',
+                        bgcolor: `${shiftCard.color}15`,
+                        color: shiftCard.color,
+                        mb: 0.5,
+                      }}
+                    >
+                      {shiftCard.icon}
+                    </Box>
+
+                    <Typography
+                      variant={isMobile ? 'h6' : 'h5'}
+                      sx={{ fontWeight: 700, color: shiftCard.color }}
+                    >
+                      {shiftCard.label}
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary', fontWeight: 500 }}
+                    >
+                      {shiftCard.fullLabel}
+                    </Typography>
+
+                    {/* Info de cierre - DENTRO de la tarjeta */}
+                    <Chip
+                      label={isMobile ? shiftCard.closesLabelMobile : shiftCard.closesLabel}
+                      icon={isMobile ? undefined : shiftCard.icon}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: isXs ? '0.68rem' : '0.78rem',
+                        borderColor: shiftCard.color,
+                        color: shiftCard.color,
+                        bgcolor: `${shiftCard.color}08`,
+                        mt: 1,
+                      }}
+                    />
+
+                    {/* Boton para iniciar */}
+                    <Button
+                      variant="contained"
+                      size={isMobile ? 'medium' : 'large'}
+                      startIcon={<PlayArrowIcon />}
+                      onClick={() => handleStartShift(shiftCard.key)}
+                      sx={{
+                        mt: 1,
+                        px: isMobile ? 3 : 4,
+                        width: '100%',
+                        maxWidth: 320,
+                        bgcolor: shiftCard.color,
+                        '&:hover': { bgcolor: shiftCard.color, filter: 'brightness(0.9)' },
+                      }}
+                    >
+                      Iniciar {shiftCard.label}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </>
+      ) : (
+        /* ========== TURNO ACTIVO ========== */
+        <>
+          {/* Tarjeta de turno activo */}
+          <Card sx={{
+            mb: isMobile ? 2 : 3,
+            borderLeft: '4px solid',
+            borderColor: currentShift.status === 'en_progreso' ? 'success.main' : 'grey.400',
+          }}>
+            <CardContent sx={{ px: isMobile ? 2 : 3, py: isMobile ? 2 : 3 }}>
+              {/* Encabezado del turno - responsive */}
+              <Box sx={{
+                display: 'flex',
+                justifyContent: isMobile ? 'space-between' : 'flex-start',
+                alignItems: isMobile ? 'center' : 'flex-start',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+                    <Typography
+                      variant={isMobile ? 'subtitle1' : 'h6'}
+                      sx={{ fontWeight: 700 }}
+                    >
+                      {isMobile
+                        ? SUPERVISOR_SHIFT_LABELS_SHORT[currentShift.supervisorShiftType]
+                        : SUPERVISOR_SHIFT_LABELS[currentShift.supervisorShiftType]}
                     </Typography>
                     <Chip
                       label={currentShift.status === 'en_progreso' ? 'En Progreso' : 'Cerrado'}
@@ -122,20 +234,45 @@ export default function SupervisorDashboard() {
                       icon={currentShift.status === 'en_progreso' ? <CheckCircleIcon /> : undefined}
                     />
                   </Box>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Cerrando: <strong>{SHIFT_LABELS[currentShift.operatorShiftType]}</strong>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: isXs ? '0.75rem' : undefined }}>
+                    Cerrando: <strong>{isMobile
+                      ? SHIFT_LABELS_SHORT[currentShift.operatorShiftType]
+                      : SHIFT_LABELS[currentShift.operatorShiftType]}</strong>
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Fecha: {currentShift.date} &nbsp;|&nbsp; Tasa BCV: {formatBs(currentShift.tasa1)}
-                    {currentShift.tasa2 > 0 && ` / ${formatBs(currentShift.tasa2)}`}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: isXs ? '0.75rem' : undefined,
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    Fecha: {currentShift.date}
+                    {isMobile ? (
+                      <React.Fragment>
+                        <br />
+                        BCV: {formatBs(currentShift.tasa1)}
+                        {currentShift.tasa2 > 0 && ` / ${formatBs(currentShift.tasa2)}`}
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        &nbsp;|&nbsp; Tasa BCV: {formatBs(currentShift.tasa1)}
+                        {currentShift.tasa2 > 0 && ` / ${formatBs(currentShift.tasa2)}`}
+                      </React.Fragment>
+                    )}
                   </Typography>
                 </Box>
+
                 {currentShift.status === 'en_progreso' && (
                   <Button
                     variant="contained"
                     color="error"
                     onClick={handleCloseShift}
-                    size="small"
+                    size={isMobile ? 'small' : 'medium'}
+                    sx={{
+                      minWidth: isMobile ? 'auto' : undefined,
+                      px: isMobile ? 2 : undefined,
+                    }}
                   >
                     Cerrar Turno
                   </Button>
@@ -144,15 +281,27 @@ export default function SupervisorDashboard() {
             </CardContent>
           </Card>
 
-          {/* Summary Cards */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          {/* Tarjetas resumen - 2x2 en movil, 4 en linea en desktop */}
+          <Grid container spacing={isMobile ? 1.5 : 2} sx={{ mb: isMobile ? 2 : 3 }}>
             <Grid item xs={6} sm={3}>
               <Card sx={{ height: '100%' }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Litros Totales
+                <CardContent sx={{ p: isMobile ? 1.5 : 2, '&:last-child': { pb: isMobile ? 1.5 : 2 } }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      fontSize: isXs ? '0.6rem' : '0.75rem',
+                    }}
+                  >
+                    {isXs ? 'Total' : 'Litros Totales'}
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5 }}>
+                  <Typography
+                    variant={isMobile ? 'h6' : 'h5'}
+                    sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5 }}
+                  >
                     {formatNumber(totalLiters, 0)}
                   </Typography>
                 </CardContent>
@@ -161,11 +310,21 @@ export default function SupervisorDashboard() {
             {[1, 2, 3].map((id) => (
               <Grid item xs={6} sm={3} key={id}>
                 <Card sx={{ height: '100%' }}>
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  <CardContent sx={{ p: isMobile ? 1.5 : 2, '&:last-child': { pb: isMobile ? 1.5 : 2 } }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 600,
+                        fontSize: isXs ? '0.6rem' : '0.75rem',
+                      }}
+                    >
                       {ISLAND_LABELS[id]}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.5 }}>
+                    <Typography
+                      variant={isMobile ? 'h6' : 'h5'}
+                      sx={{ fontWeight: 700, mt: 0.5 }}
+                    >
                       {formatNumber(litersByIsland[id], 0)}
                       <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>L</Typography>
                     </Typography>
@@ -175,9 +334,11 @@ export default function SupervisorDashboard() {
             ))}
           </Grid>
 
-          {/* Quick Actions */}
-          <Typography variant="h6" sx={{ mb: 2 }}>Acciones Rápidas</Typography>
-          <Grid container spacing={2}>
+          {/* Acciones Rapidas */}
+          <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ mb: isMobile ? 1.5 : 2 }}>
+            Acciones Rapidas
+          </Typography>
+          <Grid container spacing={isMobile ? 1.5 : 2}>
             {quickActions.map((action) => (
               <Grid item xs={6} sm={4} key={action.path}>
                 <Card
@@ -185,27 +346,44 @@ export default function SupervisorDashboard() {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
-                    borderLeft: '4px solid',
+                    borderLeft: '3px solid',
                     borderColor: action.color,
+                    height: '100%',
                   }}
                   onClick={() => navigate(action.path)}
                 >
-                  <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, '&:last-child': { pb: 2 } }}>
+                  <CardContent sx={{
+                    p: isMobile ? 1.5 : 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isMobile ? 1 : 1.5,
+                    '&:last-child': { pb: isMobile ? 1.5 : 2 },
+                    flexDirection: isXs && action.label.length > 10 ? 'column' : 'row',
+                    textAlign: isXs && action.label.length > 10 ? 'center' : 'left',
+                  }}>
                     <Box
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: 40,
-                        height: 40,
+                        width: isMobile ? 36 : 40,
+                        height: isMobile ? 36 : 40,
                         borderRadius: '10px',
                         bgcolor: `${action.color}15`,
                         color: action.color,
+                        flexShrink: 0,
                       }}
                     >
                       {action.icon}
                     </Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: isXs ? '0.72rem' : '0.875rem',
+                        lineHeight: 1.2,
+                      }}
+                    >
                       {action.label}
                     </Typography>
                   </CardContent>

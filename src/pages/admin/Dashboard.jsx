@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
@@ -26,6 +27,8 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -42,7 +45,6 @@ import { enqueueSnackbar } from 'notistack';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// ── Color palette ──
 const COLORS = {
   primary: '#CE1126',
   secondary: '#003399',
@@ -54,56 +56,72 @@ const COLORS = {
 };
 
 const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.success, COLORS.accent, COLORS.purple, COLORS.orange];
+const CHART_GRID = '#EEEEEE';
+const CHART_TEXT = '#616161';
 
-const CHART_GRID = 'rgba(255,255,255,0.08)';
-const CHART_TEXT = '#b0b0c0';
-
-// ── Custom dark-theme Recharts Tooltip ──
 function ChartTooltipContent({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
   return (
-    <Box sx={{
-      bgcolor: 'rgba(20,20,40,0.95)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: 2,
-      p: 1.5,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-    }}>
-      <Typography variant="caption" sx={{ color: '#ccc', fontWeight: 700, display: 'block', mb: 0.5 }}>
+    <Paper sx={{ p: 1.5, borderRadius: 2, boxShadow: 3 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.5 }}>
         {label}
       </Typography>
       {payload.map((entry, i) => (
-        <Typography key={i} variant="caption" sx={{ color: entry.color, display: 'block', lineHeight: 1.6 }}>
-          {entry.name}: <strong>{typeof entry.value === 'number' ? entry.value.toLocaleString('es-VE', { minimumFractionDigits: 2 }) : entry.value}</strong>
+        <Typography key={i} variant="body2" sx={{ display: 'block', lineHeight: 1.6 }}>
+          <span style={{ color: entry.color, fontWeight: 600 }}>{entry.name}:</span>{' '}
+          <strong>{typeof entry.value === 'number' ? entry.value.toLocaleString('es-VE', { minimumFractionDigits: 2 }) : entry.value}</strong>
         </Typography>
       ))}
-    </Box>
+    </Paper>
   );
 }
 
-// ── Animated stat card ──
-function StatCard({ label, value, icon, color, subtitle, onClick }) {
+function StatCard({ label, value, icon, color, subtitle, onClick, isMobile, isXs }) {
   return (
-    <Card elevation={0} onClick={onClick} sx={{
-      background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
-      border: `1px solid ${color}25`,
-      borderRadius: 3,
-      cursor: onClick ? 'pointer' : 'default',
-      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
-      '&:hover': { transform: 'translateY(-4px)', boxShadow: `0 8px 30px ${color}30`, borderColor: `${color}50` },
-    }}>
-      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 52, height: 52, borderRadius: '14px',
-            background: `linear-gradient(135deg, ${color}25, ${color}10)`,
-            color: color, '& .MuiSvgIcon-root': { fontSize: 28 },
-          }}>{icon}</Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.68rem' }}>{label}</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2, color }}>{value}</Typography>
-            {subtitle && <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem' }}>{subtitle}</Typography>}
+    <Card
+      onClick={onClick}
+      sx={{
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        borderRadius: 3,
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' },
+      }}
+    >
+      <CardContent sx={{ p: isMobile ? 1.5 : 2.5, '&:last-child': { pb: isMobile ? 1.5 : 2.5 } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: isXs ? '0.7rem' : undefined }}>
+              {label}
+            </Typography>
+            <Typography
+              variant={isMobile ? 'h6' : 'h4'}
+              fontWeight={700}
+              color={color}
+              sx={{ fontSize: isXs && typeof value === 'string' && value.length > 12 ? '0.9rem' : undefined }}
+            >
+              {value}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontSize: isXs ? '0.6rem' : undefined }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: isMobile ? 38 : 48,
+              height: isMobile ? 38 : 48,
+              borderRadius: 2,
+              bgcolor: `${color}15`,
+              color: color,
+              flexShrink: 0,
+            }}
+          >
+            {icon}
           </Box>
         </Box>
       </CardContent>
@@ -111,21 +129,16 @@ function StatCard({ label, value, icon, color, subtitle, onClick }) {
   );
 }
 
-// ── Animated chart wrapper ──
-function AnimatedCard({ children, title, action }) {
+function ChartCard({ children, title, action, isMobile }) {
   return (
-    <Card elevation={0} sx={{
-      background: 'linear-gradient(145deg, #1e1e38 0%, #141428 100%)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      borderRadius: 3, overflow: 'hidden',
-    }}>
+    <Card sx={{ borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
       {title && (
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2.5, pt: 2, pb: 0 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#e0e0f0' }}>{title}</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: isMobile ? 1.5 : 2.5, pt: isMobile ? 1.5 : 2, pb: 0 }}>
+          <Typography variant={isMobile ? 'subtitle1' : 'h6'} fontWeight={600}>{title}</Typography>
           {action}
         </Box>
       )}
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>{children}</CardContent>
+      <CardContent sx={{ p: isMobile ? 1 : 2, '&:last-child': { pb: isMobile ? 1 : 2 } }}>{children}</CardContent>
     </Card>
   );
 }
@@ -136,6 +149,9 @@ export default function DashboardAdmin() {
   const { products, loadProducts } = useProductStore();
   const config = useConfigStore((state) => state.config);
   const chartsRef = useRef(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isXs = useMediaQuery(theme.breakpoints.down('xs'));
 
   const [tabValue, setTabValue] = useState(0);
   const [dateFrom, setDateFrom] = useState('');
@@ -162,7 +178,6 @@ export default function DashboardAdmin() {
   const activeProducts = products.filter((p) => p.active);
   const closedShifts = shiftsHistory.filter((s) => s.status === 'cerrado');
 
-  // ── Date filtering ──
   const filteredShifts = useMemo(() => {
     let shifts = closedShifts;
     if (dateFrom) shifts = shifts.filter((s) => s.date >= dateFrom);
@@ -170,7 +185,6 @@ export default function DashboardAdmin() {
     return shifts;
   }, [closedShifts, dateFrom, dateTo]);
 
-  // ── Aggregate stats ──
   const stats = useMemo(() => {
     let totalLiters = 0, totalUSD = 0, totalBs = 0, totalProductsUSD = 0;
     const islandLiters = { 1: 0, 2: 0, 3: 0 };
@@ -198,7 +212,6 @@ export default function DashboardAdmin() {
     return { totalLiters, totalUSD, totalBs, totalProductsUSD, islandLiters, productCount, dailyLiters };
   }, [filteredShifts]);
 
-  // ── Chart data ──
   const islandBarData = useMemo(() =>
     Object.entries(stats.islandLiters).map(([id, liters]) => ({
       name: `Isla ${id}`, Litros: Math.round(liters),
@@ -224,7 +237,6 @@ export default function DashboardAdmin() {
     return [{ name: 'Diurno', value: counts.DIURNO }, { name: 'Nocturno', value: counts.NOCTURNO }];
   }, [filteredShifts]);
 
-  // ── PDF Export ──
   const generatePDF = useCallback(() => {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
@@ -310,7 +322,6 @@ export default function DashboardAdmin() {
     }
   }, [stats, users, activeProducts, filteredShifts, productPieData, config.tasa1]);
 
-  // ── WhatsApp share ──
   const shareWhatsApp = useCallback(() => {
     const fecha = getVenezuelaDateString();
     const text = `*REPORTE DE ESTACION*\n_Fecha: ${fecha}_\n\n*RESUMEN:*\n- Turnos cerrados: ${filteredShifts.length}\n- Litros totales: ${formatNumber(stats.totalLiters, 0)} L\n- Ingresos USD: ${formatUSD(stats.totalUSD)}\n- Ingresos Bs: ${formatBs(stats.totalBs)}\n- Productos vendidos: ${formatUSD(stats.totalProductsUSD)}\n\n*POR ISLA:*\n${Object.entries(stats.islandLiters).map(([id, liters]) => `- Isla ${id}: ${formatNumber(liters, 0)} L`).join('\n')}\n\n*Tasa BCV: ${config.tasa1 || 0} Bs/$*`;
@@ -318,225 +329,260 @@ export default function DashboardAdmin() {
     enqueueSnackbar({ message: 'Abriendo WhatsApp...', variant: 'info' });
   }, [stats, filteredShifts, config.tasa1]);
 
-  // ── Tab panel animation wrapper ──
   const chartSection = (children) => (
     <Box sx={{
-      animation: 'fadeIn 0.5s ease',
-      '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+      animation: 'fadeIn 0.4s ease',
+      '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(8px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
     }}>{children}</Box>
   );
 
+  const chartH = isMobile ? 260 : 340;
+  const chartHLarge = isMobile ? 280 : 400;
+
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: '#e0e0f0' }}>Dashboard Administrador</Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Vision general del sistema con estadisticas detalladas</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: isMobile ? 2 : 3, flexWrap: 'wrap', gap: 1 }}>
+        <Box>
+          <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight={700}>Dashboard</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: isXs ? '0.75rem' : undefined }}>
+            Panel de control del administrador
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Date filter */}
-      <Card elevation={0} sx={{ mb: 2.5, background: 'linear-gradient(145deg, #1e1e38, #141428)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <FilterListIcon sx={{ color: COLORS.accent, fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: '#b0b0c0', fontWeight: 600 }}>FILTRAR POR FECHA:</Typography>
-            <TextField size="small" type="date" label="Desde" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+      <Card sx={{ mb: isMobile ? 1.5 : 2.5, borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <CardContent sx={{ p: isMobile ? 1.5 : 2, '&:last-child': { pb: isMobile ? 1.5 : 2 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: isMobile ? 1 : 2, flexWrap: 'wrap' }}>
+            <FilterListIcon sx={{ color: COLORS.secondary, fontSize: 20 }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: isXs ? '0.65rem' : undefined }}>
+              Filtrar por fecha:
+            </Typography>
+            <TextField
+              size="small" type="date" label="Desde" value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
               InputLabelProps={{ shrink: true }}
-              sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, '& fieldset': { borderColor: 'rgba(255,255,255,0.12)' }, '&:hover fieldset': { borderColor: COLORS.accent }, '&.Mui-focused fieldset': { borderColor: COLORS.accent } }, '& .MuiInputLabel-root': { color: '#888', fontSize: '0.75rem' }, maxWidth: 170 }} />
-            <TextField size="small" type="date" label="Hasta" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              sx={{ maxWidth: isMobile ? 130 : 170, flex: isMobile ? 1 : 'none' }}
+            />
+            <TextField
+              size="small" type="date" label="Hasta" value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
               InputLabelProps={{ shrink: true }}
-              sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, '& fieldset': { borderColor: 'rgba(255,255,255,0.12)' }, '&:hover fieldset': { borderColor: COLORS.accent }, '&.Mui-focused fieldset': { borderColor: COLORS.accent } }, '& .MuiInputLabel-root': { color: '#888', fontSize: '0.75rem' }, maxWidth: 170 }} />
+              sx={{ maxWidth: isMobile ? 130 : 170, flex: isMobile ? 1 : 'none' }}
+            />
             {(dateFrom || dateTo) && (
-              <Button size="small" onClick={() => { setDateFrom(''); setDateTo(''); }} sx={{ color: COLORS.grey, fontSize: '0.72rem' }}>Limpiar filtro</Button>
+              <Button size="small" onClick={() => { setDateFrom(''); setDateTo(''); }} sx={{ color: COLORS.grey, fontSize: '0.72rem' }}>
+                Limpiar filtro
+              </Button>
             )}
           </Box>
         </CardContent>
       </Card>
 
-      {/* Stat cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={isMobile ? 1.5 : 2.5} sx={{ mb: isMobile ? 1.5 : 3 }}>
         <Grid item xs={6} sm={3}>
           <StatCard label="Usuarios" value={users.length} icon={<PeopleIcon />} color={COLORS.primary}
-            subtitle={`${users.filter((u) => u.role === 'administrador').length} admins / ${users.filter((u) => u.role === 'supervisor').length} supervisores`} />
+            subtitle={`${users.filter((u) => u.role === 'administrador').length} admins / ${users.filter((u) => u.role === 'supervisor').length} superv`}
+            isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard label="Productos Activos" value={activeProducts.length} icon={<CategoryIcon />} color={COLORS.secondary}
-            subtitle={`de ${products.length} totales`} />
+            subtitle={`de ${products.length} totales`} isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard label="Litros Totales" value={formatNumber(stats.totalLiters, 0) + ' L'} icon={<LocalGasStationIcon />} color={COLORS.accent}
-            subtitle={`${filteredShifts.length} turnos`} />
+            subtitle={`${filteredShifts.length} turnos`} isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard label="Ingresos USD" value={formatUSD(stats.totalUSD)} icon={<AttachMoneyIcon />} color={COLORS.success}
-            subtitle={`+ ${formatUSD(stats.totalProductsUSD)} productos`} />
+            subtitle={`+ ${formatUSD(stats.totalProductsUSD)} prod`} isMobile={isMobile} isXs={isXs} />
         </Grid>
       </Grid>
 
-      {/* Secondary stats row */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={isMobile ? 1.5 : 2.5} sx={{ mb: isMobile ? 1.5 : 3 }}>
         <Grid item xs={6} sm={4}>
           <StatCard label="Ingresos Bolivares" value={formatBs(stats.totalBs)} icon={<TrendingUpIcon />} color={COLORS.purple}
-            subtitle={`Tasa: ${config.tasa1 || 0} Bs/$`} />
+            subtitle={`Tasa: ${config.tasa1 || 0} Bs/$`} isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={6} sm={4}>
           <StatCard label="Turnos Cerrados" value={closedShifts.length} icon={<SpeedIcon />} color={COLORS.orange}
-            subtitle={filteredShifts.length !== closedShifts.length ? `${filteredShifts.length} en periodo` : 'Total historico'} />
+            subtitle={filteredShifts.length !== closedShifts.length ? `${filteredShifts.length} en periodo` : 'Total historico'}
+            isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={12} sm={4}>
           <StatCard label="Tasa BCV" value={`Bs. ${config.tasa1 || 0}`} icon={<TrendingUpIcon />} color={COLORS.accent}
-            subtitle={config.tasa2 ? `Gasolina Premium: Bs. ${config.tasa2}` : 'Solo gasolina regular'} />
+            subtitle={config.tasa2 ? `Premium: Bs. ${config.tasa2}` : 'Solo regular'} isMobile={isMobile} isXs={isXs} />
         </Grid>
       </Grid>
 
-      {/* Action buttons */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: isMobile ? 1 : 1.5, mb: isMobile ? 1.5 : 3, flexWrap: 'wrap' }}>
         <Button variant="contained" startIcon={<FileDownloadIcon />} onClick={generatePDF}
-          sx={{ background: 'linear-gradient(135deg, #CE1126, #a00d1e)', borderRadius: 2, px: 3, py: 1, fontWeight: 600, textTransform: 'none', '&:hover': { background: 'linear-gradient(135deg, #e0132a, #CE1126)' } }}>
+          sx={{ borderRadius: 2, px: isMobile ? 2 : 3, py: 1, fontWeight: 600, textTransform: 'none', fontSize: isMobile ? '0.8rem' : undefined }}>
           Exportar PDF
         </Button>
         <Button variant="contained" startIcon={<WhatsAppIcon />} onClick={shareWhatsApp}
-          sx={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', borderRadius: 2, px: 3, py: 1, fontWeight: 600, textTransform: 'none', '&:hover': { background: 'linear-gradient(135deg, #2ed87a, #25D366)' } }}>
-          Enviar por WhatsApp
+          sx={{ background: '#25D366', borderRadius: 2, px: isMobile ? 2 : 3, py: 1, fontWeight: 600, textTransform: 'none', fontSize: isMobile ? '0.8rem' : undefined, '&:hover': { background: '#1da851' } }}>
+          {isMobile ? 'WhatsApp' : 'Enviar por WhatsApp'}
         </Button>
       </Box>
 
-      {/* Tabs */}
-      <Card elevation={0} sx={{ mb: 3, background: 'linear-gradient(145deg, #1e1e38, #141428)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
-        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}
-          sx={{ px: 2, pt: 1, '& .MuiTab-root': { color: '#888', fontWeight: 600, fontSize: '0.78rem', textTransform: 'none', '&.Mui-selected': { color: COLORS.accent } }, '& .MuiTabs-indicator': { backgroundColor: COLORS.accent } }}>
-          <Tab label="Ventas por Isla" />
-          <Tab label="Tendencia Diaria" />
+      <Card sx={{ mb: isMobile ? 1.5 : 3, borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <Tabs
+          value={tabValue}
+          onChange={(_, v) => setTabValue(v)}
+          variant={isMobile ? 'scrollable' : 'standard'}
+          scrollButtons={isMobile ? 'auto' : undefined}
+          sx={{
+            px: isMobile ? 1 : 2, pt: 1,
+            '& .MuiTab-root': { color: 'text.secondary', fontWeight: 600, fontSize: isXs ? '0.68rem' : '0.8rem', textTransform: 'none', minWidth: isMobile ? 'auto' : undefined },
+            '& .MuiTab-root.Mui-selected': { color: COLORS.primary },
+            '& .MuiTabs-indicator': { backgroundColor: COLORS.primary },
+          }}
+        >
+          <Tab label={isMobile ? 'Isla' : 'Ventas por Isla'} />
+          <Tab label={isMobile ? 'Tendencia' : 'Tendencia Diaria'} />
           <Tab label="Ingresos" />
           <Tab label="Productos" />
           <Tab label="Turnos" />
         </Tabs>
       </Card>
 
-      {/* Chart panels */}
       <Box ref={chartsRef}>
-        {/* Tab 0: Island bar chart + shift type pie */}
         {tabValue === 0 && chartSection(
-          <Grid container spacing={2}>
+          <Grid container spacing={isMobile ? 1.5 : 2.5}>
             <Grid item xs={12} md={8}>
-              <AnimatedCard title="Ventas por Isla (Litros y USD)">
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart data={islandBarData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <ChartCard title="Ventas por Isla (Litros y USD)" isMobile={isMobile}>
+                <ResponsiveContainer width="100%" height={chartH}>
+                  <BarChart data={islandBarData} margin={{ top: 10, right: isMobile ? 10 : 20, left: isMobile ? -10 : 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                    <XAxis dataKey="name" tick={{ fill: CHART_TEXT, fontSize: 12 }} />
-                    <YAxis tick={{ fill: CHART_TEXT, fontSize: 11 }} />
+                    <XAxis dataKey="name" tick={{ fill: CHART_TEXT, fontSize: isXs ? 10 : 12 }} />
+                    <YAxis tick={{ fill: CHART_TEXT, fontSize: isXs ? 10 : 11 }} />
                     <RechartsTooltip content={<ChartTooltipContent />} />
-                    <Legend wrapperStyle={{ fontSize: 12, color: '#ccc' }} />
-                    <Bar dataKey="Litros" fill={COLORS.primary} radius={[6, 6, 0, 0]} animationDuration={1200} animationEasing="ease-out" />
-                    <Bar dataKey="USD ($)" fill={COLORS.accent} radius={[6, 6, 0, 0]} animationDuration={1400} animationEasing="ease-out" />
+                    <Legend wrapperStyle={{ fontSize: isXs ? 10 : 12 }} />
+                    <Bar dataKey="Litros" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="USD ($)" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </AnimatedCard>
+              </ChartCard>
             </Grid>
             <Grid item xs={12} md={4}>
-              <AnimatedCard title="Distribucion por Turno">
-                <ResponsiveContainer width="100%" height={340}>
+              <ChartCard title="Distribucion por Turno" isMobile={isMobile}>
+                <ResponsiveContainer width="100%" height={chartH}>
                   <PieChart>
-                    <Pie data={shiftTypePieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value" animationDuration={1000} animationEasing="ease-out">
-                      {shiftTypePieData.map((_, i) => <Cell key={i} fill={i === 0 ? COLORS.accent : COLORS.secondary} />)}
+                    <Pie data={shiftTypePieData} cx="50%" cy="50%" innerRadius={isMobile ? 40 : 55} outerRadius={isMobile ? 70 : 90} paddingAngle={4} dataKey="value"
+                      label={isMobile ? false : ({ name, value }) => `${name} (${value})`}>
+                      {shiftTypePieData.map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? COLORS.accent : COLORS.secondary} />
+                      ))}
                     </Pie>
                     <RechartsTooltip content={<ChartTooltipContent />} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#ccc' }} />
+                    <Legend verticalAlign="bottom" iconType="circle" formatter={(value) => <span style={{ fontSize: isXs ? 11 : 13 }}>{value}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
-              </AnimatedCard>
+              </ChartCard>
             </Grid>
           </Grid>
         )}
 
-        {/* Tab 1: Daily trend area chart */}
         {tabValue === 1 && chartSection(
-          <AnimatedCard title="Tendencia de Litros Diarios (ultimos 14 dias)">
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={dailyAreaData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
-                <defs><linearGradient id="litersGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8} /><stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.05} /></linearGradient></defs>
+          <ChartCard title="Tendencia de Litros Diarios (ultimos 14 dias)" isMobile={isMobile}>
+            <ResponsiveContainer width="100%" height={chartHLarge}>
+              <AreaChart data={dailyAreaData} margin={{ top: 10, right: isMobile ? 5 : 20, left: isMobile ? -15 : 10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="litersGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                <XAxis dataKey="date" tick={{ fill: CHART_TEXT, fontSize: 10 }} angle={-25} textAnchor="end" height={50} />
-                <YAxis tick={{ fill: CHART_TEXT, fontSize: 11 }} />
+                <XAxis dataKey="date" tick={{ fill: CHART_TEXT, fontSize: isXs ? 8 : 10 }} angle={isMobile ? -45 : -25} textAnchor="end" height={isMobile ? 60 : 50} />
+                <YAxis tick={{ fill: CHART_TEXT, fontSize: isXs ? 10 : 11 }} />
                 <RechartsTooltip content={<ChartTooltipContent />} />
-                <Area type="monotone" dataKey="Litros" stroke={COLORS.primary} strokeWidth={3} fill="url(#litersGrad)" animationDuration={1500} animationEasing="ease-out"
-                  dot={{ r: 4, fill: COLORS.primary, stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6, fill: COLORS.accent, stroke: '#fff', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="Litros" stroke={COLORS.primary} strokeWidth={2.5} fill="url(#litersGrad)"
+                  dot={{ r: 4, fill: COLORS.primary, stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: COLORS.secondary, stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
-          </AnimatedCard>
+          </ChartCard>
         )}
 
-        {/* Tab 2: Revenue line chart */}
         {tabValue === 2 && chartSection(
-          <AnimatedCard title="Ingresos Diarios en Bolivares (ultimos 14 dias)">
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={revenueLineData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          <ChartCard title="Ingresos Diarios en Bolivares (ultimos 14 dias)" isMobile={isMobile}>
+            <ResponsiveContainer width="100%" height={chartHLarge}>
+              <LineChart data={revenueLineData} margin={{ top: 10, right: isMobile ? 5 : 20, left: isMobile ? -15 : 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                <XAxis dataKey="date" tick={{ fill: CHART_TEXT, fontSize: 10 }} angle={-25} textAnchor="end" height={50} />
-                <YAxis tick={{ fill: CHART_TEXT, fontSize: 11 }} />
+                <XAxis dataKey="date" tick={{ fill: CHART_TEXT, fontSize: isXs ? 8 : 10 }} angle={isMobile ? -45 : -25} textAnchor="end" height={isMobile ? 60 : 50} />
+                <YAxis tick={{ fill: CHART_TEXT, fontSize: isXs ? 10 : 11 }} />
                 <RechartsTooltip content={<ChartTooltipContent />} />
-                <Line type="monotone" dataKey="Ingresos (Bs)" stroke={COLORS.success} strokeWidth={3} animationDuration={1500} animationEasing="ease-out"
-                  dot={{ r: 4, fill: COLORS.success, stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7, fill: COLORS.accent, stroke: '#fff', strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="Ingresos (Bs)" stroke={COLORS.success} strokeWidth={2.5}
+                  dot={{ r: 4, fill: COLORS.success, stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: COLORS.accent, stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
-          </AnimatedCard>
+          </ChartCard>
         )}
 
-        {/* Tab 3: Products pie chart + ranking */}
         {tabValue === 3 && chartSection(
-          <Grid container spacing={2}>
+          <Grid container spacing={isMobile ? 1.5 : 2.5}>
             <Grid item xs={12} md={6}>
-              <AnimatedCard title="Productos Mas Vendidos">
-                <ResponsiveContainer width="100%" height={350}>
+              <ChartCard title="Productos Mas Vendidos" isMobile={isMobile}>
+                <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
                   <PieChart>
-                    <Pie data={productPieData} cx="50%" cy="50%" outerRadius={120} paddingAngle={3} dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`} labelLine={{ stroke: '#666', strokeWidth: 1 }} animationDuration={1200} animationEasing="ease-out">
-                      {productPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    <Pie data={productPieData} cx="50%" cy="50%" outerRadius={isMobile ? 80 : 110} paddingAngle={3} dataKey="value"
+                      label={isMobile ? false : ({ name, value }) => `${name}: ${value}`} labelLine={{ strokeWidth: 1 }}>
+                      {productPieData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
                     </Pie>
                     <RechartsTooltip content={<ChartTooltipContent />} />
+                    {isMobile && (
+                      <Legend verticalAlign="bottom" iconType="circle" formatter={(value) => <span style={{ fontSize: 10 }}>{value}</span>} />
+                    )}
                   </PieChart>
                 </ResponsiveContainer>
-              </AnimatedCard>
+              </ChartCard>
             </Grid>
             <Grid item xs={12} md={6}>
-              <AnimatedCard title="Ranking de Productos">
-                <Box sx={{ maxHeight: 350, overflow: 'auto' }}>
+              <ChartCard title="Ranking de Productos" isMobile={isMobile}>
+                <Box sx={{ maxHeight: isMobile ? 280 : 350, overflow: 'auto' }}>
                   {productPieData.length === 0 ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-                      <Typography variant="body2" sx={{ color: '#888' }}>Sin datos de productos vendidos</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 250 }}>
+                      <Typography variant="body2" color="text.secondary">Sin datos de productos vendidos</Typography>
                     </Box>
                   ) : productPieData.map((p, i) => (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
-                      <Typography variant="body2" sx={{ flex: 1, color: '#ccc', fontSize: '0.8rem' }}>{p.fullName || p.name}</Typography>
-                      <Chip label={`${p.value} uds`} size="small" sx={{ bgcolor: `${PIE_COLORS[i % PIE_COLORS.length]}20`, color: PIE_COLORS[i % PIE_COLORS.length], fontWeight: 700, fontSize: '0.72rem' }} />
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: isMobile ? 1 : 1.5, p: isMobile ? 1 : 1.5, borderBottom: '1px solid #F0F0F0', '&:hover': { bgcolor: '#FAFAFA' } }}>
+                      <Box sx={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8, borderRadius: '50%', bgcolor: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ flex: 1, fontSize: isXs ? '0.75rem' : '0.85rem' }}>{p.fullName || p.name}</Typography>
+                      <Chip label={`${p.value} uds`} size="small" sx={{
+                        bgcolor: `${PIE_COLORS[i % PIE_COLORS.length]}15`, color: PIE_COLORS[i % PIE_COLORS.length], fontWeight: 700, fontSize: isXs ? '0.65rem' : '0.72rem',
+                      }} />
                     </Box>
                   ))}
                 </Box>
-              </AnimatedCard>
+              </ChartCard>
             </Grid>
           </Grid>
         )}
 
-        {/* Tab 4: Shifts table */}
         {tabValue === 4 && chartSection(
-          <AnimatedCard title="Detalle de Turnos Cerrados">
+          <ChartCard title="Detalle de Turnos Cerrados" isMobile={isMobile}>
             {filteredShifts.length === 0 ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-                <Typography variant="body2" sx={{ color: '#888' }}>No hay turnos cerrados{dateFrom || dateTo ? ' en el periodo seleccionado' : ''}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 250 }}>
+                <Typography variant="body2" color="text.secondary">
+                  No hay turnos cerrados{dateFrom || dateTo ? ' en el periodo seleccionado' : ''}
+                </Typography>
               </Box>
             ) : (
-              <TableContainer sx={{ maxHeight: 500 }}>
-                <Table size="small">
+              <TableContainer sx={{ maxHeight: isMobile ? 400 : 500 }}>
+                <Table size="small" sx={{ minWidth: isMobile ? 550 : undefined }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }}>Fecha</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }}>Turno</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }} align="right">Tasa</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }} align="right">Litros</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }} align="right">PV USD</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }} align="right">PV Bs</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#e0e0f0' }} align="center">Estado</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Fecha</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Turno</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="right">Tasa</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="right">Litros</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="right">PV USD</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="right">PV Bs</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="center">Estado</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -546,18 +592,22 @@ export default function DashboardAdmin() {
                       const bs = (shift.islands || []).reduce((sum, isl) => sum + (isl.pvTotalBs || 0), 0);
                       return (
                         <TableRow key={shift.id} hover>
-                          <TableCell sx={{ color: '#ccc' }}>{shift.date}</TableCell>
+                          <TableCell>{shift.date}</TableCell>
                           <TableCell>
-                            <Chip label={shift.operatorShiftType || '-'} size="small"
-                              sx={{ bgcolor: shift.operatorShiftType === 'DIURNO' ? `${COLORS.accent}25` : `${COLORS.secondary}25`, color: shift.operatorShiftType === 'DIURNO' ? COLORS.accent : COLORS.secondary, fontWeight: 600, fontSize: '0.7rem' }} />
+                            <Chip label={shift.operatorShiftType || '-'} size="small" sx={{
+                              bgcolor: shift.operatorShiftType === 'DIURNO' ? `${COLORS.accent}20` : `${COLORS.secondary}15`,
+                              color: shift.operatorShiftType === 'DIURNO' ? '#B8860B' : COLORS.secondary, fontWeight: 600, fontSize: '0.72rem',
+                            }} />
                           </TableCell>
-                          <TableCell align="right" sx={{ color: '#ccc' }}>{formatBs(shift.tasa1 || 0)}</TableCell>
-                          <TableCell align="right" sx={{ color: '#ccc', fontWeight: 600 }}>{formatNumber(liters, 0)} L</TableCell>
+                          <TableCell align="right">{formatBs(shift.tasa1 || 0)}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>{formatNumber(liters, 0)} L</TableCell>
                           <TableCell align="right" sx={{ color: COLORS.success, fontWeight: 600 }}>{formatUSD(usd)}</TableCell>
-                          <TableCell align="right" sx={{ color: COLORS.accent, fontWeight: 600 }}>{formatBs(bs)}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>{formatBs(bs)}</TableCell>
                           <TableCell align="center">
-                            <Chip label={shift.status === 'cerrado' ? 'Cerrado' : 'En Progreso'} size="small"
-                              sx={{ bgcolor: shift.status === 'cerrado' ? `${COLORS.success}25` : `${COLORS.orange}25`, color: shift.status === 'cerrado' ? COLORS.success : COLORS.orange, fontWeight: 600, fontSize: '0.7rem' }} />
+                            <Chip label={shift.status === 'cerrado' ? 'Cerrado' : 'En Progreso'} size="small" sx={{
+                              bgcolor: shift.status === 'cerrado' ? `${COLORS.success}15` : `${COLORS.orange}15`,
+                              color: shift.status === 'cerrado' ? COLORS.success : COLORS.orange, fontWeight: 600, fontSize: '0.72rem',
+                            }} />
                           </TableCell>
                         </TableRow>
                       );
@@ -566,7 +616,7 @@ export default function DashboardAdmin() {
                 </Table>
               </TableContainer>
             )}
-          </AnimatedCard>
+          </ChartCard>
         )}
       </Box>
     </Box>

@@ -42,7 +42,21 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
       return;
     }
 
-    const shortName = stationName.length > 12 ? stationName.substring(0, 12) : stationName;
+    // Cortar en limites de palabra, no a ciegas.
+    // "Montaña Fresca" -> "Montaña" (no "Montaña Fre")
+    const shortName = (() => {
+      const MAX = 12;
+      const trimmed = stationName.trim();
+      if (trimmed.length <= MAX) return trimmed;
+      const words = trimmed.split(/\s+/);
+      let result = '';
+      for (const w of words) {
+        const candidate = result ? `${result} ${w}` : w;
+        if (candidate.length > MAX) break;
+        result = candidate;
+      }
+      return result || trimmed.substring(0, MAX);
+    })();
 
     // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
     const icons = logoUrl
@@ -57,11 +71,16 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ];
 
+    // start_url debe ser absoluta porque el manifest se sirve como blob URL,
+    // y los navegadores no pueden resolver URLs relativas desde un blob.
+    const origin = window.location.origin;
+
     const dynamicManifest = {
       name: stationName,
       short_name: shortName,
       description: `Sistema de Cierre - ${stationName}`,
-      start_url: '/',
+      start_url: `${origin}/`,
+      scope: `${origin}/`,
       display: 'standalone',
       background_color: '#F5F5F5',
       theme_color: colorPrimary || '#CE1126',

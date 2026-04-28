@@ -1,9 +1,11 @@
 // src/App.jsx
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import theme from './theme/theme.js';
 import useStore from './store/useStore.js';
 import { useCierreStore } from './store/useCierreStore.js';
@@ -43,6 +45,7 @@ function AppInitializer({ children }) {
   const loadCurrentShift = useCierreStore((state) => state.loadCurrentShift);
   const loadProducts = useProductStore((state) => state.loadProducts);
   const loadConfig = useConfigStore((state) => state.loadConfig);
+  const configLoading = useConfigStore((state) => state.loading);
   const loadStock = useInventoryStore((state) => state.loadStock);
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
   const initNetwork = useNetworkStore((state) => state.init);
@@ -71,22 +74,25 @@ function AppInitializer({ children }) {
     loadCurrentReception();
   }, [initNetwork, initAuth, loadProducts, loadConfig, loadStock, loadCurrentShift, loadCurrentReception]);
 
+  // Mientras la config se carga (primera vez sin cache), mostrar spinner
+  // Esto evita el flash de "Mi Estacion de Servicio"
+  if (configLoading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'background.default',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return <>{children}</>;
-}
-
-function RoleRedirect() {
-  const location = useLocation();
-  const user = useStore((state) => state.user);
-
-  if (user?.role === 'administrador' && (location.pathname === '/' || location.pathname === '/lecturas' || location.pathname === '/cierre' || location.pathname === '/reporte' || location.pathname === '/biblia' || location.pathname === '/cuadre-pv' || location.pathname === '/inventario' || location.pathname === '/generar-pdf' || location.pathname === '/recepcion-gandola' || location.pathname === '/estadisticas')) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  if (user?.role === 'supervisor' && location.pathname.startsWith('/admin')) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <Outlet />;
 }
 
 export default function App() {
@@ -94,7 +100,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} autoHideDuration={3000}>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppInitializer>
             <Routes>
               {/* Public */}

@@ -177,19 +177,33 @@ export const TANK_LABELS = {
 };
 
 // Turnos de OPERADORES (quienes se cierran)
+// 1TO = Diurno (empieza 7AM, primer turno del dia)
+// 2TO = Nocturno (empieza 7PM, segundo turno del dia)
 export const SHIFT_LABELS = {
-  'NOCTURNO': 'Turno Nocturno (7:00 PM - 7:00 AM)',
-  'DIURNO': 'Turno Diurno (7:00 AM - 7:00 PM)',
+  'NOCTURNO': '2TO Nocturno (7:00 PM - 7:00 AM)',
+  'DIURNO': '1TO Diurno (7:00 AM - 7:00 PM)',
+};
+
+// Versiones cortas para moviles / espacios reducidos
+export const SHIFT_LABELS_SHORT = {
+  'NOCTURNO': '2TO Nocturno',
+  'DIURNO': '1TO Diurno',
 };
 
 // Turnos de SUPERVISORES
 export const SUPERVISOR_SHIFT_LABELS = {
-  'AM': 'Turno Supervisor (6:00 AM - 2:00 PM)',
-  'PM': 'Turno Supervisor (2:00 PM - 10:00 PM)',
+  'AM': '1TS (6:00 AM - 2:00 PM)',
+  'PM': '2TS (2:00 PM - 10:00 PM)',
 };
 
-// El supervisor AM (6AM-2PM) cierra el turno NOCTURNO de operadores (7PM-7AM)
-// El supervisor PM (2PM-10PM) cierra el turno DIURNO de operadores (7AM-7PM)
+// Versiones cortas para moviles / barra superior
+export const SUPERVISOR_SHIFT_LABELS_SHORT = {
+  'AM': '1TS',
+  'PM': '2TS',
+};
+
+// 1TS (6AM-2PM) cierra 2TO Nocturno (7PM-7AM)
+// 2TS (2PM-10PM) cierra 1TO Diurno (7AM-7PM)
 export const SUPERVISOR_CLOSES_SHIFT = {
   'AM': 'NOCTURNO',
   'PM': 'DIURNO',

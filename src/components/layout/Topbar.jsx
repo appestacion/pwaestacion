@@ -22,11 +22,12 @@ import useStore from '../../store/useStore.js';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useNetworkStore } from '../../store/useNetworkStore.js';
 import { formatDate, getVenezuelaDate } from '../../lib/formatters.js';
-import { SUPERVISOR_SHIFT_LABELS } from '../../config/constants.js';
+import { SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT } from '../../config/constants.js';
 
 export default function Topbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const toggleSidebar = useStore((state) => state.toggleSidebar);
   const user = useStore((state) => state.user);
   const logout = useStore((state) => state.logout);
@@ -97,11 +98,11 @@ export default function Topbar() {
         {currentShift && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
-              label={SUPERVISOR_SHIFT_LABELS[currentShift.supervisorShiftType] || ''}
+              label={(isXs ? SUPERVISOR_SHIFT_LABELS_SHORT : SUPERVISOR_SHIFT_LABELS)[currentShift.supervisorShiftType] || ''}
               size="small"
               color="info"
               variant="outlined"
-              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+              sx={{ fontWeight: 600, fontSize: '0.7rem', maxWidth: isXs ? 'auto' : 240, overflow: 'hidden' }}
             />
             <Chip
               label={currentShift.status === 'en_progreso' ? 'Turno Activo' : 'Turno Cerrado'}

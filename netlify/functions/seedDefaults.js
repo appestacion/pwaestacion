@@ -95,10 +95,10 @@ export const handler = async (event) => {
       results.users.push('Supervisor creado (supervisor@pdv-smf.com / super123)');
     }
 
-    // Seed config
-    const configDoc = await adminDb.collection('settings').doc('station').get();
+    // Seed config (documento: settings/app_config — mismo que usa useConfigStore)
+    const configDoc = await adminDb.collection('settings').doc('app_config').get();
     if (!configDoc.exists) {
-      await adminDb.collection('settings').doc('station').set({ tasa1: 50.00, tasa2: 0, stationName: 'Mi Estacion de Servicio', stationRif: 'J-00000000-0', stationAddress: 'Venezuela', stationPhone: '', stationLogo: '', tanksCount: 3, islandsCount: 3, pumpsPerIsland: 2, maxCortes: 12 });
+      await adminDb.collection('settings').doc('app_config').set({ tasa1: 50.00, tasa2: 0, stationName: 'Mi Estacion de Servicio', stationRif: 'J-00000000-0', stationAddress: 'Venezuela', stationPhone: '', stationLogo: '', stationColorPrimary: '#CE1126', stationColorSecondary: '#003399', stationColorAccent: '#FFD100', tanksCount: 3, islandsCount: 3, pumpsPerIsland: 2, maxCortes: 12 });
       results.config = true;
       results.users.push('Configuracion creada');
     } else {
