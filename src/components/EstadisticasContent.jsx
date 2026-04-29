@@ -1,5 +1,5 @@
 // src/components/EstadisticasContent.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -33,7 +33,7 @@ import { useCierreStore } from '../store/useCierreStore.js';
 import { useGandolaStore } from '../store/useGandolaStore.js';
 import { formatNumber, formatUSD, formatBs } from '../lib/formatters.js';
 import { calcTotalLitersSold, calcLitersByIsland, calculateBiblia, calculateBibliaTotals } from '../lib/calculations.js';
-import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS, ISLAND_LABELS } from '../config/constants.js';
+import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS, ISLAND_LABELS, getIslandColor } from '../config/constants.js';
 
 const COLORS_PIE = ['#CE1126', '#003399', '#FFD100', '#00A651', '#FF6600', '#9C27B0'];
 
@@ -107,14 +107,23 @@ export default function EstadisticasContent() {
     return sum + r.tankReadings.reduce((s, t) => s + (t.litersDifference || 0), 0);
   }, 0);
 
-  // Liters by island chart data
-  const litrosPorIslaData = [1, 2, 3].map((id) => {
-    const liters = filteredShifts.reduce((sum, s) => {
+  // Liters by island chart data — colores dinámicos con getIslandColor()
+  const litrosPorIslaData = useMemo(() => {
+    const islandTotals = {};
+    filteredShifts.forEach((s) => {
       const readings = s.pumpReadings || [];
-      return sum + readings.filter((r) => r.islandId === id).reduce((s2, r) => s2 + r.litersSold, 0);
-    }, 0);
-    return { name: ISLAND_LABELS[id], litros: Math.round(liters), color: id === 1 ? '#CE1126' : id === 2 ? '#003399' : '#00A651' };
-  });
+      readings.forEach((r) => {
+        if (r.islandId) {
+          islandTotals[r.islandId] = (islandTotals[r.islandId] || 0) + (r.litersSold || 0);
+        }
+      });
+    });
+    return Object.entries(islandTotals).map(([id, liters]) => ({
+      name: ISLAND_LABELS[Number(id)] || `Isla ${id}`,
+      litros: Math.round(liters),
+      color: getIslandColor(Number(id)),
+    }));
+  }, [filteredShifts]);
 
   // Shift type distribution for pie chart
   const distribucionTurnosData = [

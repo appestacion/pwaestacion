@@ -17,7 +17,7 @@ import { useInventoryStore } from '../../store/useInventoryStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia, calculateCuadrePV, calculateInventory } from '../../lib/calculations.js';
 import { generateAllPDFs } from '../../lib/pdfGenerator.js';
-import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS } from '../../config/constants.js';
+import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS, ISLAND_LABELS } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function GenerarPDF() {
@@ -45,17 +45,25 @@ export default function GenerarPDF() {
 
   const inventory = useMemo(() => {
     if (!currentShift || products.length === 0) return [];
-    const islandsSold = {
-      1: currentShift.islands.find((i) => i.islandId === 1)?.productsSold || [],
-      2: currentShift.islands.find((i) => i.islandId === 2)?.productsSold || [],
-      3: currentShift.islands.find((i) => i.islandId === 3)?.productsSold || [],
-    };
+    const islandsSold = {};
+    currentShift.islands.forEach((i) => {
+      islandsSold[i.islandId] = i.productsSold || [];
+    });
     return calculateInventory(
       products.filter((p) => p.active).map((p) => ({ name: p.name, priceUSD: p.priceUSD })),
       stock,
       islandsSold
     );
   }, [currentShift, products, stock]);
+
+  // Resumen dinámico de islas para la tarjeta
+  const islandSummary = useMemo(() => {
+    if (!currentShift?.islands) return [];
+    return currentShift.islands.map((isl) => ({
+      label: ISLAND_LABELS[isl.islandId],
+      value: isl.operatorName || '—',
+    }));
+  }, [currentShift]);
 
   const getShiftLabel = (shift) => {
     if (shift.operatorShiftType) {
@@ -159,9 +167,7 @@ export default function GenerarPDF() {
                   { label: 'Operadores', value: SHIFT_LABELS[currentShift.operatorShiftType] || 'N/A' },
                   { label: 'Tasa BCV', value: `${currentShift.tasa1} Bs.` },
                   { label: 'Estado', value: currentShift.status === 'cerrado' ? 'Cerrado' : 'En Progreso' },
-                  { label: 'Isla 1', value: currentShift.islands[0]?.operatorName || '—' },
-                  { label: 'Isla 2', value: currentShift.islands[1]?.operatorName || '—' },
-                  { label: 'Isla 3', value: currentShift.islands[2]?.operatorName || '—' },
+                  ...islandSummary.map((item) => ({ label: item.label, value: item.value })),
                 ].map((item) => (
                   <Box key={item.label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>{item.label}</Typography>

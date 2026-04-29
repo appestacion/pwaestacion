@@ -38,9 +38,10 @@ export function calcTotalLitersSold(readings) {
 }
 
 export function calcLitersByIsland(readings) {
-  const result = { 1: 0, 2: 0, 3: 0 };
+  const result = {};
   for (const r of readings) {
-    result[r.islandId] += r.litersSold;
+    const id = r.islandId;
+    result[id] = (result[id] || 0) + r.litersSold;
   }
   return result;
 }
@@ -160,13 +161,28 @@ export function calculateCuadrePVTotals(rows, tasa1, tasa2) {
   };
 }
 
+/**
+ * Calcula inventario de productos por isla — DINÁMICO.
+ * Itera sobre las keys de islandsSold en vez de hardcodear {1,2,3}.
+ *
+ * @param {Array} products - Lista de productos {name, priceUSD}
+ * @param {Object} initialStock - Stock inicial {productName: cantidad}
+ * @param {Object} islandsSold - Productos vendidos por isla {islandId: [{productName, quantity}]}
+ * @returns {Array} Inventario con vendidoPorIsla: {islandId: cantidad}
+ */
 export function calculateInventory(products, initialStock, islandsSold) {
+  // Obtener IDs de islas presentes en los datos de venta
+  const islandIds = Object.keys(islandsSold).map(Number).sort((a, b) => a - b);
+
   return products.map((product) => {
     let totalVendido = 0;
-    const vendidoIsla1 = islandsSold[1]?.filter((p) => p.productName === product.name).reduce((s, p) => s + p.quantity, 0) || 0;
-    const vendidoIsla2 = islandsSold[2]?.filter((p) => p.productName === product.name).reduce((s, p) => s + p.quantity, 0) || 0;
-    const vendidoIsla3 = islandsSold[3]?.filter((p) => p.productName === product.name).reduce((s, p) => s + p.quantity, 0) || 0;
-    totalVendido = vendidoIsla1 + vendidoIsla2 + vendidoIsla3;
+    const vendidoPorIsla = {};
+
+    for (const id of islandIds) {
+      const vendido = islandsSold[id]?.filter((p) => p.productName === product.name).reduce((s, p) => s + p.quantity, 0) || 0;
+      vendidoPorIsla[id] = vendido;
+      totalVendido += vendido;
+    }
 
     const stockInicial = initialStock[product.name] || 0;
     const stockFinal = stockInicial - totalVendido;
@@ -174,9 +190,7 @@ export function calculateInventory(products, initialStock, islandsSold) {
     return {
       productName: product.name,
       stockInicial,
-      vendidoIsla1,
-      vendidoIsla2,
-      vendidoIsla3,
+      vendidoPorIsla,
       totalVendido,
       stockFinal,
       priceUSD: product.priceUSD,

@@ -18,9 +18,20 @@ function getApp() {
   return admin;
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
 export const handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Metodo no permitido' }) };
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Metodo no permitido' }) };
   }
 
   try {
@@ -31,12 +42,12 @@ export const handler = async (event) => {
 
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
     if (!callerToken) {
-      return { statusCode: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Token requerido' }) };
+      return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Token requerido' }) };
     }
     const decoded = await adminAuth.verifyIdToken(callerToken);
     const callerDoc = await adminDb.collection('users').doc(decoded.uid).get();
     if (!callerDoc.exists || callerDoc.data().role !== 'administrador') {
-      return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Solo administradores' }) };
+      return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Solo administradores' }) };
     }
 
     const PRODUCTS_LIST = [
@@ -119,9 +130,9 @@ export const handler = async (event) => {
       results.users.push(productsSnapshot.size + ' productos ya existen');
     }
 
-    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(results) };
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(results) };
   } catch (error) {
     console.error('Seed error:', error);
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message || 'Error interno del servidor' }) };
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message || 'Error interno del servidor' }) };
   }
 };

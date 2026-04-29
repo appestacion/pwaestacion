@@ -164,17 +164,61 @@ export const CM_TO_LITERS_TABLE = [
   [228, 36640], [228.5, 36651], [229, 36658], [229.5, 36659], [230, 36660],
 ];
 
-export const ISLAND_LABELS = {
-  1: 'Isla 1',
-  2: 'Isla 2',
-  3: 'Isla 3',
-};
+/**
+ * Labels dinámicos para islas — Proxy que genera "Isla N" para cualquier ID.
+ * Soporta cualquier cantidad de islas configurada en config.islandsCount.
+ * Uso: ISLAND_LABELS[1] => "Isla 1", ISLAND_LABELS[5] => "Isla 5"
+ */
+export const ISLAND_LABELS = new Proxy({}, {
+  get(_, prop) {
+    if (prop === Symbol.toPrimitive || prop === Symbol.iterator) return undefined;
+    const num = Number(prop);
+    return isNaN(num) ? `Isla ${prop}` : `Isla ${num}`;
+  },
+  has() { return true; },
+});
 
-export const TANK_LABELS = {
-  1: 'Tanque 1',
-  2: 'Tanque 2',
-  3: 'Tanque 3',
-};
+/**
+ * Labels dinámicos para tanques — Proxy que genera "Tanque N" para cualquier ID.
+ * Soporta cualquier cantidad de tanques configurada en config.tanksCount.
+ * Uso: TANK_LABELS[1] => "Tanque 1", TANK_LABELS[5] => "Tanque 5"
+ */
+export const TANK_LABELS = new Proxy({}, {
+  get(_, prop) {
+    if (prop === Symbol.toPrimitive || prop === Symbol.iterator) return undefined;
+    const num = Number(prop);
+    return isNaN(num) ? `Tanque ${prop}` : `Tanque ${num}`;
+  },
+  has() { return true; },
+});
+
+/**
+ * Genera un array de IDs de islas basado en la cantidad configurada.
+ * @param {number} count - Cantidad de islas (por defecto 3)
+ * @returns {number[]} Array de IDs: [1, 2, 3, ...]
+ */
+export function getIslandIds(count = 3) {
+  return Array.from({ length: count }, (_, i) => i + 1);
+}
+
+/**
+ * Genera un array de IDs de tanques basado en la cantidad configurada.
+ * @param {number} count - Cantidad de tanques (por defecto 3)
+ * @returns {number[]} Array de IDs: [1, 2, 3, ...]
+ */
+export function getTankIds(count = 3) {
+  return Array.from({ length: count }, (_, i) => i + 1);
+}
+
+/**
+ * Paleta de colores para islas en gráficos. Se cicla si hay más islas que colores.
+ * @param {number} islandId
+ * @returns {string} Color hex
+ */
+export function getIslandColor(islandId) {
+  const COLORS = ['#CE1126', '#003399', '#00A651', '#FFD100', '#FF6600', '#9C27B0', '#00BCD4', '#795548'];
+  return COLORS[(Number(islandId) - 1) % COLORS.length];
+}
 
 // Turnos de OPERADORES (quienes se cierran)
 // 1TO = Diurno (empieza 7AM, primer turno del dia)
@@ -228,7 +272,3 @@ export const CATEGORY_COLORS = {
   extintor: '#FF6600',
   otro: '#666666',
 };
-
-export const ISLAND_IDS = [1, 2, 3];
-export const PUMP_NUMBERS = [1, 2];
-export const TANK_IDS = [1, 2, 3];

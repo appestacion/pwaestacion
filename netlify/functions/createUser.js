@@ -18,9 +18,20 @@ function getApp() {
   return admin;
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
 export const handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Metodo no permitido' }) };
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Metodo no permitido' }) };
   }
 
   try {
@@ -31,22 +42,22 @@ export const handler = async (event) => {
     const { name, email, password, role } = JSON.parse(event.body);
 
     if (!name || !email || !password || !role) {
-      return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Todos los campos son requeridos' }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Todos los campos son requeridos' }) };
     }
 
     if (password.length < 6) {
-      return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'La contrasena debe tener al menos 6 caracteres' }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'La contrasena debe tener al menos 6 caracteres' }) };
     }
 
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
     if (!callerToken) {
-      return { statusCode: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Token requerido' }) };
+      return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Token requerido' }) };
     }
 
     const decoded = await adminAuth.verifyIdToken(callerToken);
     const callerDoc = await adminDb.collection('users').doc(decoded.uid).get();
     if (!callerDoc.exists || callerDoc.data().role !== 'administrador') {
-      return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Solo administradores pueden crear usuarios' }) };
+      return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Solo administradores pueden crear usuarios' }) };
     }
 
     const userRecord = await adminAuth.createUser({
@@ -67,7 +78,7 @@ export const handler = async (event) => {
 
     return {
       statusCode: 201,
-      headers: { 'Content-Type': 'application/json' },
+      headers: CORS_HEADERS,
       body: JSON.stringify({ id: userRecord.uid, name, email: userRecord.email, role, active: true })
     };
   } catch (error) {
@@ -77,6 +88,6 @@ export const handler = async (event) => {
     if (error.code === 'auth/email-already-exists') { statusCode = 409; errorMessage = 'El correo electronico ya esta registrado'; }
     else if (error.code === 'auth/invalid-email') { statusCode = 400; errorMessage = 'Correo electronico invalido'; }
     else if (error.code === 'auth/weak-password') { statusCode = 400; errorMessage = 'La contrasena es demasiado debil'; }
-    return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: errorMessage }) };
+    return { statusCode, headers: CORS_HEADERS, body: JSON.stringify({ error: errorMessage }) };
   }
 };

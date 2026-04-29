@@ -18,6 +18,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
+import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateInventory } from '../../lib/calculations.js';
 import { formatUSD } from '../../lib/formatters.js';
 import { enqueueSnackbar } from 'notistack';
@@ -26,7 +27,11 @@ export default function Inventario() {
   const { currentShift, loadCurrentShift } = useCierreStore();
   const { products, loadProducts } = useProductStore();
   const { stock, loadStock, updateStockItem } = useInventoryStore();
+  const config = useConfigStore((state) => state.config);
   const [editingStock, setEditingStock] = useState(false);
+
+  const islandCount = config.islandsCount || 3;
+  const islandIds = useMemo(() => Array.from({ length: islandCount }, (_, i) => i + 1), [islandCount]);
 
   useEffect(() => {
     loadCurrentShift();
@@ -37,12 +42,12 @@ export default function Inventario() {
   const activeProducts = useMemo(() => products.filter((p) => p.active), [products]);
 
   const islandsSold = useMemo(() => {
-    if (!currentShift) return { 1: [], 2: [], 3: [] };
-    return {
-      1: currentShift.islands.find((i) => i.islandId === 1)?.productsSold || [],
-      2: currentShift.islands.find((i) => i.islandId === 2)?.productsSold || [],
-      3: currentShift.islands.find((i) => i.islandId === 3)?.productsSold || [],
-    };
+    if (!currentShift) return {};
+    const sold = {};
+    currentShift.islands.forEach((i) => {
+      sold[i.islandId] = i.productsSold || [];
+    });
+    return sold;
   }, [currentShift]);
 
   const inventory = useMemo(() => {
@@ -97,9 +102,11 @@ export default function Inventario() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white', minWidth: 200 }}>Producto</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Stock Ini</TableCell>
-                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Isla 1</TableCell>
-                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Isla 2</TableCell>
-                  <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Isla 3</TableCell>
+                  {islandIds.map((id) => (
+                    <TableCell key={id} sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">
+                      Isla {id}
+                    </TableCell>
+                  ))}
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Total Ven</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Stock Fin</TableCell>
                   <TableCell sx={{ fontWeight: 700, bgcolor: 'primary.main', color: 'white' }} align="right">Precio $</TableCell>
@@ -123,9 +130,11 @@ export default function Inventario() {
                         <Typography variant="body2">{row.stockInicial}</Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right">{row.vendidoIsla1}</TableCell>
-                    <TableCell align="right">{row.vendidoIsla2}</TableCell>
-                    <TableCell align="right">{row.vendidoIsla3}</TableCell>
+                    {islandIds.map((id) => (
+                      <TableCell key={id} align="right">
+                        {row.vendidoPorIsla[id] || 0}
+                      </TableCell>
+                    ))}
                     <TableCell align="right" sx={{ fontWeight: 600 }}>{row.totalVendido}</TableCell>
                     <TableCell
                       align="right"

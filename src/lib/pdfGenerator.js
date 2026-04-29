@@ -305,16 +305,26 @@ export function generateCuadrePVPDF(shift, cuadre, stationConfig) {
   return doc;
 }
 
+/**
+ * Genera PDF de inventario con columnas de islas DINÁMICAS.
+ * Lee stationConfig.islandsCount para determinar cuántas columnas mostrar.
+ */
 export function generateInventarioPDF(shift, inventory, stationConfig) {
   const doc = new jsPDF('p', 'mm', 'a4');
   addHeader(doc, 'INVENTARIO DE PRODUCTOS', shift, stationConfig);
 
+  const islandCount = stationConfig?.islandsCount || 3;
+  const islandIds = Array.from({ length: islandCount }, (_, i) => i + 1);
+
+  // Cabecera dinámica
+  const head = [
+    ['Producto', 'Stock Ini', ...islandIds.map((id) => `Isla ${id}`), 'Total Ven', 'Stock Fin', 'Total $'],
+  ];
+
   const invData = inventory.map((r) => [
     r.productName.substring(0, 35),
     r.stockInicial.toString(),
-    r.vendidoIsla1.toString(),
-    r.vendidoIsla2.toString(),
-    r.vendidoIsla3.toString(),
+    ...islandIds.map((id) => (r.vendidoPorIsla[id] || 0).toString()),
     r.totalVendido.toString(),
     r.stockFinal.toString(),
     formatUSD(r.totalUSD),
@@ -322,7 +332,7 @@ export function generateInventarioPDF(shift, inventory, stationConfig) {
 
   autoTable(doc, {
     startY: 42,
-    head: [['Producto', 'Stock Ini', 'Isla 1', 'Isla 2', 'Isla 3', 'Total Ven', 'Stock Fin', 'Total $']],
+    head,
     body: invData,
     theme: 'grid',
     headStyles: { fillColor: PRIMARY_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
