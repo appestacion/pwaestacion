@@ -26,25 +26,33 @@ import DialogActions from '@mui/material/DialogActions';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useProductStore } from '../../store/useProductStore.js';
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../../config/constants.js';
 import { formatUSD } from '../../lib/formatters.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function Productos() {
-  const { products, loadProducts, addProduct, updateProduct } = useProductStore();
+  const { products, loadProducts, addProduct, updateProduct, deleteProduct } = useProductStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ name: '', priceUSD: 0, category: 'otro' });
   const [search, setSearch] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const catA = (CATEGORY_LABELS[a.category] || a.category).toLowerCase();
+      const catB = (CATEGORY_LABELS[b.category] || b.category).toLowerCase();
+      if (catA !== catB) return catA.localeCompare(catB);
+      return a.name.localeCompare(b.name);
+    });
 
   const handleOpenNew = () => {
     setEditingProduct(null);
@@ -78,6 +86,25 @@ export default function Productos() {
   const handleToggleActive = (product) => {
     updateProduct(product.id, { active: !product.active });
     enqueueSnackbar({ message: `Producto ${product.active ? 'desactivado' : 'activado'}`, variant: 'info' });
+  };
+
+  const handleOpenDelete = (product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (productToDelete) {
+      deleteProduct(productToDelete.id);
+      enqueueSnackbar({ message: `Producto "${productToDelete.name}" eliminado`, variant: 'success' });
+      setProductToDelete(null);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setProductToDelete(null);
+    setDeleteDialogOpen(false);
   };
 
   const categories = ['aditivo', 'aceite', 'refrigerante', 'freno', 'extintor', 'otro'];
@@ -148,6 +175,9 @@ export default function Productos() {
                       <IconButton size="small" onClick={() => handleOpenEdit(product)} color="primary">
                         <EditIcon fontSize="small" />
                       </IconButton>
+                      <IconButton size="small" onClick={() => handleOpenDelete(product)} color="error">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -202,6 +232,26 @@ export default function Productos() {
           <Button onClick={() => setDialogOpen(false)} color="inherit">Cancelar</Button>
           <Button onClick={handleSave} variant="contained">
             {editingProduct ? 'Guardar Cambios' : 'Agregar Producto'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCancelDelete} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>Eliminar Producto</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            ¿Estás seguro de que deseas eliminar el producto{' '}
+            <strong>"{productToDelete?.name}"</strong>?
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+            Esta acción desactivará el producto. No aparecerá en los formularios de venta pero no se eliminará permanentemente.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCancelDelete} color="inherit">Cancelar</Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error">
+            Eliminar
           </Button>
         </DialogActions>
       </Dialog>

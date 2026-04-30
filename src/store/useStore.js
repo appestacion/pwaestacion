@@ -69,7 +69,7 @@ const useStore = create(
                   return;
                 }
               }
-              // Sin perfil o inactivo: cerrar sesion
+              // Sin perfil o inactivo: cerrar sesión
               await signOut(auth);
             } catch (error) {
               console.error('Error cargando perfil del usuario:', error);
@@ -81,7 +81,7 @@ const useStore = create(
       },
 
       /**
-       * Iniciar sesion con email y password via Firebase Auth.
+       * Iniciar sesión con email y password via Firebase Auth.
        */
       login: async (email, password) => {
         try {
@@ -90,33 +90,33 @@ const useStore = create(
           return true;
         } catch (error) {
           const messages = {
-            'auth/invalid-email': 'Correo electronico invalido',
+            'auth/invalid-email': 'Correo electrónico invalido',
             'auth/user-disabled': 'Usuario desactivado',
             'auth/user-not-found': 'Usuario no encontrado',
-            'auth/wrong-password': 'Contrasena incorrecta',
-            'auth/invalid-credential': 'Correo o contrasena incorrectos',
+            'auth/wrong-password': 'contraseña incorrecta',
+            'auth/invalid-credential': 'Correo o contraseña incorrectos',
             'auth/too-many-requests': 'Demasiados intentos. Intente mas tarde.',
             'auth/network-request-failed': 'Error de conexion. Verifique su internet.',
           };
-          throw new Error(messages[error.code] || 'Error al iniciar sesion');
+          throw new Error(messages[error.code] || 'Error al iniciar sesión');
         }
       },
 
       /**
-       * Cerrar sesion
+       * Cerrar sesión
        */
       logout: async () => {
         try {
           const auth = getFirebaseAuth();
           await signOut(auth);
         } catch (error) {
-          console.error('Error cerrando sesion:', error);
+          console.error('Error cerrando sesión:', error);
         }
         set({ user: null, isAuthenticated: false });
       },
 
       /**
-       * Enviar email de recuperacion de contrasena
+       * Enviar email de recuperacion de contraseña
        */
       sendPasswordReset: async (email) => {
         try {
@@ -125,7 +125,7 @@ const useStore = create(
           return true;
         } catch (error) {
           const messages = {
-            'auth/invalid-email': 'Correo electronico invalido',
+            'auth/invalid-email': 'Correo electrónico invalido',
             'auth/user-not-found': 'No hay cuenta asociada a este correo',
           };
           throw new Error(messages[error.code] || 'Error al enviar correo de recuperacion');
@@ -175,8 +175,8 @@ const useStore = create(
         } catch (error) {
           const messages = {
             'auth/email-already-in-use': 'Este correo ya esta registrado',
-            'auth/weak-password': 'La contrasena debe tener al menos 6 caracteres',
-            'auth/invalid-email': 'Correo electronico invalido',
+            'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
+            'auth/invalid-email': 'Correo  invalido',
             'auth/network-request-failed': 'Error de conexion. Verifique su internet.',
           };
           throw new Error(messages[error.code] || 'Error al crear usuario');

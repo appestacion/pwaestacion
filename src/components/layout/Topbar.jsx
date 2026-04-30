@@ -142,7 +142,7 @@ export default function Topbar() {
           <Divider />
           <MenuItem onClick={handleLogout}>
             <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
-            Cerrar Sesion
+            Cerrar Sesión
           </MenuItem>
         </Menu>
       </Toolbar>

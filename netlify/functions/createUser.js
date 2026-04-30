@@ -46,7 +46,7 @@ export const handler = async (event) => {
     }
 
     if (password.length < 6) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'La contrasena debe tener al menos 6 caracteres' }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'La contraseña debe tener al menos 6 caracteres' }) };
     }
 
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
@@ -85,9 +85,9 @@ export const handler = async (event) => {
     console.error('Error creating user:', error);
     let statusCode = 500;
     let errorMessage = error.message || 'Error interno del servidor';
-    if (error.code === 'auth/email-already-exists') { statusCode = 409; errorMessage = 'El correo electronico ya esta registrado'; }
-    else if (error.code === 'auth/invalid-email') { statusCode = 400; errorMessage = 'Correo electronico invalido'; }
-    else if (error.code === 'auth/weak-password') { statusCode = 400; errorMessage = 'La contrasena es demasiado debil'; }
+    if (error.code === 'auth/email-already-exists') { statusCode = 409; errorMessage = 'El correo electrónico ya esta registrado'; }
+    else if (error.code === 'auth/invalid-email') { statusCode = 400; errorMessage = 'Correo electrónico invalido'; }
+    else if (error.code === 'auth/weak-password') { statusCode = 400; errorMessage = 'La contraseña es demasiado debil'; }
     return { statusCode, headers: CORS_HEADERS, body: JSON.stringify({ error: errorMessage }) };
   }
 };

@@ -79,15 +79,15 @@ export default function Usuarios() {
 
   const handleSave = async () => {
     if (!form.name || !form.email) {
-      enqueueSnackbar('Nombre y correo electronico son requeridos', { variant: 'error' });
+      enqueueSnackbar('Nombre y correo electrónico son requeridos', { variant: 'error' });
       return;
     }
     if (!editingUser && !form.password) {
-      enqueueSnackbar('La contrasena es requerida para nuevos usuarios', { variant: 'error' });
+      enqueueSnackbar('La contraseña es requerida para nuevos usuarios', { variant: 'error' });
       return;
     }
     if (!editingUser && form.password.length < 6) {
-      enqueueSnackbar('La contrasena debe tener al menos 6 caracteres', { variant: 'error' });
+      enqueueSnackbar('La contraseña debe tener al menos 6 caracteres', { variant: 'error' });
       return;
     }
 
@@ -217,7 +217,7 @@ export default function Usuarios() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Enviar correo de recuperacion de contrasena">
+                      <Tooltip title="Enviar correo de recuperacion de contraseña">
                         <IconButton size="small" onClick={() => handleResetPassword(user)} color="warning">
                           <KeyIcon fontSize="small" />
                         </IconButton>
@@ -264,7 +264,7 @@ export default function Usuarios() {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Correo Electronico"
+                label="Correo Electrónico"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -276,7 +276,7 @@ export default function Usuarios() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Contrasena (minimo 6 caracteres)"
+                  label="contraseña (minimo 6 caracteres)"
                   type="password"
                   autoComplete="new-password"
                   value={form.password}

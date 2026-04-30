@@ -1,5 +1,5 @@
 // src/pages/supervisor/Lecturas.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -43,16 +43,35 @@ export default function Lecturas() {
     updateTankReading(index, field, num);
   };
 
-  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real (debounce 2s)
-
   if (!currentShift) {
     return (
       <Alert severity="warning">No hay un turno activo. Ve al Dashboard e inicia un turno.</Alert>
     );
   }
 
-  // NOCTURNO (7PM-7AM) uses 2 tasas, DIURNO (7AM-7PM) uses 1 tasa
   const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+
+  // Agrupar lecturas por isla para mostrar subtotales
+  const readingsByIsland = useMemo(() => {
+    const readings = currentShift.pumpReadings || [];
+    const groups = {};
+    readings.forEach((reading, idx) => {
+      const islandId = reading.islandId;
+      if (!groups[islandId]) {
+        groups[islandId] = [];
+      }
+      groups[islandId].push({ ...reading, originalIndex: idx });
+    });
+    // Ordenar islas numericamente
+    const sortedIslands = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
+    return sortedIslands.map((id) => {
+      const items = groups[id];
+      const totalLiters = items.reduce((s, r) => s + (r.litersSold || 0), 0);
+      return { islandId: id, items, totalLiters };
+    });
+  }, [currentShift.pumpReadings]);
+
+  const totalAllLiters = (currentShift.pumpReadings || []).reduce((s, r) => s + (r.litersSold || 0), 0);
 
   return (
     <Box>
@@ -85,9 +104,10 @@ export default function Lecturas() {
               <TextField
                 label="Tasa 1"
                 type="number"
-                value={currentShift.tasa1 || ''}
-                onChange={(e) => updateTasa('tasa1', parseFloat(e.target.value) || 0)}
+                value={currentShift.tasa1 ? currentShift.tasa1.toFixed(2) : ''}
+                onChange={(e) => updateTasa('tasa1', parseFloat(parseFloat(e.target.value).toFixed(2)) || 0)}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
+                inputProps={{ step: 0.01 }}
               />
             </Grid>
             {isNocturno && (
@@ -95,9 +115,10 @@ export default function Lecturas() {
                 <TextField
                   label="Tasa 2 (turno nocturno)"
                   type="number"
-                  value={currentShift.tasa2 || ''}
-                  onChange={(e) => updateTasa('tasa2', parseFloat(e.target.value) || 0)}
+                  value={currentShift.tasa2 ? currentShift.tasa2.toFixed(2) : ''}
+                  onChange={(e) => updateTasa('tasa2', parseFloat(parseFloat(e.target.value).toFixed(2)) || 0)}
                   InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
+                  inputProps={{ step: 0.01 }}
                 />
               </Grid>
             )}
@@ -135,36 +156,70 @@ export default function Lecturas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(currentShift.pumpReadings || []).map((reading, idx) => (
-                  <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
-                    <TableCell>Isla {reading.islandId}</TableCell>
-                    <TableCell>Surtidor {reading.pumpNumber}</TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        type="number"
-                        variant="standard"
-                        value={reading.initialReading || ''}
-                        onChange={(e) => handlePumpChange(idx, 'initialReading', e.target.value)}
-                        sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        type="number"
-                        variant="standard"
-                        value={reading.finalReading || ''}
-                        onChange={(e) => handlePumpChange(idx, 'finalReading', e.target.value)}
-                        sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: '#2E7D32' }}
-                    >
-                      {formatNumber(reading.litersSold, 0)}
-                    </TableCell>
-                  </TableRow>
+                {readingsByIsland.map((island, islandIdx) => (
+                  <React.Fragment key={`island-${island.islandId}`}>
+                    {island.items.map((reading) => (
+                      <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
+                        <TableCell>Isla {reading.islandId}</TableCell>
+                        <TableCell>Surtidor {reading.pumpNumber}</TableCell>
+                        <TableCell align="right">
+                          <TextField
+                            type="number"
+                            variant="standard"
+                            value={reading.initialReading || ''}
+                            onChange={(e) => handlePumpChange(reading.originalIndex, 'initialReading', e.target.value)}
+                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <TextField
+                            type="number"
+                            variant="standard"
+                            value={reading.finalReading || ''}
+                            onChange={(e) => handlePumpChange(reading.originalIndex, 'finalReading', e.target.value)}
+                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                          />
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: '#2E7D32' }}
+                        >
+                          {formatNumber(reading.litersSold, 0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow key={`subtotal-${island.islandId}`}>
+                      <TableCell
+                        colSpan={4}
+                        sx={{ fontWeight: 700, bgcolor: '#F3E5F5', color: '#7B1FA2', fontSize: '0.85rem' }}
+                        align="right"
+                      >
+                        Subtotal Isla {island.islandId}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontWeight: 700, bgcolor: '#F3E5F5', color: '#7B1FA2', fontSize: '0.95rem' }}
+                      >
+                        {formatNumber(island.totalLiters, 0)} L
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
                 ))}
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    sx={{ fontWeight: 700, bgcolor: '#E0E0E0', color: '#212121', fontSize: '0.95rem' }}
+                    align="right"
+                  >
+                    TOTAL GENERAL
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ fontWeight: 700, bgcolor: '#E0E0E0', color: '#2E7D32', fontSize: '1rem' }}
+                  >
+                    {formatNumber(totalAllLiters, 0)} L
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </TableContainer>

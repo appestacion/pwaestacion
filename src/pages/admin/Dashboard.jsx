@@ -246,9 +246,9 @@ export default function DashboardAdmin() {
       doc.rect(0, 0, 297, 22, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
-      doc.text('REPORTE DE ESTACION - DASHBOARD ADMINISTRATIVO', 148.5, 10, { align: 'center' });
+      doc.text('REPORTE DE ESTACIÓN - DASHBOARD ADMINISTRATIVO', 148.5, 10, { align: 'center' });
       doc.setFontSize(10);
-      doc.text(`Generado: ${fecha}  |  Tasa BCV: ${config.tasa1 || 0} Bs/$`, 148.5, 17, { align: 'center' });
+      doc.text(`Generado: ${fecha}  |  Tasa BCV: ${Number(config.tasa1 || 0).toFixed(2)} Bs/$`, 148.5, 17, { align: 'center' });
 
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(11);
@@ -256,10 +256,10 @@ export default function DashboardAdmin() {
 
       doc.autoTable({
         startY: 35,
-        head: [['Metrica', 'Valor', 'Metrica', 'Valor']],
+        head: [['Métrica', 'Valor', 'Métrica', 'Valor']],
         body: [
           ['Total Usuarios', users.length.toString(), 'Productos Activos', activeProducts.length.toString()],
-          ['Turnos Cerrados (periodo)', filteredShifts.length.toString(), 'Litros Totales', formatNumber(stats.totalLiters, 0)],
+          ['Turnos Cerrados (período)', filteredShifts.length.toString(), 'Litros Totales', formatNumber(stats.totalLiters, 0)],
           ['Ingresos Totales USD', formatUSD(stats.totalUSD), 'Ingresos Totales Bs', formatBs(stats.totalBs)],
           ['Ventas Productos USD', formatUSD(stats.totalProductsUSD), '', ''],
         ],
@@ -268,7 +268,7 @@ export default function DashboardAdmin() {
       });
 
       doc.setFontSize(11);
-      doc.text('DESEMPENO POR ISLA', 14, doc.lastAutoTable.finalY + 10);
+      doc.text('DESEMPEÑO POR ISLA', 14, doc.lastAutoTable.finalY + 10);
       doc.autoTable({
         startY: doc.lastAutoTable.finalY + 13,
         head: [['Isla', 'Litros Vendidos']],
@@ -279,7 +279,7 @@ export default function DashboardAdmin() {
 
       if (productPieData.length > 0) {
         doc.setFontSize(11);
-        doc.text('PRODUCTOS MAS VENDIDOS', 14, doc.lastAutoTable.finalY + 10);
+        doc.text('PRODUCTOS MÁS VENDIDOS', 14, doc.lastAutoTable.finalY + 10);
         doc.autoTable({
           startY: doc.lastAutoTable.finalY + 13,
           head: [['Producto', 'Cantidad Vendida']],
@@ -311,7 +311,7 @@ export default function DashboardAdmin() {
         doc.setPage(i);
         doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text(`Pagina ${i} de ${pageCount}  |  PDV Estacion de Servicio`, 148.5, 200, { align: 'center' });
+        doc.text(`Página ${i} de ${pageCount}  |  PDV Estación de Servicio`, 148.5, 200, { align: 'center' });
       }
 
       doc.save(`reporte_estacion_${fecha.replace(/\//g, '-')}.pdf`);
@@ -324,7 +324,7 @@ export default function DashboardAdmin() {
 
   const shareWhatsApp = useCallback(() => {
     const fecha = getVenezuelaDateString();
-    const text = `*REPORTE DE ESTACION*\n_Fecha: ${fecha}_\n\n*RESUMEN:*\n- Turnos cerrados: ${filteredShifts.length}\n- Litros totales: ${formatNumber(stats.totalLiters, 0)} L\n- Ingresos USD: ${formatUSD(stats.totalUSD)}\n- Ingresos Bs: ${formatBs(stats.totalBs)}\n- Productos vendidos: ${formatUSD(stats.totalProductsUSD)}\n\n*POR ISLA:*\n${Object.entries(stats.islandLiters).map(([id, liters]) => `- Isla ${id}: ${formatNumber(liters, 0)} L`).join('\n')}\n\n*Tasa BCV: ${config.tasa1 || 0} Bs/$*`;
+    const text = `*REPORTE DE ESTACIÓN*\n_Fecha: ${fecha}_\n\n*RESUMEN:*\n- Turnos cerrados: ${filteredShifts.length}\n- Litros totales: ${formatNumber(stats.totalLiters, 0)} L\n- Ingresos USD: ${formatUSD(stats.totalUSD)}\n- Ingresos Bs: ${formatBs(stats.totalBs)}\n- Productos vendidos: ${formatUSD(stats.totalProductsUSD)}\n\n*POR ISLA:*\n${Object.entries(stats.islandLiters).map(([id, liters]) => `- Isla ${id}: ${formatNumber(liters, 0)} L`).join('\n')}\n\n*Tasa BCV: ${Number(config.tasa1 || 0).toFixed(2)} Bs/$*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     enqueueSnackbar({ message: 'Abriendo WhatsApp...', variant: 'info' });
   }, [stats, filteredShifts, config.tasa1]);
@@ -400,17 +400,17 @@ export default function DashboardAdmin() {
 
       <Grid container spacing={isMobile ? 1.5 : 2.5} sx={{ mb: isMobile ? 1.5 : 3 }}>
         <Grid item xs={6} sm={4}>
-          <StatCard label="Ingresos Bolivares" value={formatBs(stats.totalBs)} icon={<TrendingUpIcon />} color={COLORS.purple}
-            subtitle={`Tasa: ${config.tasa1 || 0} Bs/$`} isMobile={isMobile} isXs={isXs} />
+          <StatCard label="Ingresos Bolívares" value={formatBs(stats.totalBs)} icon={<TrendingUpIcon />} color={COLORS.purple}
+            subtitle={`Tasa: ${Number(config.tasa1 || 0).toFixed(2)} Bs/$`} isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={6} sm={4}>
           <StatCard label="Turnos Cerrados" value={closedShifts.length} icon={<SpeedIcon />} color={COLORS.orange}
-            subtitle={filteredShifts.length !== closedShifts.length ? `${filteredShifts.length} en periodo` : 'Total historico'}
+            subtitle={filteredShifts.length !== closedShifts.length ? `${filteredShifts.length} en período` : 'Total histórico'}
             isMobile={isMobile} isXs={isXs} />
         </Grid>
         <Grid item xs={12} sm={4}>
-          <StatCard label="Tasa BCV" value={`Bs. ${config.tasa1 || 0}`} icon={<TrendingUpIcon />} color={COLORS.accent}
-            subtitle={config.tasa2 ? `Premium: Bs. ${config.tasa2}` : 'Solo regular'} isMobile={isMobile} isXs={isXs} />
+          <StatCard label="Tasa BCV" value={`Bs. ${Number(config.tasa1 || 0).toFixed(2)}`} icon={<TrendingUpIcon />} color={COLORS.accent}
+            subtitle={config.tasa2 ? `Premium: Bs. ${Number(config.tasa2).toFixed(2)}` : 'Solo regular'} isMobile={isMobile} isXs={isXs} />
         </Grid>
       </Grid>
 
@@ -465,7 +465,7 @@ export default function DashboardAdmin() {
               </ChartCard>
             </Grid>
             <Grid item xs={12} md={4}>
-              <ChartCard title="Distribucion por Turno" isMobile={isMobile}>
+              <ChartCard title="Distribución por Turno" isMobile={isMobile}>
                 <ResponsiveContainer width="100%" height={chartH}>
                   <PieChart>
                     <Pie data={shiftTypePieData} cx="50%" cy="50%" innerRadius={isMobile ? 40 : 55} outerRadius={isMobile ? 70 : 90} paddingAngle={4} dataKey="value"
@@ -484,7 +484,7 @@ export default function DashboardAdmin() {
         )}
 
         {tabValue === 1 && chartSection(
-          <ChartCard title="Tendencia de Litros Diarios (ultimos 14 dias)" isMobile={isMobile}>
+          <ChartCard title="Tendencia de Litros Diarios (últimos 14 días)" isMobile={isMobile}>
             <ResponsiveContainer width="100%" height={chartHLarge}>
               <AreaChart data={dailyAreaData} margin={{ top: 10, right: isMobile ? 5 : 20, left: isMobile ? -15 : 10, bottom: 5 }}>
                 <defs>
@@ -506,7 +506,7 @@ export default function DashboardAdmin() {
         )}
 
         {tabValue === 2 && chartSection(
-          <ChartCard title="Ingresos Diarios en Bolivares (ultimos 14 dias)" isMobile={isMobile}>
+          <ChartCard title="Ingresos Diarios en Bolívares (últimos 14 días)" isMobile={isMobile}>
             <ResponsiveContainer width="100%" height={chartHLarge}>
               <LineChart data={revenueLineData} margin={{ top: 10, right: isMobile ? 5 : 20, left: isMobile ? -15 : 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
@@ -524,7 +524,7 @@ export default function DashboardAdmin() {
         {tabValue === 3 && chartSection(
           <Grid container spacing={isMobile ? 1.5 : 2.5}>
             <Grid item xs={12} md={6}>
-              <ChartCard title="Productos Mas Vendidos" isMobile={isMobile}>
+              <ChartCard title="Productos Más Vendidos" isMobile={isMobile}>
                 <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
                   <PieChart>
                     <Pie data={productPieData} cx="50%" cy="50%" outerRadius={isMobile ? 80 : 110} paddingAngle={3} dataKey="value"
@@ -568,7 +568,7 @@ export default function DashboardAdmin() {
             {filteredShifts.length === 0 ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 250 }}>
                 <Typography variant="body2" color="text.secondary">
-                  No hay turnos cerrados{dateFrom || dateTo ? ' en el periodo seleccionado' : ''}
+                  No hay turnos cerrados{dateFrom || dateTo ? ' en el período seleccionado' : ''}
                 </Typography>
               </Box>
             ) : (

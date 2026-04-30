@@ -180,7 +180,7 @@ export default function CierreTurno() {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'primary.main' }}>
-                  Cortes en Bolivares
+                  Cortes en Bolívares
                 </Typography>
                 <Grid container spacing={1}>
                   {cortesBsArray.map((val, idx) => (
@@ -217,7 +217,7 @@ export default function CierreTurno() {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'success.main' }}>
-                  Cortes en Dolares
+                  Cortes en Dólares
                 </Typography>
                 <Grid container spacing={1}>
                   {cortesUSDArray.map((val, idx) => (
@@ -388,7 +388,7 @@ export default function CierreTurno() {
                       <Grid item xs={5} sm={6}>
                         <TextField
                           fullWidth
-                          label="Descripcion"
+                          label="Descripción"
                           size="small"
                           value={vale.descripcion || ''}
                           onChange={(e) => handleUpdateVale(iid, idx, 'descripcion', e.target.value)}
@@ -436,7 +436,7 @@ export default function CierreTurno() {
                       <Grid item xs={5} sm={6}>
                         <TextField
                           fullWidth
-                          label="Descripcion"
+                          label="Descripción"
                           size="small"
                           value={transf.descripcion || ''}
                           onChange={(e) => handleUpdateTransferencia(iid, idx, 'descripcion', e.target.value)}

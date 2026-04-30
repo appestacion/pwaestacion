@@ -170,18 +170,18 @@ export default function EstadisticasContent() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Estadisticas</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>Estadísticas</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Resumen y analisis de operaciones de la estacion
+            Resumen y análisis de operaciones de la estación
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Periodo</InputLabel>
-          <Select value={periodo} label="Periodo" onChange={(e) => setPeriodo(e.target.value)}>
+          <InputLabel>Período</InputLabel>
+          <Select value={periodo} label="Período" onChange={(e) => setPeriodo(e.target.value)}>
             <MenuItem value="todos">Todos</MenuItem>
             <MenuItem value="hoy">Hoy</MenuItem>
-            <MenuItem value="semana">Ultima Semana</MenuItem>
-            <MenuItem value="mes">Ultimo Mes</MenuItem>
+            <MenuItem value="semana">Última Semana</MenuItem>
+            <MenuItem value="mes">Último Mes</MenuItem>
           </Select>
         </FormControl>
       </Box>
@@ -213,7 +213,7 @@ export default function EstadisticasContent() {
 
       {filteredShifts.length === 0 ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No hay datos de turnos cerrados en el periodo seleccionado. Los estadisticas se generan a partir de los cierres de turno realizados.
+          No hay datos de turnos cerrados en el período seleccionado. Las estadísticas se generan a partir de los cierres de turno realizados.
         </Alert>
       ) : (
         <>
@@ -254,7 +254,7 @@ export default function EstadisticasContent() {
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
-                    Distribucion por Turno
+                    Distribución por Turno
                   </Typography>
                   <Box sx={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer>

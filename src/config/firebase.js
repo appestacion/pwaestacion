@@ -44,7 +44,7 @@ export function getFirebaseAuth() {
 }
 
 /**
- * Auth secundario para crear usuarios sin cerrar la sesion del admin actual.
+ * Auth secundario para crear usuarios sin cerrar la sesión del admin actual.
  * Usa una instancia de Firebase App separada.
  */
 export function getSecondaryAuth() {

@@ -1,5 +1,5 @@
 // src/pages/supervisor/RecepcionGandola.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -16,21 +16,25 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Paper from '@mui/material/Paper';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import MenuItem from '@mui/material/MenuItem';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import { useGandolaStore } from '../../store/useGandolaStore.js';
 import { useCierreStore } from '../../store/useCierreStore.js';
+import useStore from '../../store/useStore.js';
 import { formatNumber } from '../../lib/formatters.js';
 import { TANK_LABELS } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
-const PRODUCT_TYPES = [
-  { value: 'gasolina_95', label: 'Gasolina 95 Octanos' },
-  { value: 'gasolina_91', label: 'Gasolina 91 Octanos' },
-];
+const TANK_CAPACITY = 35000;
 
 export default function RecepcionGandola() {
   const {
@@ -44,42 +48,255 @@ export default function RecepcionGandola() {
   } = useGandolaStore();
 
   const { currentShift } = useCierreStore();
+  const getAllUsers = useStore((s) => s.getAllUsers);
+  const [supervisors, setSupervisors] = useState([]);
 
   useEffect(() => {
     loadCurrentReception();
   }, [loadCurrentReception]);
 
+  useEffect(() => {
+    const load = async () => {
+      const users = await getAllUsers();
+      const sups = (Array.isArray(users) ? users : []).filter(
+        (u) => u.role === 'supervisor' && u.active
+      );
+      setSupervisors(sups);
+    };
+    load();
+  }, [getAllUsers]);
+
   const handleStartReception = () => {
     initNewReception();
-    enqueueSnackbar({ message: 'Recepcion de Gandola iniciada', variant: 'info' });
+    enqueueSnackbar({ message: 'Recepción de Gandola iniciada', variant: 'info' });
   };
-
-  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real
 
   const handleClose = () => {
     closeReception();
-    enqueueSnackbar({ message: 'Recepcion de Gandola cerrada exitosamente', variant: 'success' });
+    enqueueSnackbar({ message: 'Recepción de Gandola cerrada exitosamente', variant: 'success' });
   };
 
   const handleCancel = () => {
     cancelReception();
-    enqueueSnackbar({ message: 'Recepcion cancelada', variant: 'warning' });
+    enqueueSnackbar({ message: 'Recepción cancelada', variant: 'warning' });
   };
 
-  const totalLitersBefore = currentReception
-    ? currentReception.tankReadings.reduce((s, t) => s + t.litersBefore, 0)
+  const r = currentReception || {};
+
+  const safeSupervisorId =
+    supervisors.length > 0 && supervisors.some((s) => s.id === r.supervisorId)
+      ? r.supervisorId
+      : '';
+
+  const totalLitersBefore = r.tankReadings
+    ? r.tankReadings.reduce((s, t) => s + (t.litersBefore || 0), 0)
     : 0;
-  const totalLitersAfter = currentReception
-    ? currentReception.tankReadings.reduce((s, t) => s + t.litersAfter, 0)
+  const totalLitersAfter = r.tankReadings
+    ? r.tankReadings.reduce((s, t) => s + (t.litersAfter || 0), 0)
     : 0;
   const totalReceived = totalLitersAfter - totalLitersBefore;
+  const totalCompartment =
+    (r.compartment1Liters || 0) + (r.compartment2Liters || 0) + (r.compartment3Liters || 0);
+
+  const handleSupervisorChange = (e) => {
+    const selectedId = e.target.value;
+    const sup = supervisors.find((s) => s.id === selectedId);
+    updateReceptionField('supervisorId', selectedId);
+    updateReceptionField('supervisorName', sup ? sup.name : '');
+  };
+
+  const handleSendWhatsAppBefore = () => {
+    if (!currentReception) return;
+
+    let text = '*Antes de la descarga*\n';
+    (r.tankReadings || []).forEach((tank) => {
+      const label = (TANK_LABELS[tank.tankId] || tank.tankId).replace('Tanque ', 'T');
+      text += `${label}: ${formatNumber(tank.litersBefore || 0, 0)} lts\n`;
+    });
+    text += `Total: ${formatNumber(totalLitersBefore, 0)} lts`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    enqueueSnackbar({ message: 'Enviando WhatsApp (Antes de la descarga)...', variant: 'info' });
+  };
+
+  const handleSendWhatsAppAfter = () => {
+    if (!currentReception) return;
+
+    let text = '*Después de la descarga*\n';
+    (r.tankReadings || []).forEach((tank) => {
+      const label = (TANK_LABELS[tank.tankId] || tank.tankId).replace('Tanque ', 'T');
+      text += `${label}: ${formatNumber(tank.litersAfter || 0, 0)} lts\n`;
+    });
+    text += `Total: ${formatNumber(totalLitersAfter, 0)} lts`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    enqueueSnackbar({ message: 'Enviando WhatsApp (Después de la descarga)...', variant: 'info' });
+  };
+
+  const getTankColor = (liters) => {
+    const pct = (liters / TANK_CAPACITY) * 100;
+    if (liters >= TANK_CAPACITY) return '#D32F2F';
+    if (pct >= 90) return '#F57C00';
+    if (pct >= 75) return '#FBC02D';
+    return '#2E7D32';
+  };
+
+  const getTankStatus = (liters) => {
+    if (liters >= TANK_CAPACITY) return { text: 'LLENO', color: '#D32F2F' };
+    const available = TANK_CAPACITY - liters;
+    if (available <= 5000) return { text: 'POCO ESPACIO', color: '#F57C00' };
+    if (available <= 10000) return { text: 'REGULAR', color: '#FBC02D' };
+    return { text: 'DISPONIBLE', color: '#2E7D32' };
+  };
+
+  const renderTankBar = (tank) => {
+    const liters = tank.litersBefore || 0;
+    const available = Math.max(TANK_CAPACITY - liters, 0);
+    const fillPct = Math.min((liters / TANK_CAPACITY) * 100, 100);
+    const status = getTankStatus(liters);
+    const barColor = getTankColor(liters);
+
+    return (
+      <Box sx={{ mb: 2.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {TANK_LABELS[tank.tankId]}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Disponible: <b style={{ color: status.color }}>{formatNumber(available, 0)} L</b>
+            </Typography>
+            <Chip
+              label={status.text}
+              size="small"
+              sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20, bgcolor: status.color, color: '#fff' }}
+            />
+          </Box>
+        </Box>
+
+        <Box sx={{ position: 'relative', width: '100%', height: 32, bgcolor: '#ECEFF1', borderRadius: 2, overflow: 'hidden', border: '1px solid #CFD8DC' }}>
+          <Box sx={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${fillPct}%`, bgcolor: barColor, borderRadius: '4px 0 0 4px', transition: 'width 0.5s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 0.5 }}>
+            {fillPct > 15 && (
+              <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700, fontSize: '0.7rem' }}>
+                {formatNumber(liters, 0)} L
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.3 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>0 L</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+            Capacidad: {formatNumber(TANK_CAPACITY, 0)} L
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
+  // ========== DOWNLOAD SUGGESTION LOGIC ==========
+  const buildSuggestions = () => {
+    const compartments = [
+      { name: 'Compartimento 1', liters: r.compartment1Liters || 0 },
+      { name: 'Compartimento 2', liters: r.compartment2Liters || 0 },
+      { name: 'Compartimento 3', liters: r.compartment3Liters || 0 },
+    ].filter((c) => c.liters > 0);
+
+    if (compartments.length === 0 || !(r.tankReadings || []).length) return [];
+
+    const tankData = (r.tankReadings || []).map((t) => ({
+      id: t.tankId,
+      label: TANK_LABELS[t.tankId] || t.tankId,
+      current: t.litersBefore || 0,
+      available: Math.max(TANK_CAPACITY - (t.litersBefore || 0), 0),
+    })).sort((a, b) => b.available - a.available);
+
+    const remaining = tankData.map((t) => ({ ...t }));
+    const suggestions = [];
+    const sorted = [...compartments].sort((a, b) => b.liters - a.liters);
+
+    for (const comp of sorted) {
+      const singleTank = remaining.find((t) => t.available >= comp.liters);
+
+      if (singleTank) {
+        suggestions.push({
+          compartment: comp.name,
+          liters: comp.liters,
+          type: 'single',
+          allocations: [{ tank: singleTank.label, tankId: singleTank.id, liters: comp.liters }],
+        });
+        singleTank.available -= comp.liters;
+      } else {
+        const tanksWithSpace = remaining.filter((t) => t.available > 0);
+        const totalAvailable = tanksWithSpace.reduce((s, t) => s + t.available, 0);
+
+        if (totalAvailable <= 0) {
+          suggestions.push({
+            compartment: comp.name,
+            liters: comp.liters,
+            type: 'overflow',
+            allocations: [],
+          });
+          continue;
+        }
+
+        let remainingLiters = comp.liters;
+        const allocations = [];
+
+        for (const tank of tanksWithSpace) {
+          if (remainingLiters <= 0) break;
+          const share = Math.min(
+            Math.round((tank.available / totalAvailable) * comp.liters),
+            tank.available
+          );
+          if (share > 0) {
+            allocations.push({ tank: tank.label, tankId: tank.id, liters: share });
+            tank.available -= share;
+            remainingLiters -= share;
+          }
+        }
+
+        if (remainingLiters > 0) {
+          for (const tank of tanksWithSpace) {
+            if (remainingLiters <= 0) break;
+            const extra = Math.min(remainingLiters, tank.available);
+            if (extra > 0) {
+              const existing = allocations.find((a) => a.tankId === tank.id);
+              if (existing) {
+                existing.liters += extra;
+              } else {
+                allocations.push({ tank: tank.label, tankId: tank.id, liters: extra });
+              }
+              tank.available -= extra;
+              remainingLiters -= extra;
+            }
+          }
+        }
+
+        suggestions.push({
+          compartment: comp.name,
+          liters: comp.liters,
+          type: allocations.length > 1 ? 'distributed' : 'single',
+          allocations,
+        });
+      }
+    }
+
+    return suggestions;
+  };
+
+  const suggestions = buildSuggestions();
+  const totalAvailableAll = (r.tankReadings || []).reduce(
+    (s, t) => s + Math.max(TANK_CAPACITY - (t.litersBefore || 0), 0),
+    0
+  );
 
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Recepcion de Gandola</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>Recepción de Gandola</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Registro de lecturas de tanques antes y despues de la descarga de combustible
+          Registro de lecturas de tanques antes y después de la descarga de combustible
         </Typography>
       </Box>
 
@@ -88,18 +305,11 @@ export default function RecepcionGandola() {
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
             <LocalShippingIcon sx={{ fontSize: 56, color: 'text.secondary', mb: 2 }} />
             <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-              Inicia el proceso de recepcion para registrar las lecturas de los tanques antes y despues de la descarga.
+              Inicia el proceso de recepción para registrar las lecturas de los tanques antes y después de la descarga.
             </Alert>
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<PlayArrowIcon />}
-              onClick={handleStartReception}
-              sx={{ px: 4 }}
-            >
-              Iniciar Recepcion de Gandola
+            <Button variant="contained" size="large" startIcon={<PlayArrowIcon />} onClick={handleStartReception} sx={{ px: 4 }}>
+              Iniciar Recepción de Gandola
             </Button>
-
             {currentShift && (
               <Box sx={{ mt: 3 }}>
                 <Chip label={`Turno activo: ${currentShift.date}`} color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
@@ -109,169 +319,378 @@ export default function RecepcionGandola() {
         </Card>
       ) : (
         <>
-          {/* Reception Info */}
+          {/* ===== RECEPCIÓN EN PROGRESO ===== */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <LocalShippingIcon sx={{ color: 'primary.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                  Recepcion en Progreso
-                </Typography>
-                <Chip label={currentReception.date} size="small" color="default" />
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>Recepción en Progreso</Typography>
+                <Chip label={r.date || ''} size="small" color="default" />
               </Box>
 
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Supervisor que Recibe"
-                    value={currentReception.supervisorName}
-                    onChange={(e) => updateReceptionField('supervisorName', e.target.value)}
-                  />
+                  <FormControl fullWidth>
+                    <InputLabel>Supervisor que Recibe</InputLabel>
+                    <Select value={safeSupervisorId} label="Supervisor que Recibe" onChange={handleSupervisorChange}>
+                      {supervisors.map((sup) => (
+                        <MenuItem key={sup.id} value={sup.id}>{sup.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Placa de la Gandola"
-                    value={currentReception.gandolaPlate}
-                    onChange={(e) => updateReceptionField('gandolaPlate', e.target.value.toUpperCase())}
-                    placeholder="Ej: ABC123"
-                  />
+                  <TextField fullWidth label="Nombre del Chofer" value={r.gandolaDriver || ''} onChange={(e) => updateReceptionField('gandolaDriver', e.target.value)} />
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Nombre del Chofer"
-                    value={currentReception.gandolaDriver}
-                    onChange={(e) => updateReceptionField('gandolaDriver', e.target.value)}
-                  />
+                  <TextField fullWidth label="C.I. del Chofer" value={r.driverCI || ''} onChange={(e) => updateReceptionField('driverCI', e.target.value)} placeholder="Ej: V-12345678" />
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Tipo de Combustible"
-                    value={currentReception.productType}
-                    onChange={(e) => updateReceptionField('productType', e.target.value)}
-                  >
-                    {PRODUCT_TYPES.map((pt) => (
-                      <MenuItem key={pt.value} value={pt.value}>{pt.label}</MenuItem>
-                    ))}
-                  </TextField>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Compartimento 1 (Litros)" type="number" value={r.compartment1Liters || ''} onChange={(e) => updateReceptionField('compartment1Liters', parseFloat(e.target.value) || 0)} InputProps={{ endAdornment: <span style={{ marginLeft: 4 }}>L</span> }} />
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Observaciones"
-                    value={currentReception.observations}
-                    onChange={(e) => updateReceptionField('observations', e.target.value)}
-                    placeholder="Notas adicionales..."
-                  />
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Compartimento 2 (Litros)" type="number" value={r.compartment2Liters || ''} onChange={(e) => updateReceptionField('compartment2Liters', parseFloat(e.target.value) || 0)} InputProps={{ endAdornment: <span style={{ marginLeft: 4 }}>L</span> }} />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Compartimento 3 (Litros)" type="number" value={r.compartment3Liters || ''} onChange={(e) => updateReceptionField('compartment3Liters', parseFloat(e.target.value) || 0)} InputProps={{ endAdornment: <span style={{ marginLeft: 4 }}>L</span> }} />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 2, bgcolor: '#E8F5E9', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Cantidad Neta Total</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>{formatNumber(totalCompartment, 0)} L</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Hora de Llegada" type="time" value={r.arrivalTime || ''} onChange={(e) => updateReceptionField('arrivalTime', e.target.value)} InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Hora de Salida" type="time" value={r.departureTime || ''} onChange={(e) => updateReceptionField('departureTime', e.target.value)} InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Observaciones" value={r.observations || ''} onChange={(e) => updateReceptionField('observations', e.target.value)} placeholder="Notas adicionales..." />
                 </Grid>
               </Grid>
             </CardContent>
           </Card>
 
-          {/* Tank Readings Before and After */}
+          {/* ===== LECTURAS ANTES ===== */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, color: 'secondary.main' }}>
-                Lecturas de Tanques
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                Registre los centimetros (CM) de cada tanque ANTES de la descarga y DESPUES de la descarga.
-                Los litros se calculan automaticamente via tabla de calibracion (incrementos de 0.5 cm).
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#F57C00' }}>Lecturas de Tanques - Antes de la Descarga</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>Registre los centímetros (CM) de cada tanque ANTES de iniciar la descarga.</Typography>
+                </Box>
+                <Button variant="contained" startIcon={<WhatsAppIcon />} onClick={handleSendWhatsAppBefore} sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' }, borderRadius: 2 }}>
+                  WhatsApp Antes
+                </Button>
+              </Box>
 
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 700 }}>Tanque</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFECB3' }} align="right">CM Antes</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFECB3' }} align="right">L Antes</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#C8E6C9' }} align="right">CM Despues</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#C8E6C9' }} align="right">L Despues</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#E3F2FD' }} align="right">Diferencia L</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFF3E0' }} align="center">CM</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFF3E0' }} align="right">Litros</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {currentReception.tankReadings.map((tank, idx) => (
+                    {(r.tankReadings || []).map((tank, idx) => (
                       <TableRow key={tank.tankId}>
                         <TableCell sx={{ fontWeight: 600 }}>{TANK_LABELS[tank.tankId]}</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#FFF8E1' }}>
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={tank.cmBefore || ''}
-                            onChange={(e) => updateTankReception(idx, 'cmBefore', e.target.value)}
-                            sx={{ width: 90, '& input': { textAlign: 'right' } }}
-                            placeholder="CM"
-                            inputProps={{ step: 0.5 }}
-                          />
+                        <TableCell align="center" sx={{ bgcolor: '#FFF8E1' }}>
+                          <TextField type="number" variant="standard" value={tank.cmBefore || ''} onChange={(e) => updateTankReception(idx, 'cmBefore', e.target.value)} sx={{ width: 100, '& input': { textAlign: 'center' } }} placeholder="CM" inputProps={{ step: 0.5 }} />
                         </TableCell>
                         <TableCell align="right" sx={{ bgcolor: '#FFF8E1', fontWeight: 600, color: 'text.secondary' }}>
-                          {formatNumber(tank.litersBefore, 0)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#F1F8E9' }}>
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={tank.cmAfter || ''}
-                            onChange={(e) => updateTankReception(idx, 'cmAfter', e.target.value)}
-                            sx={{ width: 90, '& input': { textAlign: 'right' } }}
-                            placeholder="CM"
-                            inputProps={{ step: 0.5 }}
-                          />
-                        </TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#F1F8E9', fontWeight: 600, color: 'text.secondary' }}>
-                          {formatNumber(tank.litersAfter, 0)}
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{
-                            fontWeight: 700,
-                            bgcolor: '#E3F2FD',
-                            color: tank.litersDifference > 0 ? 'success.main' : 'text.secondary',
-                          }}
-                        >
-                          {tank.litersDifference > 0 ? `+${formatNumber(tank.litersDifference, 0)}` : formatNumber(tank.litersDifference, 0)}
+                          {formatNumber(tank.litersBefore || 0, 0)} L
                         </TableCell>
                       </TableRow>
                     ))}
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFE0B2' }}>TOTAL</TableCell>
+                      <TableCell sx={{ bgcolor: '#FFE0B2' }} />
+                      <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#FFE0B2', color: '#F57C00', fontSize: '1rem' }}>
+                        {formatNumber(totalLitersBefore, 0)} L
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          {/* ===== CAPACIDAD DISPONIBLE ===== */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#1565C0', mb: 1 }}>Capacidad Disponible por Tanque</Typography>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, p: 1, bgcolor: '#F5F5F5', borderRadius: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: '3px', bgcolor: '#2E7D32' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>Disponible</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: '3px', bgcolor: '#FBC02D' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>Llenándose</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: '3px', bgcolor: '#F57C00' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>Poco espacio</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: '3px', bgcolor: '#D32F2F' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>Lleno</Typography>
+                </Box>
+              </Box>
+
+              {(r.tankReadings || []).map((tank) => (
+                <Box key={`cap-${tank.tankId}`}>{renderTankBar(tank)}</Box>
+              ))}
+
+              <Divider sx={{ my: 2 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 1.5, bgcolor: '#E3F2FD', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Capacidad Total</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#1565C0' }}>{formatNumber(TANK_CAPACITY * (r.tankReadings || []).length, 0)} L</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 1.5, bgcolor: '#FFF8E1', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Nivel Actual</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#F57C00' }}>{formatNumber(totalLitersBefore, 0)} L</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Paper sx={{ p: 1.5, bgcolor: '#E8F5E9', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Espacio Disponible</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2E7D32' }}>{formatNumber(totalAvailableAll, 0)} L</Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* ===== SUGERENCIA DE DESCARGA ===== */}
+          {totalCompartment > 0 && (r.tankReadings || []).length > 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <LocalShippingIcon sx={{ color: '#7B1FA2' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#7B1FA2' }}>
+                    Sugerencia de Descarga
+                  </Typography>
+                </Box>
+
+                {totalCompartment > totalAvailableAll ? (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      No hay espacio suficiente. La gandola trae {formatNumber(totalCompartment, 0)} L pero solo hay {formatNumber(totalAvailableAll, 0)} L disponibles. Faltan {formatNumber(totalCompartment - totalAvailableAll, 0)} L.
+                    </Typography>
+                  </Alert>
+                ) : (
+                  <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+                    <Typography variant="body2">
+                      Hay espacio disponible ({formatNumber(totalAvailableAll, 0)} L) para los {formatNumber(totalCompartment, 0)} L de la gandola.
+                    </Typography>
+                  </Alert>
+                )}
+
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F3E5F5' }}>Compartimento</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F3E5F5' }} align="right">Litros</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F3E5F5' }} align="center">Tipo</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F3E5F5' }}>Descargar en</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {suggestions.map((sug) => (
+                        <TableRow key={sug.compartment}>
+                          <TableCell sx={{ fontWeight: 600 }}>{sug.compartment}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>{formatNumber(sug.liters, 0)} L</TableCell>
+                          <TableCell align="center">
+                            {sug.type === 'single' && (
+                              <Chip label="Completo" size="small" sx={{ bgcolor: '#2E7D32', color: '#fff', fontWeight: 600, fontSize: '0.7rem' }} />
+                            )}
+                            {sug.type === 'distributed' && (
+                              <Chip label="Distribuido" size="small" sx={{ bgcolor: '#F57C00', color: '#fff', fontWeight: 600, fontSize: '0.7rem' }} />
+                            )}
+                            {sug.type === 'overflow' && (
+                              <Chip label="SIN ESPACIO" size="small" sx={{ bgcolor: '#D32F2F', color: '#fff', fontWeight: 600, fontSize: '0.7rem' }} />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {sug.type === 'overflow' ? (
+                              <Typography variant="body2" sx={{ color: '#D32F2F', fontWeight: 600 }}>
+                                No cabe en ningún tanque
+                              </Typography>
+                            ) : sug.type === 'single' ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <ArrowRightIcon sx={{ fontSize: 16, color: '#2E7D32' }} />
+                                <Chip
+                                  label={`${sug.allocations[0].tank} (${formatNumber(sug.allocations[0].liters, 0)} L)`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ borderColor: '#2E7D32', color: '#2E7D32', fontWeight: 600 }}
+                                />
+                              </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {sug.allocations.map((alloc) => (
+                                  <Box key={`${sug.compartment}-${alloc.tankId}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <ArrowRightIcon sx={{ fontSize: 14, color: '#F57C00' }} />
+                                    <Chip
+                                      label={`${alloc.tank}: ${formatNumber(alloc.liters, 0)} L`}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ borderColor: '#F57C00', color: '#F57C00', fontWeight: 600, fontSize: '0.7rem' }}
+                                    />
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Resumen por Tanque Después de Descarga Sugerida:</Typography>
+                <Grid container spacing={1}>
+                  {(r.tankReadings || []).map((tank) => {
+                    const tankLabel = TANK_LABELS[tank.tankId] || tank.tankId;
+                    const currentLiters = tank.litersBefore || 0;
+                    let incoming = 0;
+                    suggestions.forEach((sug) => {
+                      sug.allocations.forEach((alloc) => {
+                        if (alloc.tankId === tank.tankId) incoming += alloc.liters;
+                      });
+                    });
+                    const projected = currentLiters + incoming;
+                    const pct = (projected / TANK_CAPACITY) * 100;
+                    const projColor = pct > 95 ? '#D32F2F' : pct > 85 ? '#F57C00' : pct > 70 ? '#FBC02D' : '#2E7D32';
+
+                    return (
+                      <Grid item xs={6} sm={4} key={`proj-${tank.tankId}`}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            border: '1px solid #E0E0E0',
+                            height: '100%',
+                            minHeight: 110,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{tankLabel}</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                              Actual: {formatNumber(currentLiters, 0)} L
+                            </Typography>
+                            {incoming > 0 && (
+                              <Typography variant="body2" sx={{ color: '#2E7D32', fontSize: '0.75rem', fontWeight: 600 }}>
+                                + {formatNumber(incoming, 0)} L
+                              </Typography>
+                            )}
+                            {!incoming && (
+                              <Typography variant="body2" sx={{ color: '#BDBDBD', fontSize: '0.75rem' }}>
+                                &nbsp;
+                              </Typography>
+                            )}
+                          </Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: projColor, mt: 0.5 }}>
+                            Final: {formatNumber(projected, 0)} L ({pct.toFixed(1)}%)
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ===== LECTURAS DESPUÉS ===== */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#2E7D32' }}>Lecturas de Tanques - Después de la Descarga</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>Registre los centímetros (CM) de cada tanque DESPUÉS de completar la descarga.</Typography>
+                </Box>
+                <Button variant="contained" startIcon={<WhatsAppIcon />} onClick={handleSendWhatsAppAfter} sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' }, borderRadius: 2 }}>
+                  WhatsApp Después
+                </Button>
+              </Box>
+
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Tanque</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#E8F5E9' }} align="center">CM</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#E8F5E9' }} align="right">Litros</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(r.tankReadings || []).map((tank, idx) => (
+                      <TableRow key={tank.tankId}>
+                        <TableCell sx={{ fontWeight: 600 }}>{TANK_LABELS[tank.tankId]}</TableCell>
+                        <TableCell align="center" sx={{ bgcolor: '#F1F8E9' }}>
+                          <TextField type="number" variant="standard" value={tank.cmAfter || ''} onChange={(e) => updateTankReception(idx, 'cmAfter', e.target.value)} sx={{ width: 100, '& input': { textAlign: 'center' } }} placeholder="CM" inputProps={{ step: 0.5 }} />
+                        </TableCell>
+                        <TableCell align="right" sx={{ bgcolor: '#F1F8E9', fontWeight: 600, color: 'text.secondary' }}>
+                          {formatNumber(tank.litersAfter || 0, 0)} L
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#C8E6C9' }}>TOTAL</TableCell>
+                      <TableCell sx={{ bgcolor: '#C8E6C9' }} />
+                      <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#C8E6C9', color: '#2E7D32', fontSize: '1rem' }}>
+                        {formatNumber(totalLitersAfter, 0)} L
+                      </TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
 
               <Divider sx={{ my: 2 }} />
 
-              <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Total Antes</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>{formatNumber(totalLitersBefore, 0)} L</Typography>
+              <Paper sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Total Antes</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>{formatNumber(totalLitersBefore, 0)} L</Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Total Después</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>{formatNumber(totalLitersAfter, 0)} L</Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Litros Recibidos</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: totalReceived > 0 ? 'success.main' : 'text.secondary' }}>
+                      {totalReceived > 0 ? `+${formatNumber(totalReceived, 0)}` : formatNumber(totalReceived, 0)} L
+                    </Typography>
+                  </Grid>
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Total Despues</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>{formatNumber(totalLitersAfter, 0)} L</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Litros Recibidos</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: totalReceived > 0 ? 'success.main' : 'text.secondary' }}>
-                    {totalReceived > 0 ? `+${formatNumber(totalReceived, 0)}` : formatNumber(totalReceived, 0)} L
-                  </Typography>
-                </Grid>
-              </Grid>
+              </Paper>
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* ===== BOTONES ===== */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-            <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={handleCancel}>
-              Cancelar Recepcion
-            </Button>
-            <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleClose}>
-              Cerrar Recepcion
-            </Button>
+            <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={handleCancel}>Cancelar Recepción</Button>
+            <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleClose}>Cerrar Recepción</Button>
           </Box>
         </>
       )}

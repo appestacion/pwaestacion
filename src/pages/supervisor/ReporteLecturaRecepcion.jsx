@@ -29,7 +29,7 @@ export default function ReporteLecturaRecepcion() {
   const config = useConfigStore((s) => s.config);
   const tanksCount = config.tanksCount || 3;
 
-  const [selectedDate, setSelectedDate] = useState(() =>
+  const [selectedDate] = useState(() =>
     currentShift?.date || getVenezuelaDateString()
   );
 
@@ -75,7 +75,6 @@ export default function ReporteLecturaRecepcion() {
     return null;
   }, [selectedDate, receptionsHistory, currentReception]);
 
-  // Totales de litros vendidos por turno
   const diurnoTotal = useMemo(
     () => (diurnoShift?.pumpReadings || []).reduce((s, r) => s + (r.litersSold || 0), 0),
     [diurnoShift]
@@ -86,7 +85,6 @@ export default function ReporteLecturaRecepcion() {
   );
   const totalGeneral = diurnoTotal + nocturnoTotal;
 
-  // Datos de tanques combinando diurno + gandola + nocturno
   const tankData = useMemo(() => {
     return Array.from({ length: tanksCount }, (_, i) => {
       const t = i + 1;
@@ -106,11 +104,9 @@ export default function ReporteLecturaRecepcion() {
 
   const hasData = dayShifts.length > 0;
 
-  // Estilos compartidos
   const hSx = { fontWeight: 700, fontSize: '0.75rem', p: '6px 8px' };
   const dSx = { fontSize: '0.8rem', p: '5px 8px' };
 
-  // Renderizar tabla de surtidores para un turno
   const renderSurtidorTable = (shift, label, color, total, tasaLabel) => {
     if (!shift) {
       return (
@@ -177,7 +173,6 @@ export default function ReporteLecturaRecepcion() {
     );
   };
 
-  // Etiqueta de tasa para cada turno
   const diurnoTasaLabel = diurnoShift
     ? `Tasa: ${formatNumber(diurnoShift.tasa1, 2)} Bs.`
     : 'Tasa: —';
@@ -195,23 +190,16 @@ export default function ReporteLecturaRecepcion() {
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>Reporte Lectura y Recepcion</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Reporte diario de lecturas de surtidores y recepcion de gandola
+            Reporte diario de lecturas de surtidores y recepcion de gandola — {selectedDate}
           </Typography>
         </Box>
-        <TextField
-          label="Fecha"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
+        <Chip
+          icon={<CalendarTodayIcon sx={{ fontSize: 16 }} />}
+          label={selectedDate}
           size="small"
-          placeholder="DD/MM/YYYY"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <CalendarTodayIcon sx={{ fontSize: 18 }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ width: 180 }}
+          color="primary"
+          variant="outlined"
+          sx={{ fontWeight: 600 }}
         />
       </Box>
 
@@ -236,7 +224,6 @@ export default function ReporteLecturaRecepcion() {
                 </Grid>
                 <Grid item>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Chip label={`Fecha: ${selectedDate}`} size="small" variant="outlined" />
                     <Chip
                       label={`Tasa: ${formatNumber(diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0, 2)} Bs.`}
                       size="small"

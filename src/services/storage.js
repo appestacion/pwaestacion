@@ -103,7 +103,7 @@ export function initDefaultData() {
     const config = {
       tasa1: 50.00,
       tasa2: 0,
-      stationName: 'Mi Estacion de Servicio',
+      stationName: 'Mi Estación de Servicio',
       stationRif: 'J-00000000-0',
       stationAddress: 'Venezuela',
       stationPhone: '',

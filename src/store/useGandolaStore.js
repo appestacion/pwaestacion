@@ -25,9 +25,15 @@ function createEmptyGandolaReception() {
     id: generateId(),
     date: getVenezuelaDateString(),
     supervisorName: '',
-    gandolaPlate: '',
+    supervisorId: '',
     gandolaDriver: '',
+    driverCI: '',
     productType: '',
+    compartment1Liters: 0,
+    compartment2Liters: 0,
+    compartment3Liters: 0,
+    arrivalTime: '',
+    departureTime: '',
     tankReadings: [1, 2, 3].map(createEmptyTankReception),
     observations: '',
     status: 'en_proceso',
@@ -59,9 +65,24 @@ const useGandolaStore = create((set, get) => ({
           (snapshot) => {
             if (!snapshot.empty) {
               const reception = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-              set({ currentReception: reception, firestoreActive: true });
+
+              // Only update Zustand state when:
+              // 1. There is NO current reception (initial load)
+              // 2. The reception ID changed (different document)
+              // 3. The status changed (e.g. completed/cancelled from another device)
+              // This prevents the infinite loop: local edit → Firestore write → onSnapshot → re-render
+              const current = get().currentReception;
+              const isNew = !current || current.id !== reception.id;
+              const statusChanged = current && current.status !== reception.status;
+
+              if (isNew || statusChanged || !current) {
+                set({ currentReception: reception, firestoreActive: true });
+              }
             } else {
-              set({ currentReception: null });
+              const current = get().currentReception;
+              if (current) {
+                set({ currentReception: null });
+              }
             }
           },
           (error) => {

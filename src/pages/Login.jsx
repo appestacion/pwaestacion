@@ -75,7 +75,7 @@ export default function LoginPage() {
     setResetError('');
     setResetSuccess(false);
     if (!resetEmail.trim()) {
-      setResetError('Ingresa tu correo electronico');
+      setResetError('Ingresa tu correo electrónico');
       return;
     }
     setResetLoading(true);
@@ -168,7 +168,7 @@ export default function LoginPage() {
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3, fontSize: '0.8rem' }}>
-            Sistema de Cierre de Estacion de Servicio
+            Sistema de Cierre de Estación de Servicio
           </Typography>
 
           {/* ========== MODO LOGIN ========== */}
@@ -181,7 +181,7 @@ export default function LoginPage() {
               <form onSubmit={handleSubmit} style={{ width: '100%' }}>
                 <TextField
                   fullWidth
-                  label="Correo Electronico"
+                  label="Correo Electrónico"
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -206,7 +206,7 @@ export default function LoginPage() {
 
                 <TextField
                   fullWidth
-                  label="Contrasena"
+                  label="Contraseña"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   value={password}
@@ -249,7 +249,7 @@ export default function LoginPage() {
                       '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
                     }}
                   >
-                    Olvidaste tu contrasena?
+                    ¿Olvidaste tu contraseña?
                   </Button>
                 </Box>
 
@@ -270,13 +270,13 @@ export default function LoginPage() {
                     '&.Mui-disabled': { background: '#E0E0E0', color: '#9E9E9E', boxShadow: 'none' },
                   }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesion'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
                 </Button>
               </form>
             </>
           )}
 
-          {/* ========== MODO RECUPERAR CONTRASENA ========== */}
+          {/* ========== MODO RECUPERAR CONTRASEÑA ========== */}
           {mode === 'reset' && (
             <>
               <Box sx={{ alignSelf: 'flex-start', mb: 1 }}>
@@ -291,10 +291,10 @@ export default function LoginPage() {
               </Box>
 
               <Typography variant="body1" sx={{ fontWeight: 600, textAlign: 'center', mb: 0.5, color: 'text.primary' }}>
-                Recuperar Contrasena
+                Recuperar Contraseña
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3, fontSize: '0.82rem', lineHeight: 1.5 }}>
-                Ingresa tu correo electronico y te enviaremos un enlace para restablecer tu contrasena.
+                Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
               </Typography>
 
               {resetError && (
@@ -303,14 +303,14 @@ export default function LoginPage() {
 
               {resetSuccess && (
                 <Alert severity="success" sx={{ mb: 2, borderRadius: 2, width: '100%' }}>
-                  Se envio un correo de recuperacion a <strong>{resetEmail}</strong>. Revisa tu bandeja de entrada y sigue las instrucciones.
+                  Se envió un correo de recuperación a <strong>{resetEmail}</strong>. Revisa tu bandeja de entrada y sigue las instrucciones.
                 </Alert>
               )}
 
               <form onSubmit={handleResetSubmit} style={{ width: '100%' }}>
                 <TextField
                   fullWidth
-                  label="Correo Electronico"
+                  label="Correo Electrónico"
                   type="email"
                   autoComplete="email"
                   value={resetEmail}
@@ -356,7 +356,7 @@ export default function LoginPage() {
                   ) : resetSuccess ? (
                     'Correo Enviado'
                   ) : (
-                    'Enviar Enlace de Recuperacion'
+                    'Enviar Enlace de Recuperación'
                   )}
                 </Button>
               </form>
