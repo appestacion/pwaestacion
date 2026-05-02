@@ -57,6 +57,8 @@ export function calculateBiblia(shift) {
     const bsTotal = calcBsTotal(island);
     const bsInUSD = shift.tasa1 > 0 ? bsTotal / shift.tasa1 : 0;
     const usdTotal = calcUSDTotal(island);
+    const ueUSD = island.usdAdicionales || 0;
+    const usdSinUE = usdTotal - ueUSD;
     const pv1Total = island.pvTotalUSD || 0;
     const pv1TotalBs = island.pvTotalBs || 0;
     const pv2Total = island.pv2TotalUSD || 0;
@@ -65,9 +67,15 @@ export function calculateBiblia(shift) {
     const valesMonto = Array.isArray(island.vales)
       ? island.vales.reduce((s, v) => s + (v.monto || 0), 0)
       : (island.valesMonto || 0);
+    const valesDescripcion = Array.isArray(island.vales)
+      ? island.vales.map(v => v.descripcion || '').filter(Boolean).join(', ')
+      : (island.valesDescripcion || '');
     const transferenciaMonto = Array.isArray(island.transferencias)
       ? island.transferencias.reduce((s, t) => s + (t.monto || 0), 0)
       : (island.transferenciaMonto || 0);
+    const transferenciaDescripcion = Array.isArray(island.transferencias)
+      ? island.transferencias.map(t => t.descripcion || '').filter(Boolean).join(', ')
+      : (island.transferenciaDescripcion || '');
 
     const ingresosTotalUSD = bsInUSD + usdTotal + puntoTotal + valesMonto + transferenciaMonto;
     const litersRef = calcLitersRef(litersByIsland[island.islandId] || 0);
@@ -82,14 +90,16 @@ export function calculateBiblia(shift) {
       bsTotal,
       bsInUSD,
       usdTotal,
+      ueUSD,
+      usdSinUE,
       pv1Total,
       pv1TotalBs,
       pv2Total,
       pv2TotalBs,
       puntoTotal,
-      valesDescripcion: island.valesDescripcion,
+      valesDescripcion,
       valesMonto,
-      transferenciaDescripcion: island.transferenciaDescripcion,
+      transferenciaDescripcion,
       transferenciaMonto,
       ingresosTotalUSD,
       propinaCalculo,
@@ -105,13 +115,17 @@ export function calculateBibliaTotals(biblia) {
     totalBs: biblia.reduce((s, b) => s + b.bsTotal, 0),
     totalBsInUSD: biblia.reduce((s, b) => s + b.bsInUSD, 0),
     totalUSD: biblia.reduce((s, b) => s + b.usdTotal, 0),
+    totalUeUSD: biblia.reduce((s, b) => s + b.ueUSD, 0),
+    totalUsdSinUE: biblia.reduce((s, b) => s + b.usdSinUE, 0),
     totalPv1: biblia.reduce((s, b) => s + b.pv1Total, 0),
     totalPv1Bs: biblia.reduce((s, b) => s + b.pv1TotalBs, 0),
     totalPv2: biblia.reduce((s, b) => s + b.pv2Total, 0),
     totalPv2Bs: biblia.reduce((s, b) => s + b.pv2TotalBs, 0),
     totalPunto: biblia.reduce((s, b) => s + b.puntoTotal, 0),
     totalVales: biblia.reduce((s, b) => s + b.valesMonto, 0),
+    totalValesDescripcion: biblia.map(b => b.valesDescripcion).filter(Boolean).join(', '),
     totalTransferencia: biblia.reduce((s, b) => s + b.transferenciaMonto, 0),
+    totalTransferenciaDescripcion: biblia.map(b => b.transferenciaDescripcion).filter(Boolean).join(', '),
     totalIngresosUSD: biblia.reduce((s, b) => s + b.ingresosTotalUSD, 0),
     totalPropinaUSD: biblia.reduce((s, b) => s + b.propinaUSD, 0),
     totalPropinaBs: biblia.reduce((s, b) => s + b.propinaBs, 0),
@@ -122,11 +136,11 @@ export function calculateCuadrePV(shift) {
   return shift.islands.map((island) => {
     const pvTotalUSD = island.pvTotalUSD;
     const pvTotalBs = island.pvTotalBs;
-    const pvUSDinLiters = usdToLiters(pvTotalUSD, shift.tasa1);
+    const pvUSDinLiters = pvTotalUSD * 2;
 
     const pv2TotalUSD = island.pv2TotalUSD;
     const pv2TotalBs = island.pv2TotalBs;
-    const pv2USDinLiters = shift.tasa2 > 0 ? usdToLiters(pv2TotalUSD, shift.tasa2) : 0;
+    const pv2USDinLiters = pv2TotalUSD * 2;
 
     return {
       islandId: island.islandId,

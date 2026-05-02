@@ -70,13 +70,17 @@ export default function SupervisorDashboard() {
   const totalLiters = currentShift ? calcTotalLitersSold(currentShift.pumpReadings) : 0;
   const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
 
+  // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas
+  // 2TS (PM) cierra 1TO Diurno → usa solo tasa1
+  const showTasa2 = currentShift?.supervisorShiftType === 'AM' && (currentShift?.tasa2 > 0);
+
   const quickActions = [
     { label: 'Lecturas', icon: <SpeedIcon />, path: '/lecturas', color: '#CE1126' },
     { label: 'Cierre de Turno', icon: <ReceiptLongIcon />, path: '/cierre', color: '#003399' },
     { label: 'Biblia', icon: <BookIcon />, path: '/biblia', color: '#FFD100' },
     { label: 'Cuadre PV', icon: <PointOfSaleIcon />, path: '/cuadre-pv', color: '#00A651' },
     { label: 'Inventario', icon: <InventoryIcon />, path: '/inventario', color: '#FF6600' },
-    { label: 'Recepcion Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
+    { label: 'Recepción Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
     { label: 'Generar PDF', icon: <PictureAsPdfIcon />, path: '/generar-pdf', color: '#666666' },
   ];
 
@@ -252,12 +256,12 @@ export default function SupervisorDashboard() {
                       <React.Fragment>
                         <br />
                         BCV: {formatBs(currentShift.tasa1)}
-                        {currentShift.tasa2 > 0 && ` / ${formatBs(currentShift.tasa2)}`}
+                        {showTasa2 && ` / ${formatBs(currentShift.tasa2)}`}
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
                         &nbsp;|&nbsp; Tasa BCV: {formatBs(currentShift.tasa1)}
-                        {currentShift.tasa2 > 0 && ` / ${formatBs(currentShift.tasa2)}`}
+                        {showTasa2 && ` / ${formatBs(currentShift.tasa2)}`}
                       </React.Fragment>
                     )}
                   </Typography>
@@ -334,9 +338,9 @@ export default function SupervisorDashboard() {
             ))}
           </Grid>
 
-          {/* Acciones Rapidas */}
+          {/* Acciones Rápidas */}
           <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ mb: isMobile ? 1.5 : 2 }}>
-            Acciones Rapidas
+            Acciones Rápidas
           </Typography>
           <Grid container spacing={isMobile ? 1.5 : 2}>
             {quickActions.map((action) => (

@@ -98,6 +98,12 @@ export default function RecepcionGandola() {
   const totalCompartment =
     (r.compartment1Liters || 0) + (r.compartment2Liters || 0) + (r.compartment3Liters || 0);
 
+  // Caudalímetro y diferencia
+  const caudalimetro = r.caudalimetro || 0;
+  const diferencia = caudalimetro - totalCompartment;
+  const diferenciaSign = diferencia >= 0 ? '+' : '';
+  const diferenciaColor = diferencia > 0 ? '#2E7D32' : diferencia < 0 ? '#D32F2F' : '#757575';
+
   const handleSupervisorChange = (e) => {
     const selectedId = e.target.value;
     const sup = supervisors.find((s) => s.id === selectedId);
@@ -204,6 +210,9 @@ export default function RecepcionGandola() {
 
     if (compartments.length === 0 || !(r.tankReadings || []).length) return [];
 
+    // Sort compartments: [0]=largest, [1]=middle, [2]=smallest
+    const sorted = [...compartments].sort((a, b) => b.liters - a.liters);
+
     const tankData = (r.tankReadings || []).map((t) => ({
       id: t.tankId,
       label: TANK_LABELS[t.tankId] || t.tankId,
@@ -213,9 +222,65 @@ export default function RecepcionGandola() {
 
     const remaining = tankData.map((t) => ({ ...t }));
     const suggestions = [];
-    const sorted = [...compartments].sort((a, b) => b.liters - a.liters);
+    const assigned = new Set(); // indices in `sorted` that are already assigned
 
-    for (const comp of sorted) {
+    // ===== PRIORITY 1: 2 largest compartments in 1 tank =====
+    if (sorted.length >= 2) {
+      const biggestTank = remaining[0]; // tank with most space
+      if (biggestTank) {
+        const twoLargest = sorted[0].liters + sorted[1].liters;
+        if (biggestTank.available >= twoLargest) {
+          suggestions.push({
+            compartment: sorted[0].name,
+            liters: sorted[0].liters,
+            type: 'single',
+            allocations: [{ tank: biggestTank.label, tankId: biggestTank.id, liters: sorted[0].liters }],
+          });
+          suggestions.push({
+            compartment: sorted[1].name,
+            liters: sorted[1].liters,
+            type: 'single',
+            allocations: [{ tank: biggestTank.label, tankId: biggestTank.id, liters: sorted[1].liters }],
+          });
+          biggestTank.available -= twoLargest;
+          assigned.add(0);
+          assigned.add(1);
+        }
+      }
+    }
+
+    // ===== PRIORITY 2: largest + smallest in 1 tank =====
+    if (assigned.size === 0 && sorted.length >= 2) {
+      const biggestTank = remaining[0];
+      if (biggestTank) {
+        const largestPlusSmallest = sorted[0].liters + sorted[sorted.length - 1].liters;
+        if (biggestTank.available >= largestPlusSmallest) {
+          suggestions.push({
+            compartment: sorted[0].name,
+            liters: sorted[0].liters,
+            type: 'single',
+            allocations: [{ tank: biggestTank.label, tankId: biggestTank.id, liters: sorted[0].liters }],
+          });
+          suggestions.push({
+            compartment: sorted[sorted.length - 1].name,
+            liters: sorted[sorted.length - 1].liters,
+            type: 'single',
+            allocations: [{ tank: biggestTank.label, tankId: biggestTank.id, liters: sorted[sorted.length - 1].liters }],
+          });
+          biggestTank.available -= largestPlusSmallest;
+          assigned.add(0);
+          assigned.add(sorted.length - 1);
+        }
+      }
+    }
+
+    // ===== PROCESS REMAINING COMPARTMENTS =====
+    for (let i = 0; i < sorted.length; i++) {
+      if (assigned.has(i)) continue;
+
+      const comp = sorted[i];
+
+      // Try single tank first
       const singleTank = remaining.find((t) => t.available >= comp.liters);
 
       if (singleTank) {
@@ -227,26 +292,21 @@ export default function RecepcionGandola() {
         });
         singleTank.available -= comp.liters;
       } else {
+        // Distributed: try 2 tanks first, then all
         const tanksWithSpace = remaining.filter((t) => t.available > 0);
-        const totalAvailable = tanksWithSpace.reduce((s, t) => s + t.available, 0);
-
-        if (totalAvailable <= 0) {
-          suggestions.push({
-            compartment: comp.name,
-            liters: comp.liters,
-            type: 'overflow',
-            allocations: [],
-          });
-          continue;
-        }
+        const sortedBySpace = [...tanksWithSpace].sort((a, b) => b.available - a.available);
+        const top2 = sortedBySpace.slice(0, 2);
+        const top2Capacity = top2.reduce((s, t) => s + t.available, 0);
+        const selectedTanks = top2Capacity >= comp.liters ? top2 : sortedBySpace;
+        const selectedCapacity = selectedTanks.reduce((s, t) => s + t.available, 0);
 
         let remainingLiters = comp.liters;
         const allocations = [];
 
-        for (const tank of tanksWithSpace) {
+        for (const tank of selectedTanks) {
           if (remainingLiters <= 0) break;
           const share = Math.min(
-            Math.round((tank.available / totalAvailable) * comp.liters),
+            Math.round((tank.available / selectedCapacity) * comp.liters),
             tank.available
           );
           if (share > 0) {
@@ -256,8 +316,9 @@ export default function RecepcionGandola() {
           }
         }
 
+        // Second pass: fill remainder
         if (remainingLiters > 0) {
-          for (const tank of tanksWithSpace) {
+          for (const tank of selectedTanks) {
             if (remainingLiters <= 0) break;
             const extra = Math.min(remainingLiters, tank.available);
             if (extra > 0) {
@@ -280,6 +341,58 @@ export default function RecepcionGandola() {
           allocations,
         });
       }
+    }
+
+    // ========== POST-PROCESS: Round distributed to multiples of 1000 ==========
+    for (const sug of suggestions) {
+      if (sug.type !== 'distributed' || sug.allocations.length === 0) continue;
+
+      let totalRounded = 0;
+      for (const alloc of sug.allocations) {
+        alloc.liters = Math.floor(alloc.liters / 1000) * 1000;
+        totalRounded += alloc.liters;
+      }
+
+      sug.allocations = sug.allocations.filter((a) => a.liters > 0);
+
+      const remainder = sug.liters - totalRounded;
+
+      if (remainder > 0) {
+        const usedTankIds = new Set(sug.allocations.map((a) => a.tankId));
+        const otherTanks = (r.tankReadings || [])
+          .filter((t) => !usedTankIds.has(t.tankId))
+          .map((t) => ({
+            id: t.tankId,
+            label: TANK_LABELS[t.tankId] || t.tankId,
+            available: Math.max(TANK_CAPACITY - (t.litersBefore || 0), 0),
+          }))
+          .filter((t) => t.available >= remainder)
+          .sort((a, b) => b.available - a.available);
+
+        if (otherTanks.length > 0) {
+          sug.allocations.push({
+            tank: otherTanks[0].label,
+            tankId: otherTanks[0].id,
+            liters: remainder,
+          });
+        } else {
+          const bestAlloc = sug.allocations.reduce(
+            (best, alloc) => {
+              const tank = (r.tankReadings || []).find((t) => t.tankId === alloc.tankId);
+              const avail = tank ? Math.max(TANK_CAPACITY - (tank.litersBefore || 0), 0) - alloc.liters : 0;
+              return avail > best.avail ? { alloc, avail } : best;
+            },
+            { alloc: null, avail: -1 }
+          );
+
+          if (bestAlloc.alloc && bestAlloc.avail >= remainder) {
+            bestAlloc.alloc.liters += remainder;
+          }
+        }
+      }
+
+      sug.allocations = sug.allocations.filter((a) => a.liters > 0);
+      if (sug.allocations.length <= 1) sug.type = 'single';
     }
 
     return suggestions;
@@ -366,8 +479,22 @@ export default function RecepcionGandola() {
                 <Grid item xs={12} sm={4}>
                   <TextField fullWidth label="Hora de Salida" type="time" value={r.departureTime || ''} onChange={(e) => updateReceptionField('departureTime', e.target.value)} InputLabelProps={{ shrink: true }} />
                 </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Observaciones" value={r.observations || ''} onChange={(e) => updateReceptionField('observations', e.target.value)} placeholder="Notas adicionales..." />
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth label="Precintos" value={r.precintos || ''} onChange={(e) => updateReceptionField('precintos', e.target.value)} placeholder="Número de precintos..." />
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <TextField fullWidth label="Caudalímetro" type="number" value={r.caudalimetro || ''} onChange={(e) => updateReceptionField('caudalimetro', parseFloat(e.target.value) || 0)} placeholder="Lectura del caudalímetro" InputProps={{ endAdornment: <span style={{ marginLeft: 4 }}>L</span> }} />
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <Paper sx={{ p: 2, bgcolor: diferencia === 0 ? '#F5F5F5' : diferencia > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Diferencia</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: diferenciaColor }}>
+                      {caudalimetro > 0 ? `${diferenciaSign}${formatNumber(diferencia, 0)} L` : '—'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                      Caudalímetro − Cantidad Neta
+                    </Typography>
+                  </Paper>
                 </Grid>
               </Grid>
             </CardContent>
@@ -540,17 +667,26 @@ export default function RecepcionGandola() {
                               </Box>
                             ) : (
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                {sug.allocations.map((alloc) => (
-                                  <Box key={`${sug.compartment}-${alloc.tankId}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <ArrowRightIcon sx={{ fontSize: 14, color: '#F57C00' }} />
-                                    <Chip
-                                      label={`${alloc.tank}: ${formatNumber(alloc.liters, 0)} L`}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{ borderColor: '#F57C00', color: '#F57C00', fontWeight: 600, fontSize: '0.7rem' }}
-                                    />
-                                  </Box>
-                                ))}
+                                {sug.allocations.map((alloc, allocIdx) => {
+                                  const isRounded = alloc.liters > 0 && alloc.liters % 1000 === 0;
+                                  const isRemainder = allocIdx === sug.allocations.length - 1 && !isRounded;
+                                  return (
+                                    <Box key={`${sug.compartment}-${alloc.tankId}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <ArrowRightIcon sx={{ fontSize: 14, color: isRemainder ? '#1565C0' : '#F57C00' }} />
+                                      <Chip
+                                        label={`${alloc.tank}: ${formatNumber(alloc.liters, 0)} L${isRemainder ? ' (resto)' : ''}`}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{
+                                          borderColor: isRemainder ? '#1565C0' : '#F57C00',
+                                          color: isRemainder ? '#1565C0' : '#F57C00',
+                                          fontWeight: 600,
+                                          fontSize: '0.7rem',
+                                        }}
+                                      />
+                                    </Box>
+                                  );
+                                })}
                               </Box>
                             )}
                           </TableCell>
@@ -679,7 +815,7 @@ export default function RecepcionGandola() {
                   <Grid item xs={4}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Litros Recibidos</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700, color: totalReceived > 0 ? 'success.main' : 'text.secondary' }}>
-                      {totalReceived > 0 ? `+${formatNumber(totalReceived, 0)}` : formatNumber(totalReceived, 0)} L
+                      {totalReceived > 0 ? `+${formatNumber(totalReceived, 0)} L` : '—'}
                     </Typography>
                   </Grid>
                 </Grid>

@@ -6,6 +6,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Grid';
+import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -15,6 +16,7 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatNumber } from '../../lib/formatters.js';
 import { TANK_LABELS, SHIFT_LABELS } from '../../config/constants.js';
@@ -50,6 +52,7 @@ export default function Lecturas() {
   }
 
   const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+  const is1TS = currentShift.supervisorShiftType === 'AM';
 
   // Agrupar lecturas por isla para mostrar subtotales
   const readingsByIsland = useMemo(() => {
@@ -62,7 +65,6 @@ export default function Lecturas() {
       }
       groups[islandId].push({ ...reading, originalIndex: idx });
     });
-    // Ordenar islas numericamente
     const sortedIslands = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
     return sortedIslands.map((id) => {
       const items = groups[id];
@@ -72,6 +74,20 @@ export default function Lecturas() {
   }, [currentShift.pumpReadings]);
 
   const totalAllLiters = (currentShift.pumpReadings || []).reduce((s, r) => s + (r.litersSold || 0), 0);
+
+  const totalTankLiters = (currentShift.tankReadings || []).reduce((s, t) => s + (t.liters || 0), 0);
+
+  const handleSendWhatsApp = () => {
+    const titulo = is1TS ? 'Inventario Inicial' : 'Inventario Final';
+    let text = `*${titulo} ${currentShift.date}*\n`;
+    (currentShift.tankReadings || []).forEach((tank) => {
+      const label = (TANK_LABELS[tank.tankId] || tank.tankId).replace('Tanque ', 'T');
+      text += `${label}: ${formatNumber(tank.liters || 0, 0)} lts\n`;
+    });
+    text += `Total: ${formatNumber(totalTankLiters, 0)} lts`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   return (
     <Box>
@@ -229,13 +245,25 @@ export default function Lecturas() {
       {/* Tank Readings */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, color: 'warning.main', fontWeight: 700 }}>
-            Lecturas de Tanques
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            Los litros se calculan automaticamente a partir de los centimetros (CM) usando la tabla de calibracion.
-            Use valores en incrementos de 0.5 cm (ej: 105, 105.5, 106).
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Box>
+              <Typography variant="h6" sx={{ color: 'warning.main', fontWeight: 700 }}>
+                Lecturas de Tanques
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Los litros se calculan automáticamente a partir de los centímetros (CM) usando la tabla de calibración.
+                Use valores en incrementos de 0.5 cm (ej: 105, 105.5, 106).
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<WhatsAppIcon />}
+              onClick={handleSendWhatsApp}
+              sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' }, borderRadius: 2 }}
+            >
+              WhatsApp
+            </Button>
+          </Box>
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -266,6 +294,13 @@ export default function Lecturas() {
                     </TableCell>
                   </TableRow>
                 ))}
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, bgcolor: '#BBDEFB' }}>TOTAL</TableCell>
+                  <TableCell sx={{ bgcolor: '#BBDEFB' }} />
+                  <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#BBDEFB', color: '#1565C0', fontSize: '1rem' }}>
+                    {formatNumber(totalTankLiters, 0)} L
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </TableContainer>

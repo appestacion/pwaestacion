@@ -1,5 +1,5 @@
 // src/pages/supervisor/CierreTurno.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -23,11 +23,13 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import CurrencyInput from '../../components/common/CurrencyInput.jsx';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
-import { formatBs, formatUSD } from '../../lib/formatters.js';
+import { calculateBiblia } from '../../lib/calculations.js';
+import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
 
 export default function CierreTurno() {
   const {
@@ -51,8 +53,16 @@ export default function CierreTurno() {
     loadProducts();
   }, [loadCurrentShift, loadProducts]);
 
-  // Auto-save: cada cambio se sincroniza a Firestore en tiempo real (debounce 2s)
-  // No se necesita boton de guardar.
+  // Calcular biblia para obtener las propinas por isla
+  const bibliaData = useMemo(() => {
+    if (!currentShift) return {};
+    const biblia = calculateBiblia(currentShift);
+    const map = {};
+    biblia.forEach((b) => {
+      map[b.islandId] = b;
+    });
+    return map;
+  }, [currentShift]);
 
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
@@ -150,6 +160,7 @@ export default function CierreTurno() {
       {(currentShift.islands || []).map((island, tabIndex) => {
         if (activeTab !== tabIndex) return null;
         const iid = island.islandId;
+        const biblia = bibliaData[iid] || {};
         const cortesBsArray = (island.cortesBs || []).slice(0, maxCortes);
         const cortesUSDArray = (island.cortesUSD || []).slice(0, maxCortes);
         const totalCortesBs = cortesBsArray.reduce((s, v) => s + v, 0) + (island.bsAdicionales || 0);
@@ -157,6 +168,8 @@ export default function CierreTurno() {
         const totalCortesUSD = cortesUSDArray.reduce((s, v) => s + v, 0) + (island.usdAdicionales || 0);
         const totalVales = (island.vales || []).reduce((s, v) => s + (v.monto || 0), 0);
         const totalTransferencias = (island.transferencias || []).reduce((s, t) => s + (t.monto || 0), 0);
+        const propinaUSD = biblia.propinaUSD || 0;
+        const propinaBs = biblia.propinaBs || 0;
 
         return (
           <Box key={iid}>
@@ -449,6 +462,70 @@ export default function CierreTurno() {
                       </Grid>
                     </React.Fragment>
                   ))}
+                </Grid>
+              </CardContent>
+            </Card>
+
+            {/* ===== PROPINA DEL OPERADOR ===== */}
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#FFD100' }}>
+                  Propina del Operador
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
+                        Litros Vendidos
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#1565C0' }}>
+                        {formatNumber(biblia.litersRef || 0, 2)} L
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: '#E8F5E9', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
+                        Ingresos Totales
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#2E7D32' }}>
+                        {formatUSD(biblia.ingresosTotalUSD || 0)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: '#FFF8E1', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
+                        Bs. Total (Litros x Tasa)
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#F57C00' }}>
+                        {formatBs(biblia.bsTotal || 0)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+                <Divider sx={{ my: 2 }} />
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Paper sx={{ p: 2, bgcolor: propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
+                        Propina USD
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: propinaUSD > 0 ? '#2E7D32' : '#D32F2F' }}>
+                        {formatUSD(propinaUSD)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Paper sx={{ p: 2, bgcolor: propinaBs > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
+                        Propina Bs
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: propinaBs > 0 ? '#2E7D32' : '#D32F2F' }}>
+                        {formatBs(propinaBs)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
                 </Grid>
               </CardContent>
             </Card>

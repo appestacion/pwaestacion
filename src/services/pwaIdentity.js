@@ -42,21 +42,8 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
       return;
     }
 
-    // Cortar en limites de palabra, no a ciegas.
-    // "Montaña Fresca" -> "Montaña" (no "Montaña Fre")
-    const shortName = (() => {
-      const MAX = 12;
-      const trimmed = stationName.trim();
-      if (trimmed.length <= MAX) return trimmed;
-      const words = trimmed.split(/\s+/);
-      let result = '';
-      for (const w of words) {
-        const candidate = result ? `${result} ${w}` : w;
-        if (candidate.length > MAX) break;
-        result = candidate;
-      }
-      return result || trimmed.substring(0, MAX);
-    })();
+    // Usar el nombre completo — los móviles modernos muestran hasta ~30 caracteres
+    const shortName = stationName.trim();
 
     // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
     const icons = logoUrl
