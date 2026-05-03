@@ -31,6 +31,12 @@ import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
 
+const PAYMENT_METHODS = [
+  { value: 'punto_de_venta', label: 'Punto de Venta' },
+  { value: 'efectivo_bs', label: 'Efectivo Bolivares' },
+  { value: 'efectivo_usd', label: 'Efectivo Dolares' },
+];
+
 export default function CierreTurno() {
   const {
     currentShift,
@@ -47,6 +53,7 @@ export default function CierreTurno() {
   const [activeTab, setActiveTab] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('punto_de_venta');
 
   useEffect(() => {
     loadCurrentShift();
@@ -74,10 +81,15 @@ export default function CierreTurno() {
       );
       updateIslandField(islandId, 'productsSold', newProducts);
     } else {
-      addProductSold(islandId, { productName: selectedProduct, quantity: productQty });
+      addProductSold(islandId, {
+        productName: selectedProduct,
+        quantity: productQty,
+        paymentMethod: selectedPaymentMethod,
+      });
     }
     setSelectedProduct('');
     setProductQty(1);
+    setSelectedPaymentMethod('punto_de_venta');
   };
 
   const handleAddVale = (islandId) => {
@@ -118,6 +130,11 @@ export default function CierreTurno() {
     const transferencias = [...(existing?.transferencias || [])];
     transferencias[idx] = { ...transferencias[idx], [field]: value };
     updateIslandField(islandId, 'transferencias', transferencias);
+  };
+
+  const getPaymentLabel = (method) => {
+    const found = PAYMENT_METHODS.find((m) => m.value === method);
+    return found ? found.label : method;
   };
 
   if (!currentShift) {
@@ -193,7 +210,7 @@ export default function CierreTurno() {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'primary.main' }}>
-                  Cortes en Bolívares
+                  Cortes en Bolivares
                 </Typography>
                 <Grid container spacing={1}>
                   {cortesBsArray.map((val, idx) => (
@@ -230,7 +247,7 @@ export default function CierreTurno() {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'success.main' }}>
-                  Cortes en Dólares
+                  Cortes en Dolares
                 </Typography>
                 <Grid container spacing={1}>
                   {cortesUSDArray.map((val, idx) => (
@@ -401,7 +418,7 @@ export default function CierreTurno() {
                       <Grid item xs={5} sm={6}>
                         <TextField
                           fullWidth
-                          label="Descripción"
+                          label="Descripcion"
                           size="small"
                           value={vale.descripcion || ''}
                           onChange={(e) => handleUpdateVale(iid, idx, 'descripcion', e.target.value)}
@@ -449,7 +466,7 @@ export default function CierreTurno() {
                       <Grid item xs={5} sm={6}>
                         <TextField
                           fullWidth
-                          label="Descripción"
+                          label="Descripcion"
                           size="small"
                           value={transf.descripcion || ''}
                           onChange={(e) => handleUpdateTransferencia(iid, idx, 'descripcion', e.target.value)}
@@ -473,8 +490,8 @@ export default function CierreTurno() {
                   Propina del Operador
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: 2, textAlign: 'center' }}>
+                  <Grid item xs={6}>
+                    <Paper sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Litros Vendidos
                       </Typography>
@@ -483,8 +500,8 @@ export default function CierreTurno() {
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: '#E8F5E9', borderRadius: 2, textAlign: 'center' }}>
+                  <Grid item xs={6}>
+                    <Paper sx={{ p: 2, bgcolor: '#E8F5E9', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Ingresos Totales
                       </Typography>
@@ -493,21 +510,11 @@ export default function CierreTurno() {
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: '#FFF8E1', borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                        Bs. Total (Litros x Tasa)
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#F57C00' }}>
-                        {formatBs(biblia.bsTotal || 0)}
-                      </Typography>
-                    </Paper>
-                  </Grid>
                 </Grid>
                 <Divider sx={{ my: 2 }} />
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Propina USD
                       </Typography>
@@ -517,7 +524,7 @@ export default function CierreTurno() {
                     </Paper>
                   </Grid>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: propinaBs > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: propinaBs > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Propina Bs
                       </Typography>
@@ -544,7 +551,7 @@ export default function CierreTurno() {
                     label="Producto"
                     value={selectedProduct}
                     onChange={(e) => setSelectedProduct(e.target.value)}
-                    sx={{ minWidth: 250 }}
+                    sx={{ minWidth: 200 }}
                   >
                     {activeProducts.map((p) => (
                       <MenuItem key={p.id} value={p.name}>
@@ -557,9 +564,27 @@ export default function CierreTurno() {
                     label="Cantidad"
                     type="number"
                     value={productQty}
-                    onChange={(e) => setProductQty(parseInt(e.target.value) || 1)}
-                    sx={{ width: 100 }}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value);
+                      setProductQty(isNaN(v) || v < 1 ? 1 : v);
+                    }}
+                    inputProps={{ min: 1 }}
+                    sx={{ width: 90 }}
                   />
+                  <TextField
+                    select
+                    size="small"
+                    label="Forma de Pago"
+                    value={selectedPaymentMethod}
+                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    sx={{ minWidth: 190 }}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
@@ -570,15 +595,32 @@ export default function CierreTurno() {
                   </Button>
                 </Box>
 
+                {/* Preview del monto en Bs para Punto de Venta o Efectivo Bolivares */}
+                {selectedProduct && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs') && (() => {
+                  const prod = activeProducts.find((p) => p.name === selectedProduct);
+                  const priceUSD = prod?.priceUSD || 0;
+                  const totalUSD = priceUSD * productQty;
+                  const totalBs = tasa1 > 0 ? totalUSD * tasa1 : 0;
+                  const label = selectedPaymentMethod === 'punto_de_venta' ? 'Punto de Venta' : 'Efectivo Bolivares';
+                  return (
+                    <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#FFF3E0', borderRadius: 1.5, border: '1px solid #FFB74D' }}>
+                      <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 600 }}>
+                        {label}: {formatUSD(totalUSD)} = {formatBs(totalBs)} (Tasa: {formatBs(tasa1)})
+                      </Typography>
+                    </Paper>
+                  );
+                })()}
+
                 {(island.productsSold || []).length > 0 && (
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 700 }}>Producto</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>Cantidad</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>Cant.</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 700 }}>Precio Unit.</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 700 }}>Total</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>Forma de Pago</TableCell>
                           <TableCell align="center"></TableCell>
                         </TableRow>
                       </TableHead>
@@ -586,13 +628,36 @@ export default function CierreTurno() {
                         {(island.productsSold || []).map((ps, idx) => {
                           const prod = activeProducts.find((p) => p.name === ps.productName);
                           const price = prod?.priceUSD || 0;
+                          const totalUSD = price * ps.quantity;
+                          const method = ps.paymentMethod || 'punto_de_venta';
+                          const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                          const totalBs = showBs && tasa1 > 0 ? totalUSD * tasa1 : 0;
+
                           return (
                             <TableRow key={idx}>
                               <TableCell>{ps.productName}</TableCell>
                               <TableCell align="center">{ps.quantity}</TableCell>
                               <TableCell align="right">{formatUSD(price)}</TableCell>
                               <TableCell align="right" sx={{ fontWeight: 600 }}>
-                                {formatUSD(price * ps.quantity)}
+                                {formatUSD(totalUSD)}
+                                {showBs && (
+                                  <Typography variant="caption" sx={{ display: 'block', color: '#E65100', fontWeight: 600 }}>
+                                    = {formatBs(totalBs)}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={getPaymentLabel(method)}
+                                  size="small"
+                                  variant="outlined"
+                                  color={
+                                    method === 'punto_de_venta' ? 'secondary' :
+                                    method === 'efectivo_bs' ? 'primary' :
+                                    'success'
+                                  }
+                                  sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                                />
                               </TableCell>
                               <TableCell align="center">
                                 <IconButton

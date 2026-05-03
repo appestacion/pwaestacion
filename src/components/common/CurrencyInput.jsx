@@ -1,3 +1,4 @@
+// src/components/common/CurrencyInput.jsx
 import React from 'react';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -14,6 +15,27 @@ export default function CurrencyInput({
   sx = {},
 }) {
   const symbol = currency === 'BS' ? 'Bs.' : '$';
+
+  const handleKeyDown = (e) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+    }
+  };
+
+  const handleChange = (e) => {
+    const raw = e.target.value;
+    if (raw === '' || raw === '-') {
+      onChange(0);
+      return;
+    }
+    const val = parseFloat(raw);
+    if (isNaN(val)) {
+      onChange(0);
+      return;
+    }
+    onChange(Math.max(0, val));
+  };
+
   const handleBlur = () => {
     if (isNaN(value) || value < 0) {
       onChange(0);
@@ -25,10 +47,8 @@ export default function CurrencyInput({
       label={label}
       type="number"
       value={value || ''}
-      onChange={(e) => {
-        const val = parseFloat(e.target.value) || 0;
-        onChange(val);
-      }}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
       onBlur={handleBlur}
       size={size}
       fullWidth={fullWidth}
@@ -43,7 +63,7 @@ export default function CurrencyInput({
         ),
       }}
       sx={sx}
-      inputProps={{ inputMode: 'decimal', style: { textAlign: 'right' } }}
+      inputProps={{ inputMode: 'decimal', min: 0, style: { textAlign: 'right' } }}
     />
   );
 }

@@ -1,29 +1,42 @@
 // src/pages/supervisor/CuadrePV.jsx
 import React, { useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
+import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
+import Chip from '@mui/material/Chip';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import { useCierreStore } from '../../store/useCierreStore.js';
+import { useConfigStore } from '../../store/useConfigStore.js';
+import { useProductStore } from '../../store/useProductStore.js';
 import { calculateCuadrePV, calculateCuadrePVTotals } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
 import { ISLAND_LABELS } from '../../config/constants.js';
 
-const PRIMARY_BG = '#FFF3E0';
+// ── Estilos tipo formulario impreso (consistente con Biblia) ──
+const b = '1px solid #666';
+const c = { border: b, p: '4px 6px', fontSize: '0.72rem', lineHeight: 1.3 };
+const tot = { ...c, fontWeight: 700, bgcolor: '#dcdcdc' };
+const sec = { ...c, fontWeight: 700, bgcolor: '#bbb', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 };
+const resumenSec = { ...sec, bgcolor: '#888', color: '#fff' };
+const lbl = { ...c, fontWeight: 600, whiteSpace: 'nowrap' };
+const dataCell = { ...c, textAlign: 'center' };
+const descCell = { ...c, fontStyle: 'italic', fontSize: '0.65rem', color: '#555' };
+const totalValue = { ...tot, bgcolor: '#888', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: '0.8rem' };
 
 export default function CuadrePV() {
   const { currentShift, loadCurrentShift } = useCierreStore();
+  const config = useConfigStore((s) => s.config);
+  const { products, loadProducts } = useProductStore();
 
-  useEffect(() => {
-    loadCurrentShift();
-  }, [loadCurrentShift]);
+  useEffect(() => { loadCurrentShift(); loadProducts(); }, [loadCurrentShift, loadProducts]);
 
   const cuadre = useMemo(() => {
     if (!currentShift) return [];
@@ -41,211 +54,332 @@ export default function CuadrePV() {
 
   if (!totals) return null;
 
-  const hasTasa2 = (currentShift.tasa2 || 0) > 0;
+  const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+  const turnoLabel = isNocturno ? '2TO' : '1TO';
+  const tasa1 = currentShift.tasa1 || 0;
+  const tasa2 = currentShift.tasa2 || 0;
+  const hasTasa2 = tasa2 > 0;
 
-  const tasa1TotalBs = totals.totalPVBs;
-  const tasa1TotalUSD = totals.totalPVUSD;
-  const tasa1TotalLiters = totals.totalPVLiters;
+  // 1TO (DIURNO): usa una sola tasa (Tasa 1), sin lineas de tasa 2
+  // 2TO (NOCTURNO): muestra ambas tasas con totales separados y gran total
+  const singleTasa = !isNocturno;
+  const showTasa1 = true;
+  const showTasa2 = isNocturno && hasTasa2;
 
-  const tasa2TotalBs = totals.totalPV2Bs;
-  const tasa2TotalUSD = totals.totalPV2USD;
-  const tasa2TotalLiters = totals.totalPV2Liters;
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const parts = (currentShift.date || '').split('/');
+  const shiftDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date();
+  const dayName = dayNames[shiftDate.getDay()] || '';
 
-  return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Cuadre Diario Punto de Venta</Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {currentShift.date}
-        </Typography>
-      </Box>
+  // ── Render: Tabla Cuadre PV (por isla) ──
+  const renderCuadreTable = () => (
+    <TableContainer>
+      <Table size="small" sx={{ '& td': { border: b } }}>
+        <TableBody>
+          {/* Encabezado de tabla */}
+          <TableRow>
+            <TableCell sx={sec} style={{ width: '35%' }}>Isla</TableCell>
+            <TableCell sx={sec}>Bs.</TableCell>
+            <TableCell sx={sec}>$</TableCell>
+            <TableCell sx={sec}>Litros</TableCell>
+          </TableRow>
 
-      <Card sx={{ mb: 3, overflowX: 'auto' }}>
-        <CardContent sx={{ p: 1.5 }}>
+          {cuadre.map((r) => (
+            <React.Fragment key={r.islandId}>
+              {/* Fila de encabezado de isla */}
+              <TableRow>
+                <TableCell sx={{ ...sec, bgcolor: '#999', color: '#fff', fontSize: '0.75rem' }} colSpan={4}>
+                  {ISLAND_LABELS[r.islandId]}
+                </TableCell>
+              </TableRow>
+
+              {/* ── 1TO (DIURNO): una sola fila por isla, sin etiqueta de tasa ── */}
+              {singleTasa && (
+                <TableRow hover>
+                  <TableCell sx={lbl}>
+                    ({formatBs(tasa1)})
+                  </TableCell>
+                  <TableCell sx={dataCell}>{formatBs(r.pvTotalBs)}</TableCell>
+                  <TableCell sx={dataCell}>{formatUSD(r.pvTotalUSD)}</TableCell>
+                  <TableCell sx={{ ...dataCell, fontWeight: 600 }}>{formatNumber(r.pvUSDinLiters, 2)}</TableCell>
+                </TableRow>
+              )}
+
+              {/* ── 2TO (NOCTURNO): fila Tasa 1 ── */}
+              {!singleTasa && (
+                <TableRow hover>
+                  <TableCell sx={lbl}>
+                    Tasa 1 ({formatBs(tasa1)})
+                  </TableCell>
+                  <TableCell sx={dataCell}>{formatBs(r.pvTotalBs)}</TableCell>
+                  <TableCell sx={dataCell}>{formatUSD(r.pvTotalUSD)}</TableCell>
+                  <TableCell sx={{ ...dataCell, fontWeight: 600 }}>{formatNumber(r.pvUSDinLiters, 2)}</TableCell>
+                </TableRow>
+              )}
+
+              {/* ── 2TO (NOCTURNO): fila Tasa 2, solo si tiene tasa 2 ── */}
+              {showTasa2 && (
+                <TableRow hover>
+                  <TableCell sx={lbl}>
+                    Tasa 2 ({formatBs(tasa2)})
+                  </TableCell>
+                  <TableCell sx={dataCell}>{formatBs(r.pv2TotalBs)}</TableCell>
+                  <TableCell sx={dataCell}>{formatUSD(r.pv2TotalUSD)}</TableCell>
+                  <TableCell sx={{ ...dataCell, fontWeight: 600 }}>{formatNumber(r.pv2USDinLiters, 2)}</TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
+          ))}
+
+          {/* ── 1TO: solo Total Turno (sin totales separados) ── */}
+          {singleTasa && (
+            <TableRow>
+              <TableCell sx={resumenSec}>Total Turno</TableCell>
+              <TableCell sx={totalValue}>{formatBs(totals.totalPVBs)}</TableCell>
+              <TableCell sx={totalValue}>{formatUSD(totals.totalPVUSD)}</TableCell>
+              <TableCell sx={{ ...totalValue, color: '#c8e6c9' }}>{formatNumber(totals.totalPVLiters, 2)} L</TableCell>
+            </TableRow>
+          )}
+
+          {/* ── 2TO: Total Tasa 1 ── */}
+          {!singleTasa && (
+            <TableRow>
+              <TableCell sx={tot}>Total Tasa 1</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatBs(totals.totalPVBs)}</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatUSD(totals.totalPVUSD)}</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center', fontWeight: 600 }}>{formatNumber(totals.totalPVLiters, 2)} L</TableCell>
+            </TableRow>
+          )}
+
+          {/* ── 2TO: Total Tasa 2 (si aplica) ── */}
+          {showTasa2 && (
+            <TableRow>
+              <TableCell sx={tot}>Total Tasa 2</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatBs(totals.totalPV2Bs)}</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatUSD(totals.totalPV2USD)}</TableCell>
+              <TableCell sx={{ ...tot, textAlign: 'center', fontWeight: 600 }}>{formatNumber(totals.totalPV2Liters, 2)} L</TableCell>
+            </TableRow>
+          )}
+
+          {/* ── 2TO: Gran Total Turno ── */}
+          {!singleTasa && (
+            <TableRow>
+              <TableCell sx={resumenSec}>Total Turno</TableCell>
+              <TableCell sx={totalValue}>{formatBs(totals.grandTotalBs)}</TableCell>
+              <TableCell sx={totalValue}>{formatUSD(totals.grandTotalUSD)}</TableCell>
+              <TableCell sx={{ ...totalValue, color: '#c8e6c9' }}>{formatNumber(totals.grandTotalLiters, 2)} L</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+
+  // ── Render: Vales / Transferencias / Productos por Isla ──
+  const renderIslandDetails = () => {
+    const islands = currentShift.islands || [];
+    const hasAny = islands.some((island) => {
+      const v = island.vales || [];
+      const t = island.transferencias || [];
+      const p = island.productsSold || [];
+      return v.length > 0 || t.length > 0 || p.length > 0;
+    });
+    if (!hasAny) return null;
+
+    return islands.map((island) => {
+      const iid = island.islandId;
+      const vales = island.vales || [];
+      const transferencias = island.transferencias || [];
+      const productsSold = island.productsSold || [];
+      const hasContent = vales.length > 0 || transferencias.length > 0 || productsSold.length > 0;
+      if (!hasContent) return null;
+
+      const totalVales = vales.reduce((s, v) => s + (v.monto || 0), 0);
+      const totalTransf = transferencias.reduce((s, t) => s + (t.monto || 0), 0);
+
+      return (
+        <Box key={iid} sx={{ mb: 2 }}>
+          {/* Encabezado de isla */}
           <TableContainer>
-            <Table size="small">
-              <TableHead>
+            <Table size="small" sx={{ '& td': { border: b } }}>
+              <TableBody>
                 <TableRow>
-                  <TableCell
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: 'secondary.main',
-                      color: 'white',
-                      borderBottom: '2px solid #003399',
-                      fontSize: '0.875rem',
-                      width: '35%',
-                    }}
-                  >
-                    Isla
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: 'secondary.main',
-                      color: 'white',
-                      borderBottom: '2px solid #003399',
-                      fontSize: '0.875rem',
-                      textAlign: 'right',
-                    }}
-                  >
-                    Bs.
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: 'secondary.main',
-                      color: 'white',
-                      borderBottom: '2px solid #003399',
-                      fontSize: '0.875rem',
-                      textAlign: 'right',
-                    }}
-                  >
-                    $                   </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: 'secondary.main',
-                      color: 'white',
-                      borderBottom: '2px solid #003399',
-                      fontSize: '0.875rem',
-                      textAlign: 'right',
-                    }}
-                  >
-                    Litros
+                  <TableCell sx={{ ...sec, bgcolor: '#999', color: '#fff', fontSize: '0.75rem' }} colSpan={3}>
+                    {ISLAND_LABELS[iid]}
                   </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {cuadre.map((r) => (
-                  <React.Fragment key={r.islandId}>
-                    {/* Island header row */}
+
+                {/* ── Vales ── */}
+                {vales.length > 0 && (
+                  <>
                     <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        sx={{
-                          fontWeight: 800,
-                          bgcolor: '#E3F2FD',
-                          color: 'secondary.main',
-                          fontSize: '0.8rem',
-                          py: 0.75,
-                          borderBottom: '1px solid #90CAF9',
-                        }}
-                      >
-                        {ISLAND_LABELS[r.islandId]}
-                      </TableCell>
+                      <TableCell sx={sec} colSpan={3}>Vales</TableCell>
                     </TableRow>
-                    {/* Tasa 1 row */}
-                    <TableRow hover>
-                      <TableCell sx={{ pl: 3, fontWeight: 600, color: 'text.secondary', fontSize: '0.85rem' }}>
-                        Tasa 1 ({formatBs(currentShift.tasa1)})
-                      </TableCell>
-                      <TableCell align="right">{formatBs(r.pvTotalBs)}</TableCell>
-                      <TableCell align="right">{formatUSD(r.pvTotalUSD)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600 }}>{formatNumber(r.pvUSDinLiters, 2)}</TableCell>
-                    </TableRow>
-                    {/* Tasa 2 row — only if applicable */}
-                    {hasTasa2 && (
-                      <TableRow hover>
-                        <TableCell sx={{ pl: 3, fontWeight: 600, color: 'text.secondary', fontSize: '0.85rem' }}>
-                          Tasa 2 ({formatBs(currentShift.tasa2)})
+                    {vales.map((v, idx) => (
+                      <TableRow key={`v-${idx}`}>
+                        <TableCell sx={descCell}>
+                          {v.descripcion || `Vale ${idx + 1}`}
                         </TableCell>
-                        <TableCell align="right">{formatBs(r.pv2TotalBs)}</TableCell>
-                        <TableCell align="right">{formatUSD(r.pv2TotalUSD)}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>{formatNumber(r.pv2USDinLiters, 2)}</TableCell>
+                        <TableCell sx={dataCell} colSpan={2}>
+                          {formatUSD(v.monto || 0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {vales.length > 1 && (
+                      <TableRow>
+                        <TableCell sx={tot}>Total Vales</TableCell>
+                        <TableCell sx={{ ...tot, textAlign: 'center' }} colSpan={2}>
+                          {formatUSD(totalVales)}
+                        </TableCell>
                       </TableRow>
                     )}
-                  </React.Fragment>
-                ))}
-
-                {/* Total Tasa 1 */}
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 800, bgcolor: '#F0F4FF', fontSize: '0.9rem' }}>
-                    Total Tasa 1
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F0F4FF' }}>
-                    {formatBs(tasa1TotalBs)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#F0F4FF' }}>
-                    {formatUSD(tasa1TotalUSD)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#E8F5E9' }}>
-                    {formatNumber(tasa1TotalLiters, 2)} L
-                  </TableCell>
-                </TableRow>
-
-                {/* Total Tasa 2 — only if applicable */}
-                {hasTasa2 && (
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 800, bgcolor: '#E3F2FD', fontSize: '0.9rem' }}>
-                      Total Tasa 2
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#E3F2FD' }}>
-                      {formatBs(tasa2TotalBs)}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#E3F2FD' }}>
-                      {formatUSD(tasa2TotalUSD)}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#E8F5E9' }}>
-                      {formatNumber(tasa2TotalLiters, 2)} L
-                    </TableCell>
-                  </TableRow>
+                  </>
                 )}
 
-                {/* Total Turno (Gran Total) */}
-                <TableRow>
-                  <TableCell
-                    sx={{
-                      fontWeight: 900,
-                      bgcolor: PRIMARY_BG,
-                      color: '#CE1126',
-                      fontSize: '1rem',
-                      borderBottom: '2px solid #CE1126',
-                    }}
-                  >
-                    Total Turno
-                  </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{
-                      fontWeight: 800,
-                      bgcolor: PRIMARY_BG,
-                      color: '#CE1126',
-                      fontSize: '0.95rem',
-                      borderBottom: '2px solid #CE1126',
-                    }}
-                  >
-                    {formatBs(totals.grandTotalBs)}
-                  </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{
-                      fontWeight: 800,
-                      bgcolor: PRIMARY_BG,
-                      color: '#CE1126',
-                      fontSize: '0.95rem',
-                      borderBottom: '2px solid #CE1126',
-                    }}
-                  >
-                    {formatUSD(totals.grandTotalUSD)}
-                  </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{
-                      fontWeight: 800,
-                      bgcolor: PRIMARY_BG,
-                      color: '#2E7D32',
-                      fontSize: '0.95rem',
-                      borderBottom: '2px solid #2E7D32',
-                    }}
-                  >
-                    {formatNumber(totals.grandTotalLiters, 2)} L
-                  </TableCell>
-                </TableRow>
+                {/* ── Transferencias ── */}
+                {transferencias.length > 0 && (
+                  <>
+                    <TableRow>
+                      <TableCell sx={sec} colSpan={3}>Transferencias</TableCell>
+                    </TableRow>
+                    {transferencias.map((t, idx) => (
+                      <TableRow key={`t-${idx}`}>
+                        <TableCell sx={descCell}>
+                          {t.descripcion || `Transf. ${idx + 1}`}
+                        </TableCell>
+                        <TableCell sx={dataCell} colSpan={2}>
+                          {formatUSD(t.monto || 0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {transferencias.length > 1 && (
+                      <TableRow>
+                        <TableCell sx={tot}>Total Transferencias</TableCell>
+                        <TableCell sx={{ ...tot, textAlign: 'center' }} colSpan={2}>
+                          {formatUSD(totalTransf)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                )}
+
+                {/* ── Productos Vendidos ── */}
+                {productsSold.length > 0 && (
+                  <>
+                    <TableRow>
+                      <TableCell sx={sec}>Producto</TableCell>
+                      <TableCell sx={{ ...sec, textAlign: 'center' }}>Cant.</TableCell>
+                      <TableCell sx={{ ...sec, textAlign: 'center' }}>Total</TableCell>
+                    </TableRow>
+                    {productsSold.map((ps, idx) => {
+                      const prod = products.find((p) => p.name === ps.productName);
+                      const price = prod?.priceUSD || 0;
+                      const total = price * ps.quantity;
+                      const method = ps.paymentMethod || 'punto_de_venta';
+                      const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                      const totalBs = showBs && tasa1 > 0 ? total * tasa1 : 0;
+                      const methodLabel = method === 'punto_de_venta' ? 'PV'
+                        : method === 'efectivo_bs' ? 'Ef.Bs'
+                        : 'Ef.$';
+
+                      return (
+                        <TableRow key={`p-${idx}`}>
+                          <TableCell sx={lbl}>
+                            {ps.productName}
+                            {showBs && (
+                              <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic' }}>
+                                {formatBs(totalBs)} ({methodLabel})
+                              </Typography>
+                            )}
+                            {!showBs && (
+                              <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic' }}>
+                                ({methodLabel})
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={dataCell}>{ps.quantity}</TableCell>
+                          <TableCell sx={{ ...dataCell, fontWeight: 700 }}>{formatUSD(total)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
-        </CardContent>
-      </Card>
+        </Box>
+      );
+    });
+  };
+
+  return (
+    <Box>
+      {/* ═══ Encabezado (estilo consistente con Biblia) ═══ */}
+      <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {config.stationLogo ? (
+            <Avatar
+              src={config.stationLogo}
+              alt={config.stationName}
+              sx={{ width: 64, height: 64, borderRadius: 1.5 }}
+              variant="rounded"
+            />
+          ) : (
+            <Box sx={{ width: 64, height: 64, borderRadius: 1.5, bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.500' }} />
+            </Box>
+          )}
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>
+              Cuadre Punto de Venta
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {config.stationName}{config.stationRif !== 'J-00000000-0' ? ` — ${config.stationRif}` : ''}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            component="img"
+            src="/PDVSA.png"
+            alt="PDVSA"
+            sx={{ width: 100, height: 'auto', objectFit: 'contain' }}
+          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+            <Chip
+              icon={<CalendarTodayIcon sx={{ fontSize: 14 }} />}
+              label={currentShift.date}
+              size="small"
+              variant="outlined"
+            />
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Turno: {turnoLabel} {dayName}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              {!isNocturno ? (
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa: {formatNumber(tasa1, 2)}</Typography>
+              ) : (
+                <>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa: {formatNumber(tasa1, 2)}</Typography>
+                  {hasTasa2 && (
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa 2: {formatNumber(tasa2, 2)}</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* ═══ Tabla Cuadre PV (carta vertical) ═══ */}
+      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+        {renderCuadreTable()}
+      </Box>
+
+      {/* ═══ Vales, Transferencias y Productos Vendidos por Isla ═══ */}
+      <Box sx={{ maxWidth: 800, mx: 'auto', mt: 3 }}>
+        {renderIslandDetails()}
+      </Box>
     </Box>
   );
 }

@@ -47,6 +47,7 @@ function AppInitializer({ children }) {
   const loadConfig = useConfigStore((state) => state.loadConfig);
   const configLoading = useConfigStore((state) => state.loading);
   const loadStock = useInventoryStore((state) => state.loadStock);
+  const loadIslandStock = useInventoryStore((state) => state.loadIslandStock);
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
   const initNetwork = useNetworkStore((state) => state.init);
 
@@ -70,9 +71,10 @@ function AppInitializer({ children }) {
     loadConfig();
     loadProducts();
     loadStock();
+    loadIslandStock();
     loadCurrentShift();
     loadCurrentReception();
-  }, [initNetwork, initAuth, loadProducts, loadConfig, loadStock, loadCurrentShift, loadCurrentReception]);
+  }, [initNetwork, initAuth, loadProducts, loadConfig, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
 
   // Mientras la config se carga (primera vez sin cache), mostrar spinner
   // Esto evita el flash de "Mi Estacion de Servicio"
