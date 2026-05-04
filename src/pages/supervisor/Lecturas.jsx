@@ -77,6 +77,9 @@ export default function Lecturas() {
 
   const totalTankLiters = (currentShift.tankReadings || []).reduce((s, t) => s + (t.liters || 0), 0);
 
+  // Verificar si hay al menos una lectura final registrada
+  const anyHasFinal = (currentShift.pumpReadings || []).some((r) => r.finalReading && r.finalReading > 0);
+
   const handleSendWhatsApp = () => {
     const titulo = is1TS ? 'Inventario Inicial' : 'Inventario Final';
     let text = `*${titulo} ${currentShift.date}*\n`;
@@ -174,36 +177,39 @@ export default function Lecturas() {
               <TableBody>
                 {readingsByIsland.map((island, islandIdx) => (
                   <React.Fragment key={`island-${island.islandId}`}>
-                    {island.items.map((reading) => (
-                      <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
-                        <TableCell>Isla {reading.islandId}</TableCell>
-                        <TableCell>Surtidor {reading.pumpNumber}</TableCell>
-                        <TableCell align="right">
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={reading.initialReading || ''}
-                            onChange={(e) => handlePumpChange(reading.originalIndex, 'initialReading', e.target.value)}
-                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <TextField
-                            type="number"
-                            variant="standard"
-                            value={reading.finalReading || ''}
-                            onChange={(e) => handlePumpChange(reading.originalIndex, 'finalReading', e.target.value)}
-                            sx={{ width: 100, '& input': { textAlign: 'right' } }}
-                          />
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: '#2E7D32' }}
-                        >
-                          {formatNumber(reading.litersSold, 0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {island.items.map((reading) => {
+                      const hasFinal = reading.finalReading && reading.finalReading > 0;
+                      return (
+                        <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
+                          <TableCell>Isla {reading.islandId}</TableCell>
+                          <TableCell>Surtidor {reading.pumpNumber}</TableCell>
+                          <TableCell align="right">
+                            <TextField
+                              type="number"
+                              variant="standard"
+                              value={reading.initialReading || ''}
+                              onChange={(e) => handlePumpChange(reading.originalIndex, 'initialReading', e.target.value)}
+                              sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <TextField
+                              type="number"
+                              variant="standard"
+                              value={reading.finalReading || ''}
+                              onChange={(e) => handlePumpChange(reading.originalIndex, 'finalReading', e.target.value)}
+                              sx={{ width: 100, '& input': { textAlign: 'right' } }}
+                            />
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: hasFinal ? '#2E7D32' : '#9E9E9E' }}
+                          >
+                            {hasFinal ? formatNumber(reading.litersSold, 0) : '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     <TableRow key={`subtotal-${island.islandId}`}>
                       <TableCell
                         colSpan={4}
@@ -216,7 +222,7 @@ export default function Lecturas() {
                         align="right"
                         sx={{ fontWeight: 700, bgcolor: '#F3E5F5', color: '#7B1FA2', fontSize: '0.95rem' }}
                       >
-                        {formatNumber(island.totalLiters, 0)} L
+                        {island.items.some((r) => r.finalReading && r.finalReading > 0) ? `${formatNumber(island.totalLiters, 0)} L` : '—'}
                       </TableCell>
                     </TableRow>
                   </React.Fragment>
@@ -231,9 +237,9 @@ export default function Lecturas() {
                   </TableCell>
                   <TableCell
                     align="right"
-                    sx={{ fontWeight: 700, bgcolor: '#E0E0E0', color: '#2E7D32', fontSize: '1rem' }}
+                    sx={{ fontWeight: 700, bgcolor: '#E0E0E0', color: anyHasFinal ? '#2E7D32' : '#9E9E9E', fontSize: '1rem' }}
                   >
-                    {formatNumber(totalAllLiters, 0)} L
+                    {anyHasFinal ? `${formatNumber(totalAllLiters, 0)} L` : '—'}
                   </TableCell>
                 </TableRow>
               </TableBody>

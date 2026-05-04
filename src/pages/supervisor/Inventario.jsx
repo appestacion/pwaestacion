@@ -37,6 +37,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import CloseIcon from '@mui/icons-material/Close';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
@@ -69,6 +70,12 @@ export default function Inventario() {
   const [tab, setTab] = useState(0);
   const [editingStock, setEditingStock] = useState(false);
   const [editingIslandStock, setEditingIslandStock] = useState(false);
+
+  // ── Estado local para edición (evita race conditions con onSnapshot) ──
+  const [editStock, setEditStock] = useState(null);
+  const [editIslandStock, setEditIslandStock] = useState(null);
+  const [savingStock, setSavingStock] = useState(false);
+  const [savingIsland, setSavingIsland] = useState(false);
 
   // ── Dialog: Agregar stock general ──
   const [dlgGeneral, setDlgGeneral] = useState(false);
@@ -192,15 +199,87 @@ export default function Inventario() {
     return { critical, low };
   }, [islandInventoryData, islandIds]);
 
-  // ── Handlers ──
-  const handleSaveStock = () => {
-    setEditingStock(false);
-    enqueueSnackbar({ message: 'Stock inicial guardado', variant: 'success' });
+  // ── Iniciar edición stock general (clona a estado local) ──
+  const startEditStock = () => {
+    const copy = {};
+    activeProducts.forEach((p) => { copy[p.name] = stock[p.name] || 0; });
+    setEditStock(copy);
+    setEditingStock(true);
   };
 
-  const handleSaveIslandStock = () => {
+  // ── Iniciar edición stock por isla (clona a estado local) ──
+  const startEditIslandStock = () => {
+    const copy = {};
+    islandIds.forEach((iid) => {
+      copy[String(iid)] = {};
+      activeProducts.forEach((p) => {
+        copy[String(iid)][p.name] = islandStock[String(iid)]?.[p.name] || 0;
+      });
+    });
+    setEditIslandStock(copy);
+    setEditingIslandStock(true);
+  };
+
+  // ── Cancelar edición stock general ──
+  const cancelEditStock = () => {
+    setEditStock(null);
+    setEditingStock(false);
+  };
+
+  // ── Cancelar edición stock por isla ──
+  const cancelEditIslandStock = () => {
+    setEditIslandStock(null);
     setEditingIslandStock(false);
-    enqueueSnackbar({ message: 'Stock por isla guardado', variant: 'success' });
+  };
+
+  // ── Guardar stock general: escribe solo lo que cambió ──
+  const handleSaveStock = async () => {
+    if (!editStock) return;
+    setSavingStock(true);
+    try {
+      const promises = [];
+      for (const [name, qty] of Object.entries(editStock)) {
+        const current = stock[name] || 0;
+        if (qty !== current) {
+          promises.push(updateStockItem(name, qty));
+        }
+      }
+      await Promise.all(promises);
+      setEditStock(null);
+      setEditingStock(false);
+      enqueueSnackbar({ message: 'Stock guardado correctamente', variant: 'success' });
+    } catch (err) {
+      console.error('Error guardando stock:', err);
+      enqueueSnackbar({ message: 'Error al guardar stock', variant: 'error' });
+    } finally {
+      setSavingStock(false);
+    }
+  };
+
+  // ── Guardar stock por isla: escribe solo lo que cambió ──
+  const handleSaveIslandStock = async () => {
+    if (!editIslandStock) return;
+    setSavingIsland(true);
+    try {
+      const promises = [];
+      for (const [iid, products] of Object.entries(editIslandStock)) {
+        for (const [name, qty] of Object.entries(products)) {
+          const current = islandStock[iid]?.[name] || 0;
+          if (qty !== current) {
+            promises.push(updateIslandStockItem(name, parseInt(iid), qty));
+          }
+        }
+      }
+      await Promise.all(promises);
+      setEditIslandStock(null);
+      setEditingIslandStock(false);
+      enqueueSnackbar({ message: 'Stock por isla guardado correctamente', variant: 'success' });
+    } catch (err) {
+      console.error('Error guardando stock por isla:', err);
+      enqueueSnackbar({ message: 'Error al guardar stock por isla', variant: 'error' });
+    } finally {
+      setSavingIsland(false);
+    }
   };
 
   const handleAddGeneralStock = async () => {
@@ -372,9 +451,14 @@ export default function Inventario() {
             Agregar Stock
           </Button>
           {!editingStock ? (
-            <Button variant="outlined" onClick={() => setEditingStock(true)}>Editar Stock</Button>
+            <Button variant="outlined" onClick={startEditStock}>Editar Stock</Button>
           ) : (
-            <Button variant="contained" color="success" onClick={handleSaveStock} startIcon={<SaveIcon />}>Guardar</Button>
+            <>
+              <Button variant="outlined" color="error" onClick={cancelEditStock} startIcon={<CloseIcon />}>Cancelar</Button>
+              <Button variant="contained" color="success" onClick={handleSaveStock} startIcon={<SaveIcon />} disabled={savingStock}>
+                {savingStock ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </>
           )}
         </Box>
 
@@ -401,12 +485,12 @@ export default function Inventario() {
                       <TableRow key={row.productName} hover>
                         <TableCell sx={{ ...bodyCell, fontWeight: 500, bgcolor: rowBg }}>{row.productName}</TableCell>
                         <TableCell sx={{ ...bodyCell, textAlign: 'right', fontWeight: 600, bgcolor: rowBg }}>
-                          {editingStock ? (
+                          {editingStock && editStock ? (
                             <TextField
                               type="number"
                               variant="standard"
-                              value={stock[row.productName] || 0}
-                              onChange={(e) => updateStockItem(row.productName, parseInt(e.target.value) || 0)}
+                              value={editStock[row.productName] ?? 0}
+                              onChange={(e) => setEditStock({ ...editStock, [row.productName]: parseInt(e.target.value) || 0 })}
                               sx={{ width: 65, '& input': { textAlign: 'right', fontSize: '0.85rem' } }}
                               inputProps={{ min: 0 }}
                             />
@@ -543,9 +627,14 @@ export default function Inventario() {
             Retornar a Almacen
           </Button>
           {!editingIslandStock ? (
-            <Button variant="outlined" onClick={() => setEditingIslandStock(true)}>Editar Stock por Isla</Button>
+            <Button variant="outlined" onClick={startEditIslandStock}>Editar Stock por Isla</Button>
           ) : (
-            <Button variant="contained" color="success" onClick={handleSaveIslandStock} startIcon={<SaveIcon />}>Guardar Stock Isla</Button>
+            <>
+              <Button variant="outlined" color="error" onClick={cancelEditIslandStock} startIcon={<CloseIcon />}>Cancelar</Button>
+              <Button variant="contained" color="success" onClick={handleSaveIslandStock} startIcon={<SaveIcon />} disabled={savingIsland}>
+                {savingIsland ? 'Guardando...' : 'Guardar Stock Isla'}
+              </Button>
+            </>
           )}
         </Box>
 
@@ -586,6 +675,11 @@ export default function Inventario() {
                         </TableCell>
                         {islandIds.map((id) => {
                           const d = row.perIsland[id];
+                          // Si estamos editando, usar el valor local
+                          const displayStock = editingIslandStock && editIslandStock
+                            ? (editIslandStock[String(id)]?.[row.productName] ?? 0)
+                            : d.islStock;
+
                           const isCritical = d.islStock > 0 && d.quedan <= STOCK_CRITICAL;
                           const isLow = d.islStock > 0 && d.quedan > STOCK_CRITICAL && d.quedan <= STOCK_LOW;
                           const cellBg = isCritical ? '#FFCDD2' : isLow ? '#FFE0B2' : 'transparent';
@@ -594,12 +688,17 @@ export default function Inventario() {
                           return (
                             <React.Fragment key={id}>
                               <TableCell sx={{ ...bodyCell, textAlign: 'right', color: 'info.main', fontWeight: 600 }}>
-                                {editingIslandStock ? (
+                                {editingIslandStock && editIslandStock ? (
                                   <TextField
                                     type="number"
                                     variant="standard"
-                                    value={d.islStock}
-                                    onChange={(e) => updateIslandStockItem(id, row.productName, parseInt(e.target.value) || 0)}
+                                    value={displayStock}
+                                    onChange={(e) => {
+                                      const updated = JSON.parse(JSON.stringify(editIslandStock));
+                                      if (!updated[String(id)]) updated[String(id)] = {};
+                                      updated[String(id)][row.productName] = parseInt(e.target.value) || 0;
+                                      setEditIslandStock(updated);
+                                    }}
                                     sx={{ width: 50, '& input': { textAlign: 'right', fontSize: '0.85rem' } }}
                                     inputProps={{ min: 0 }}
                                   />

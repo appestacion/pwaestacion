@@ -90,10 +90,8 @@ export default function ReporteLecturaRecepcion() {
         }
       });
     }
-    // Ordenar surtidores por pumpNumber y asegurar exactamente 2 posiciones
     Object.values(map).forEach(isl => {
       isl.pumps.sort((a, b) => a.pumpNumber - b.pumpNumber);
-      // Asegurar siempre 2 posiciones por isla
       while (isl.pumps.length < 2) {
         isl.pumps.push({
           pumpNumber: isl.pumps.length + 1,
@@ -113,11 +111,8 @@ export default function ReporteLecturaRecepcion() {
   const nocturnoTotal = useMemo(() => nocturnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0), [nocturnoIslands]);
 
   // ── Datos de visualización para NOCTURNO según tipo de supervisor ──
-  // 2TS: nocturno con guiones (aún no le corresponde)
-  // 1TS: lectura inicial nocturna = lectura final diurna
   const displayNocturnoIslands = useMemo(() => {
     if (is1TS) {
-      // 1TS: la lectura inicial del nocturno = lectura final del diurno
       return nocturnoIslands.map(nIsl => {
         const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
         const modifiedPumps = nIsl.pumps.map((p, idx) => {
@@ -135,7 +130,6 @@ export default function ReporteLecturaRecepcion() {
         return { ...nIsl, pumps: modifiedPumps };
       });
     }
-    // 2TS: todo con guiones
     return nocturnoIslands.map(nIsl => ({
       ...nIsl,
       pumps: nIsl.pumps.map(p => ({ ...p, initialReading: 0, finalReading: 0, litersSold: 0, empty: true })),
@@ -147,7 +141,6 @@ export default function ReporteLecturaRecepcion() {
     [displayNocturnoIslands]
   );
 
-  // Para 2TS, el nocturno se muestra vacío (sin shift)
   const nocturnoShiftForDisplay = is1TS ? nocturnoShift : null;
 
   // ── Tanques por sección ──
@@ -158,7 +151,9 @@ export default function ReporteLecturaRecepcion() {
     return { tankId, cm, liters: cmToLiters(cm) };
   });
 
-  const invInicial = useMemo(() => getTankRows(diurnoShift, 'cm'), [diurnoShift, tanksCount]);
+  // 1TS: Solo Inventario Inicial desde lecturas de tanques del turno actual
+  // 2TS: Inventario Inicial con guiones (no le corresponde llenarlo)
+  const invInicial = useMemo(() => getTankRows(is1TS ? currentShift : null, 'cm'), [is1TS, currentShift, tanksCount]);
   const antesDesc = useMemo(() => Array.from({ length: tanksCount }, (_, i) => {
     const tankId = i + 1;
     const tr = gandola?.tankReadings?.find(r => r.tankId === tankId);
@@ -171,7 +166,9 @@ export default function ReporteLecturaRecepcion() {
     const cm = tr?.cmAfter || 0;
     return { tankId, cm, liters: cmToLiters(cm) };
   }), [gandola, tanksCount]);
-  const invFinal = useMemo(() => getTankRows(nocturnoShift, 'cm'), [nocturnoShift, tanksCount]);
+  // 2TS: Solo Inventario Final desde lecturas de tanques del turno actual
+  // 1TS: Inventario Final con guiones (no le corresponde llenarlo)
+  const invFinal = useMemo(() => getTankRows(!is1TS ? currentShift : null, 'cm'), [is1TS, currentShift, tanksCount]);
 
   const totalInvInicial = useMemo(() => invInicial.reduce((s, tk) => s + tk.liters, 0), [invInicial]);
   const totalAntes = useMemo(() => antesDesc.reduce((s, tk) => s + tk.liters, 0), [antesDesc]);
@@ -186,7 +183,7 @@ export default function ReporteLecturaRecepcion() {
   const tasa1 = diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0;
   const tasa2 = nocturnoShift?.tasa2 || 0;
 
-  // ── Render: Tabla de una Isla (SIEMPRE 2 filas de datos) ──
+  // ── Render: Tabla de una Isla ──
   const renderIslaTable = (isl, shift) => {
     const filled = !!shift;
     const totalLitros = isl.pumps.reduce((s, p) => s + p.litersSold, 0);
@@ -203,7 +200,6 @@ export default function ReporteLecturaRecepcion() {
               <TableCell sx={h}>Lect. Final</TableCell>
               <TableCell sx={h}>Litros</TableCell>
             </TableRow>
-            {/* Fila 1 — Surtidor 1 */}
             <TableRow>
               <TableCell sx={{ ...c, fontWeight: 600, textAlign: 'center' }}>1</TableCell>
               <TableCell sx={c} align="center">
@@ -216,7 +212,6 @@ export default function ReporteLecturaRecepcion() {
                 {filled && isl.pumps[0] && !isl.pumps[0].empty ? formatNumber(isl.pumps[0].litersSold, 0) : DASH}
               </TableCell>
             </TableRow>
-            {/* Fila 2 — Surtidor 2 */}
             <TableRow>
               <TableCell sx={{ ...c, fontWeight: 600, textAlign: 'center' }}>2</TableCell>
               <TableCell sx={c} align="center">
@@ -229,7 +224,6 @@ export default function ReporteLecturaRecepcion() {
                 {filled && isl.pumps[1] && !isl.pumps[1].empty ? formatNumber(isl.pumps[1].litersSold, 0) : DASH}
               </TableCell>
             </TableRow>
-            {/* Total de la isla */}
             <TableRow>
               <TableCell sx={{ ...tot, textAlign: 'right' }} colSpan={3}>Total Litros:</TableCell>
               <TableCell sx={{ ...tot, textAlign: 'center' }}>{filled ? formatNumber(totalLitros, 0) : DASH}</TableCell>
@@ -256,7 +250,7 @@ export default function ReporteLecturaRecepcion() {
     </TableContainer>
   );
 
-  // ── Render: Sección de tanques (layout HORIZONTAL: TQ como columnas) ──
+  // ── Render: Sección de tanques ──
   const renderTankSection = (data, label, totalLabel, totalVal, filled) => (
     <TableContainer>
       <Table size="small" sx={{ '& td': { border: b } }}>
@@ -264,28 +258,24 @@ export default function ReporteLecturaRecepcion() {
           <TableRow>
             <TableCell sx={sec} colSpan={tanksCount + 1}>{label}</TableCell>
           </TableRow>
-          {/* Headers: CM y Litros por cada TQ */}
           <TableRow>
             <TableCell sx={h}></TableCell>
             {data.map(tk => (
               <TableCell key={tk.tankId} sx={h} align="center">TQ {tk.tankId}</TableCell>
             ))}
           </TableRow>
-          {/* Fila CM */}
           <TableRow>
             <TableCell sx={{ ...c, fontWeight: 600 }}>CM</TableCell>
             {data.map(tk => (
               <TableCell key={tk.tankId} sx={c} align="center">{filled ? (tk.cm > 0 ? formatNumber(tk.cm, 1) : DASH) : DASH}</TableCell>
             ))}
           </TableRow>
-          {/* Fila Litros */}
           <TableRow>
             <TableCell sx={{ ...c, fontWeight: 600 }}>Litros</TableCell>
             {data.map(tk => (
               <TableCell key={tk.tankId} sx={c} align="center">{filled ? (tk.liters > 0 ? formatNumber(tk.liters, 0) : DASH) : DASH}</TableCell>
             ))}
           </TableRow>
-          {/* Fila Total */}
           <TableRow>
             <TableCell sx={{ ...tot, textAlign: 'right' }} colSpan={tanksCount}>{totalLabel}</TableCell>
             <TableCell sx={{ ...tot, textAlign: 'center' }}>{filled ? formatNumber(totalVal, 0) : DASH}</TableCell>
@@ -380,7 +370,6 @@ export default function ReporteLecturaRecepcion() {
       {!hasData ? (
         <Alert severity="warning">No hay datos para la fecha {selectedDate}.</Alert>
       ) : (
-        /* ── Layout 3 columnas: laterales anchos, centro angosto ── */
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '3fr 2fr 3fr' },
@@ -397,19 +386,19 @@ export default function ReporteLecturaRecepcion() {
             {renderTotalTable('Total 1:', diurnoTotal, diurnoShift)}
           </Box>
 
-          {/* ═══ COLUMNA CENTRAL — TANQUES (angosta) ═══ */}
+          {/* ═══ COLUMNA CENTRAL — TANQUES ═══ */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center', bgcolor: '#90a4ae', color: '#fff', py: 0.5, borderRadius: 0.5, fontSize: '0.78rem' }}>
               7:00 AM a 7:00 PM
             </Typography>
-            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, !!diurnoShift)}
+            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, is1TS && !!currentShift)}
             {renderTankSection(antesDesc, 'ANTES DE LA DESCARGA', 'Total:', totalAntes, !!gandola)}
             {renderGandolaTable()}
             {renderTankSection(despDesc, 'DESPUÉS DE LA DESCARGA', 'Total:', totalDespues, !!gandola)}
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center', bgcolor: '#90a4ae', color: '#fff', py: 0.5, borderRadius: 0.5, fontSize: '0.78rem' }}>
               7:00 PM a 7:00 AM
             </Typography>
-            {renderTankSection(invFinal, 'INVENTARIO FINAL', 'Final Tanques:', totalInvFinal, !!nocturnoShift)}
+            {renderTankSection(invFinal, 'INVENTARIO FINAL', 'Final Tanques:', totalInvFinal, !is1TS && !!currentShift)}
             {renderTotalGeneral()}
           </Box>
 

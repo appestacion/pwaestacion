@@ -188,6 +188,9 @@ export default function CierreTurno() {
         const propinaUSD = biblia.propinaUSD || 0;
         const propinaBs = biblia.propinaBs || 0;
 
+        // Verificar si hay lecturas finales registradas PARA ESTA ISLA
+        const hasReadings = (currentShift.pumpReadings || []).some((r) => r.islandId === iid && r.finalReading && r.finalReading > 0);
+
         return (
           <Box key={iid}>
             {/* Operator Name */}
@@ -491,22 +494,22 @@ export default function CierreTurno() {
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: hasReadings ? '#E3F2FD' : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Litros Vendidos
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#1565C0' }}>
-                        {formatNumber(biblia.litersRef || 0, 2)} L
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: hasReadings ? '#1565C0' : '#9E9E9E' }}>
+                        {hasReadings ? `${formatNumber(biblia.litersRef || 0, 2)} L` : '—'}
                       </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: '#E8F5E9', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: hasReadings ? '#E8F5E9' : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Ingresos Totales
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#2E7D32' }}>
-                        {formatUSD(biblia.ingresosTotalUSD || 0)}
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: hasReadings ? '#2E7D32' : '#9E9E9E' }}>
+                        {hasReadings ? formatUSD(biblia.ingresosTotalUSD || 0) : '—'}
                       </Typography>
                     </Paper>
                   </Grid>
@@ -514,22 +517,22 @@ export default function CierreTurno() {
                 <Divider sx={{ my: 2 }} />
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: hasReadings ? (propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE') : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Propina USD
                       </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 800, color: propinaUSD > 0 ? '#2E7D32' : '#D32F2F' }}>
-                        {formatUSD(propinaUSD)}
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: hasReadings ? (propinaUSD > 0 ? '#2E7D32' : '#D32F2F') : '#9E9E9E' }}>
+                        {hasReadings ? formatUSD(propinaUSD) : '—'}
                       </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={6}>
-                    <Paper sx={{ p: 2, bgcolor: propinaBs > 0 ? '#E8F5E9' : '#FFEBEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Paper sx={{ p: 2, bgcolor: hasReadings ? (propinaBs > 0 ? '#E8F5E9' : '#FFEBEE') : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
                         Propina Bs
                       </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 800, color: propinaBs > 0 ? '#2E7D32' : '#D32F2F' }}>
-                        {formatBs(propinaBs)}
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: hasReadings ? (propinaBs > 0 ? '#2E7D32' : '#D32F2F') : '#9E9E9E' }}>
+                        {hasReadings ? formatBs(propinaBs) : '—'}
                       </Typography>
                     </Paper>
                   </Grid>

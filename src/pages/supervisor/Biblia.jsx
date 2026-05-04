@@ -66,6 +66,10 @@ export default function Biblia() {
   const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
+  // Total del Resumen: suma solo lo visible en la tabla
+  const totalResumenUSD = haySobregiro
+    ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + totals.totalVales + totals.totalTransferencia)
+    : totals.totalIngresosUSD;
 
   // ── Estilos de celda ──
   const lbl = { ...c, fontWeight: 600, whiteSpace: 'nowrap' };
@@ -171,14 +175,14 @@ export default function Biblia() {
           {/* Total */}
           <TableRow>
             <TableCell sx={{ ...tot, bgcolor: '#888', color: '#fff' }}>Total:</TableCell>
-            <TableCell sx={totalValue}>{formatUSD(totals.totalIngresosUSD)}</TableCell>
+            <TableCell sx={totalValue}>{formatUSD(totalResumenUSD)}</TableCell>
           </TableRow>
         </TableBody>
       </Table>
     </TableContainer>
   );
 
-  // ── Construir grilla 2×2 ──
+  // ── Construir grilla ──
   const allBlocks = [...biblia.map(b => ({ type: 'isla', data: b })), { type: 'resumen' }];
   const gridRows = [];
   for (let i = 0; i < allBlocks.length; i += 2) {
@@ -238,10 +242,10 @@ export default function Biblia() {
         </Box>
       </Paper>
 
-      {/* ═══ 4 tablas separadas en grilla 2×2 (carta vertical) ═══ */}
+      {/* ═══ Tablas en grilla responsive ═══ */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
         gap: 4,
         maxWidth: 800,
         mx: 'auto',
