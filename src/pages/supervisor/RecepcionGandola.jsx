@@ -135,6 +135,10 @@ export default function RecepcionGandola() {
     });
     text += `Total: ${formatNumber(totalLitersAfter, 0)} lts`;
 
+    if (caudalimetro > 0) {
+      text += `\n\nCaudalímetro: ${diferenciaSign}${formatNumber(diferencia, 0)} L`;
+    }
+
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     enqueueSnackbar({ message: 'Enviando WhatsApp (Después de la descarga)...', variant: 'info' });
   };

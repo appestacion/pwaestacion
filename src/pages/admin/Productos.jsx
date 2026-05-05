@@ -28,7 +28,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useProductStore } from '../../store/useProductStore.js';
-import { CATEGORY_LABELS, CATEGORY_COLORS } from '../../config/constants.js';
+import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ORDER } from '../../config/constants.js';
 import { formatUSD } from '../../lib/formatters.js';
 import { enqueueSnackbar } from 'notistack';
 
@@ -48,9 +48,9 @@ export default function Productos() {
   const filteredProducts = products
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-      const catA = (CATEGORY_LABELS[a.category] || a.category).toLowerCase();
-      const catB = (CATEGORY_LABELS[b.category] || b.category).toLowerCase();
-      if (catA !== catB) return catA.localeCompare(catB);
+      const idxA = CATEGORY_ORDER.indexOf(a.category);
+      const idxB = CATEGORY_ORDER.indexOf(b.category);
+      if (idxA !== idxB) return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
       return a.name.localeCompare(b.name);
     });
 
@@ -107,7 +107,7 @@ export default function Productos() {
     setDeleteDialogOpen(false);
   };
 
-  const categories = ['aditivo', 'aceite', 'refrigerante', 'freno', 'extintor', 'otro'];
+  const categories = ['aditivo', 'freno', 'aceite', 'refrigerante', 'extintor', 'otro'];
 
   return (
     <Box>

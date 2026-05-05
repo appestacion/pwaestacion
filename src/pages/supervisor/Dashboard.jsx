@@ -133,23 +133,6 @@ export default function SupervisorDashboard() {
                       gap: 1.5,
                     }}
                   >
-                    {/* Icono + Label del turno */}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: isMobile ? 48 : 56,
-                        height: isMobile ? 48 : 56,
-                        borderRadius: '12px',
-                        bgcolor: `${shiftCard.color}15`,
-                        color: shiftCard.color,
-                        mb: 0.5,
-                      }}
-                    >
-                      {shiftCard.icon}
-                    </Box>
-
                     <Typography
                       variant={isMobile ? 'h6' : 'h5'}
                       sx={{ fontWeight: 700, color: shiftCard.color }}

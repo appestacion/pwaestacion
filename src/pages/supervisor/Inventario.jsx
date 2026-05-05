@@ -42,7 +42,7 @@ import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
-import { ISLAND_LABELS } from '../../config/constants.js';
+import { ISLAND_LABELS, CATEGORY_ORDER } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
 // ── Estilos tipo formulario impreso (colores Biblia) ──
@@ -104,7 +104,16 @@ export default function Inventario() {
     loadIslandStock();
   }, [loadCurrentShift, loadProducts, loadStock, loadIslandStock]);
 
-  const activeProducts = useMemo(() => products.filter((p) => p.active), [products]);
+  const activeProducts = useMemo(() => {
+    return products
+      .filter((p) => p.active)
+      .sort((a, b) => {
+        const catA = CATEGORY_ORDER.indexOf(a.category ?? 'otro');
+        const catB = CATEGORY_ORDER.indexOf(b.category ?? 'otro');
+        if (catA !== catB) return catA - catB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [products]);
 
   // ── Productos vendidos por isla en el turno actual ──
   const islandsSold = useMemo(() => {
@@ -675,7 +684,6 @@ export default function Inventario() {
                         </TableCell>
                         {islandIds.map((id) => {
                           const d = row.perIsland[id];
-                          // Si estamos editando, usar el valor local
                           const displayStock = editingIslandStock && editIslandStock
                             ? (editIslandStock[String(id)]?.[row.productName] ?? 0)
                             : d.islStock;

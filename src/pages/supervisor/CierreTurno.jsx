@@ -74,10 +74,14 @@ export default function CierreTurno() {
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
     const existing = currentShift?.islands.find((i) => i.islandId === islandId);
-    const already = existing?.productsSold.find((p) => p.productName === selectedProduct);
+    const already = existing?.productsSold.find(
+      (p) => p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
+    );
     if (already) {
       const newProducts = (existing?.productsSold ?? []).map((p) =>
-        p.productName === selectedProduct ? { ...p, quantity: p.quantity + productQty } : p
+        p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
+          ? { ...p, quantity: p.quantity + productQty }
+          : p
       );
       updateIslandField(islandId, 'productsSold', newProducts);
     } else {

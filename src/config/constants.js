@@ -272,3 +272,5 @@ export const CATEGORY_COLORS = {
   extintor: '#FF6600',
   otro: '#666666',
 };
+
+export const CATEGORY_ORDER = ['aditivo', 'freno', 'aceite', 'refrigerante', 'extintor', 'otro'];
