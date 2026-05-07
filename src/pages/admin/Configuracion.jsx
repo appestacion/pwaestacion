@@ -11,6 +11,7 @@ import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
+import Switch from '@mui/material/Switch';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
@@ -27,6 +28,7 @@ export default function Configuracion() {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [showResetButton, setShowResetButton] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -104,6 +106,10 @@ export default function Configuracion() {
       setPreview('');
       enqueueSnackbar({ message: 'Configuración restaurada por defecto', variant: 'info' });
     }
+  };
+
+  const handleToggleResetButton = (event) => {
+    setShowResetButton(event.target.checked);
   };
 
   // Formatear a 2 decimales para mostrar en los campos de tasa
@@ -277,7 +283,7 @@ export default function Configuracion() {
               </Typography>
               <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
                 Cada vez que la API actualiza: tasa2 actual pasa a tasa1, y la nueva tasa se guarda como tasa2.
-                Horario: Lun-Vie, 3:00 PM - 10:00 PM, cada 3 minutos.
+                Horario: Todos los días, 3:00 PM - 10:00 PM, cada 3 minutos.
               </Typography>
             </Alert>
           )}
@@ -381,6 +387,30 @@ export default function Configuracion() {
         </CardContent>
       </Card>
 
+      {/* Advanced Options */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
+            Opciones Avanzadas
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Mostrar botón de restaurar configuración
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Activa esta opción para mostrar el botón "Restaurar Valores por Defecto" al final de la página.
+              </Typography>
+            </Box>
+            <Switch
+              checked={showResetButton}
+              onChange={handleToggleResetButton}
+              color="warning"
+            />
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* About */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -410,14 +440,16 @@ export default function Configuracion() {
 
       {/* Actions */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Button
-          variant="outlined"
-          color="warning"
-          startIcon={<RestartAltIcon />}
-          onClick={handleReset}
-        >
-          Restaurar Valores por Defecto
-        </Button>
+        {showResetButton && (
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<RestartAltIcon />}
+            onClick={handleReset}
+          >
+            Restaurar Valores por Defecto
+          </Button>
+        )}
       </Box>
     </Box>
   );

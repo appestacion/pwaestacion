@@ -48,7 +48,7 @@ export default function Biblia() {
   if (!totals) return null;
 
   const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
-  const hasTasa2 = isNocturno && (currentShift.tasa2 || 0) > 0;
+  const hasTasa2 = isNocturno && (currentShift.tasa2 || 0) > 0 && (currentShift.tasa2 || 0) !== (currentShift.tasa1 || 0);
   const turnoLabel = isNocturno ? '2TO' : '1TO';
 
   const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];

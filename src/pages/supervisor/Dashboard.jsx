@@ -54,12 +54,34 @@ export default function SupervisorDashboard() {
   const { currentShift, initNewShift, closeShift } = useCierreStore();
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
+  const updateConfig = useConfigStore((state) => state.updateConfig);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isXs = useMediaQuery(theme.breakpoints.down('xs'));
 
   const handleStartShift = (supervisorShiftType) => {
-    initNewShift(supervisorShiftType, config.tasa1, config.tasa2);
+    let tasa1 = config.tasa1;
+    let tasa2 = config.tasa2;
+
+    // PROMOCIÓN 2TS (PM): tasa2 → tasa1 si hay una tasa más reciente.
+    // El 2TS usa la tasa vigente (la última que dejó la API durante la ventana
+    // de rotación del día anterior). La tasa2 queda disponible para que el
+    // 1TS del día siguiente pueda usar ambas tasas.
+    if (supervisorShiftType === 'PM' && tasa2 > 0 && tasa2 !== tasa1) {
+      tasa1 = tasa2;
+      updateConfig({ tasa1: tasa2 });
+    }
+
+    // SEGURIDAD (AMBOS TURNOS): Si tasa1 es inválida (≤ 0) pero tasa2 es válida,
+    // promover tasa2 → tasa1. Esto previene que un turno opere con tasa1=0
+    // causado por una rotación con tasa2 vacía (ej: primer día de operación
+    // o después de un reset de configuración).
+    if (tasa1 <= 0 && tasa2 > 0) {
+      tasa1 = tasa2;
+      updateConfig({ tasa1: tasa2 });
+    }
+
+    initNewShift(supervisorShiftType, tasa1, tasa2);
   };
 
   const handleCloseShift = () => {
@@ -70,9 +92,11 @@ export default function SupervisorDashboard() {
   const totalLiters = currentShift ? calcTotalLitersSold(currentShift.pumpReadings) : 0;
   const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
 
-  // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas
+  // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas (solo si son diferentes)
   // 2TS (PM) cierra 1TO Diurno → usa solo tasa1
-  const showTasa2 = currentShift?.supervisorShiftType === 'AM' && (currentShift?.tasa2 > 0);
+  const showTasa2 = currentShift?.supervisorShiftType === 'AM'
+    && currentShift?.tasa2 > 0
+    && currentShift?.tasa2 !== currentShift?.tasa1;
 
   const quickActions = [
     { label: 'Lecturas', icon: <SpeedIcon />, path: '/lecturas', color: '#CE1126' },
