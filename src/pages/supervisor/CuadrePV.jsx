@@ -58,13 +58,10 @@ export default function CuadrePV() {
   const turnoLabel = isNocturno ? '2TO' : '1TO';
   const tasa1 = currentShift.tasa1 || 0;
   const tasa2 = currentShift.tasa2 || 0;
-  const hasTasa2 = tasa2 > 0;
 
-  // 1TO (DIURNO): usa una sola tasa (Tasa 1), sin lineas de tasa 2
-  // 2TO (NOCTURNO): muestra ambas tasas con totales separados y gran total
-  const singleTasa = !isNocturno;
-  const showTasa1 = true;
-  const showTasa2 = isNocturno && hasTasa2;
+  // Tasas iguales (o sin tasa2) → una sola fila combinada
+  // Tasas diferentes → dos filas separadas con gran total
+  const tasasIguales = tasa2 <= 0 || tasa1 === tasa2;
 
   const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const parts = (currentShift.date || '').split('/');
@@ -93,20 +90,20 @@ export default function CuadrePV() {
                 </TableCell>
               </TableRow>
 
-              {/* ── 1TO (DIURNO): una sola fila por isla, sin etiqueta de tasa ── */}
-              {singleTasa && (
+              {/* ── TASAS IGUALES: una sola fila combinada (PV1 + PV2) ── */}
+              {tasasIguales && (
                 <TableRow hover>
                   <TableCell sx={lbl}>
                     ({formatBs(tasa1)})
                   </TableCell>
-                  <TableCell sx={dataCell}>{formatBs(r.pvTotalBs)}</TableCell>
-                  <TableCell sx={dataCell}>{formatUSD(r.pvTotalUSD)}</TableCell>
-                  <TableCell sx={{ ...dataCell, fontWeight: 600 }}>{formatNumber(r.pvUSDinLiters, 2)}</TableCell>
+                  <TableCell sx={dataCell}>{formatBs((r.pvTotalBs || 0) + (r.pv2TotalBs || 0))}</TableCell>
+                  <TableCell sx={dataCell}>{formatUSD((r.pvTotalUSD || 0) + (r.pv2TotalUSD || 0))}</TableCell>
+                  <TableCell sx={{ ...dataCell, fontWeight: 600 }}>{formatNumber((r.pvUSDinLiters || 0) + (r.pv2USDinLiters || 0), 2)}</TableCell>
                 </TableRow>
               )}
 
-              {/* ── 2TO (NOCTURNO): fila Tasa 1 ── */}
-              {!singleTasa && (
+              {/* ── TASAS DIFERENTES: fila Tasa 1 ── */}
+              {!tasasIguales && (
                 <TableRow hover>
                   <TableCell sx={lbl}>
                     Tasa 1 ({formatBs(tasa1)})
@@ -117,8 +114,8 @@ export default function CuadrePV() {
                 </TableRow>
               )}
 
-              {/* ── 2TO (NOCTURNO): fila Tasa 2, solo si tiene tasa 2 ── */}
-              {showTasa2 && (
+              {/* ── TASAS DIFERENTES: fila Tasa 2 ── */}
+              {!tasasIguales && (
                 <TableRow hover>
                   <TableCell sx={lbl}>
                     Tasa 2 ({formatBs(tasa2)})
@@ -131,18 +128,18 @@ export default function CuadrePV() {
             </React.Fragment>
           ))}
 
-          {/* ── 1TO: solo Total Turno (sin totales separados) ── */}
-          {singleTasa && (
+          {/* ── TASAS IGUALES: solo Total Turno (suma combinada) ── */}
+          {tasasIguales && (
             <TableRow>
               <TableCell sx={resumenSec}>Total Turno</TableCell>
-              <TableCell sx={totalValue}>{formatBs(totals.totalPVBs)}</TableCell>
-              <TableCell sx={totalValue}>{formatUSD(totals.totalPVUSD)}</TableCell>
-              <TableCell sx={{ ...totalValue, color: '#c8e6c9' }}>{formatNumber(totals.totalPVLiters, 2)} L</TableCell>
+              <TableCell sx={totalValue}>{formatBs(totals.grandTotalBs)}</TableCell>
+              <TableCell sx={totalValue}>{formatUSD(totals.grandTotalUSD)}</TableCell>
+              <TableCell sx={{ ...totalValue, color: '#c8e6c9' }}>{formatNumber(totals.grandTotalLiters, 2)} L</TableCell>
             </TableRow>
           )}
 
-          {/* ── 2TO: Total Tasa 1 ── */}
-          {!singleTasa && (
+          {/* ── TASAS DIFERENTES: Total Tasa 1 ── */}
+          {!tasasIguales && (
             <TableRow>
               <TableCell sx={tot}>Total Tasa 1</TableCell>
               <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatBs(totals.totalPVBs)}</TableCell>
@@ -151,8 +148,8 @@ export default function CuadrePV() {
             </TableRow>
           )}
 
-          {/* ── 2TO: Total Tasa 2 (si aplica) ── */}
-          {showTasa2 && (
+          {/* ── TASAS DIFERENTES: Total Tasa 2 ── */}
+          {!tasasIguales && (
             <TableRow>
               <TableCell sx={tot}>Total Tasa 2</TableCell>
               <TableCell sx={{ ...tot, textAlign: 'center' }}>{formatBs(totals.totalPV2Bs)}</TableCell>
@@ -161,8 +158,8 @@ export default function CuadrePV() {
             </TableRow>
           )}
 
-          {/* ── 2TO: Gran Total Turno ── */}
-          {!singleTasa && (
+          {/* ── TASAS DIFERENTES: Gran Total Turno ── */}
+          {!tasasIguales && (
             <TableRow>
               <TableCell sx={resumenSec}>Total Turno</TableCell>
               <TableCell sx={totalValue}>{formatBs(totals.grandTotalBs)}</TableCell>
@@ -356,15 +353,9 @@ export default function CuadrePV() {
               Turno: {turnoLabel} {dayName}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1.5 }}>
-              {!isNocturno ? (
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa: {formatNumber(tasa1, 2)}</Typography>
-              ) : (
-                <>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa: {formatNumber(tasa1, 2)}</Typography>
-                  {hasTasa2 && (
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa 2: {formatNumber(tasa2, 2)}</Typography>
-                  )}
-                </>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa: {formatNumber(tasa1, 2)}</Typography>
+              {!tasasIguales && (
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Tasa 2: {formatNumber(tasa2, 2)}</Typography>
               )}
             </Box>
           </Box>

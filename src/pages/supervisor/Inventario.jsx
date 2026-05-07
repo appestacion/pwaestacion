@@ -26,8 +26,10 @@ import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Avatar from '@mui/material/Avatar';
-import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import SaveIcon from '@mui/icons-material/Save';
 import AddBoxIcon from '@mui/icons-material/AddBox';
@@ -35,8 +37,10 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import UndoIcon from '@mui/icons-material/Undo';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
 import CloseIcon from '@mui/icons-material/Close';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
@@ -45,13 +49,176 @@ import { useConfigStore } from '../../store/useConfigStore.js';
 import { ISLAND_LABELS, CATEGORY_ORDER } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
-// ── Estilos tipo formulario impreso (colores Biblia) ──
-const headCell = { fontWeight: 700, bgcolor: '#bbb', color: '#000', fontSize: '0.8rem', p: '8px 10px', border: '1px solid #666' };
-const bodyCell = { fontSize: '0.85rem', p: '6px 10px', border: '1px solid #666' };
-
 // ── Umbrales de alerta ──
 const STOCK_CRITICAL = 0;
 const STOCK_LOW = 3;
+
+// ── Paleta de colores por estado ──
+const STATUS_COLORS = {
+  critical: {
+    bg: '#FFEBEE',
+    border: '#D32F2F',
+    text: '#B71C1C',
+    dot: '#D32F2F',
+    cell: '#FFCDD2',
+    icon: ErrorOutlineIcon,
+    label: 'Sin stock',
+  },
+  low: {
+    bg: '#FFF8E1',
+    border: '#F57F17',
+    text: '#E65100',
+    dot: '#F9A825',
+    cell: '#FFE082',
+    icon: ReportProblemOutlinedIcon,
+    label: 'Stock bajo',
+  },
+  normal: {
+    bg: '#E8F5E9',
+    border: '#2E7D32',
+    text: '#1B5E20',
+    dot: '#43A047',
+    cell: 'transparent',
+    icon: CheckCircleOutlineIcon,
+    label: 'Normal',
+  },
+  empty: {
+    bg: 'transparent',
+    border: '#E0E0E0',
+    text: '#9E9E9E',
+    dot: '#BDBDBD',
+    cell: 'transparent',
+    icon: RemoveShoppingCartIcon,
+    label: 'Sin asignar',
+  },
+};
+
+function getStatus(qty) {
+  if (qty <= STOCK_CRITICAL) return 'critical';
+  if (qty <= STOCK_LOW) return 'low';
+  return 'normal';
+}
+
+function getStatusForIsland(islStock, quedan) {
+  if (islStock <= 0) return 'empty';
+  if (quedan <= STOCK_CRITICAL) return 'critical';
+  if (quedan <= STOCK_LOW) return 'low';
+  return 'normal';
+}
+
+// ── Formatear fecha del sistema ──
+function formatDate(d) {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+// ── Componente: Leyenda de colores ──
+function Legend() {
+  const items = [
+    { status: 'critical', detail: `0 unidades` },
+    { status: 'low', detail: `1 – ${STOCK_LOW} unidades` },
+    { status: 'normal', detail: `${STOCK_LOW + 1}+ unidades` },
+    { status: 'empty', detail: 'Sin asignar a isla' },
+  ];
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1.5,
+        mb: 2,
+        bgcolor: '#FAFAFA',
+        borderColor: '#E0E0E0',
+        borderRadius: 2,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+        <LocalGasStationIcon sx={{ fontSize: 16, color: '#666' }} />
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 700,
+            color: '#444',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            fontSize: '0.7rem',
+          }}
+        >
+          Leyenda de estados
+        </Typography>
+        <Divider sx={{ flex: 1, ml: 1 }} />
+      </Box>
+      <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
+        {items.map(({ status, detail }) => {
+          const c = STATUS_COLORS[status];
+          const Icon = c.icon;
+          return (
+            <Box
+              key={status}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.6,
+                px: 1,
+                py: 0.4,
+                borderRadius: 1.5,
+                border: `1.5px solid ${c.border}`,
+                bgcolor: c.bg,
+              }}
+            >
+              <Icon sx={{ fontSize: 15, color: c.border }} />
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 700, color: c.text, lineHeight: 1.1, display: 'block', fontSize: '0.72rem' }}
+                >
+                  {c.label}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: c.text, opacity: 0.75, lineHeight: 1.1, display: 'block', fontSize: '0.65rem' }}
+                >
+                  {detail}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    </Paper>
+  );
+}
+
+// ── Componente: Badge de alerta (compacto) ──
+function AlertBadge({ count, severity, label }) {
+  if (count <= 0) return null;
+  const c = severity === 'error' ? STATUS_COLORS.critical : STATUS_COLORS.low;
+  const Icon = c.icon;
+  return (
+    <Tooltip title={`${count} ${label}`}>
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.4,
+          bgcolor: c.bg,
+          color: c.text,
+          px: 1.2,
+          py: 0.35,
+          borderRadius: 1.5,
+          border: `1.5px solid ${c.border}`,
+          fontWeight: 700,
+          fontSize: '0.75rem',
+        }}
+      >
+        <Icon sx={{ fontSize: 15 }} />
+        {count} {label}
+      </Box>
+    </Tooltip>
+  );
+}
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
@@ -124,6 +291,8 @@ export default function Inventario() {
     });
     return sold;
   }, [currentShift]);
+
+  const hasActiveShift = !!currentShift;
 
   // ── Resumen para inventario por isla ──
   const islandInventoryData = useMemo(() => {
@@ -229,13 +398,11 @@ export default function Inventario() {
     setEditingIslandStock(true);
   };
 
-  // ── Cancelar edición stock general ──
   const cancelEditStock = () => {
     setEditStock(null);
     setEditingStock(false);
   };
 
-  // ── Cancelar edición stock por isla ──
   const cancelEditIslandStock = () => {
     setEditIslandStock(null);
     setEditingIslandStock(false);
@@ -354,21 +521,25 @@ export default function Inventario() {
     }
   };
 
-  if (!currentShift) {
-    return <Alert severity="warning">No hay un turno activo.</Alert>;
+  // ── Info del encabezado ──
+  let turnoLabel = '—';
+  let shiftDateStr = formatDate(new Date());
+  let dayName = '';
+
+  if (currentShift) {
+    const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
+    turnoLabel = isNocturno ? '2TO' : '1TO';
+    const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    const parts = (currentShift.date || '').split('/');
+    const shiftDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date();
+    dayName = dayNames[shiftDate.getDay()] || '';
+    shiftDateStr = currentShift.date || shiftDateStr;
   }
 
-  // ── Info del encabezado ──
-  const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
-  const turnoLabel = isNocturno ? '2TO' : '1TO';
-  const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-  const parts = (currentShift.date || '').split('/');
-  const shiftDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date();
-  const dayName = dayNames[shiftDate.getDay()] || '';
-
-  // ── Estilo total fila (reutilizable) ──
-  const totalRowCell = { ...bodyCell, fontWeight: 700, bgcolor: '#dcdcdc' };
-  const resumenCell = { ...bodyCell, fontWeight: 700, bgcolor: '#888', color: '#fff' };
+  // ── Estilos comunes ──
+  const headCell = { fontWeight: 700, bgcolor: '#424242', color: '#fff', fontSize: '0.8rem', p: '8px 10px', border: '1px solid #616161' };
+  const bodyCell = { fontSize: '0.85rem', p: '6px 10px', border: '1px solid #e0e0e0' };
+  const resumenCell = { ...bodyCell, fontWeight: 700, bgcolor: '#37474F', color: '#fff' };
 
   return (
     <Box>
@@ -397,14 +568,40 @@ export default function Inventario() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box component="img" src="/PDVSA.png" alt="PDVSA" sx={{ width: 80, height: 'auto', objectFit: 'contain' }} />
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-            <Chip icon={<CalendarTodayIcon sx={{ fontSize: 14 }} />} label={currentShift.date} size="small" variant="outlined" />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>Turno: {turnoLabel} {dayName}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{shiftDateStr}</Typography>
+            </Box>
+            {hasActiveShift ? (
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Turno: {turnoLabel} {dayName}
+              </Typography>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                <WarningAmberIcon sx={{ fontSize: 15, color: '#F57F17' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#F57F17', fontStyle: 'italic' }}>
+                  Sin turno activo
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>
 
+      {/* Aviso sutil cuando no hay turno */}
+      {!hasActiveShift && (
+        <Alert
+          severity="info"
+          variant="outlined"
+          sx={{ mb: 2, borderRadius: 2, '& .MuiAlert-message': { fontSize: '0.85rem' } }}
+        >
+          No hay un turno activo. Puedes consultar y modificar el inventario general y por isla.
+          Las columnas de ventas se actualizaran cuando inicies un turno.
+        </Alert>
+      )}
+
       {/* ═══ Tabs ═══ */}
-      <Box sx={{ borderBottom: '2px solid #666', mb: 1 }}>
+      <Box sx={{ borderBottom: '2px solid #424242', mb: 1 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth">
           <Tab icon={<InventoryIcon />} iconPosition="start" label="Inventario General" />
           <Tab icon={<StorefrontIcon />} iconPosition="start" label="Inventario por Isla" />
@@ -415,111 +612,89 @@ export default function Inventario() {
           TAB 0 — INVENTARIO GENERAL (Almacen / Cajas)
           ══════════════════════════════════════════════ */}
       <TabPanel value={tab} index={0}>
-        {/* Alertas consolidadas */}
-        {(alertGeneral.critical.length > 0 || alertGeneral.low.length > 0) && (
-          <Paper variant="outlined" sx={{ mb: 2, borderColor: alertGeneral.critical.length > 0 ? 'error.main' : 'warning.main', bgcolor: alertGeneral.critical.length > 0 ? '#FFF5F5' : '#FFFBF0' }}>
-            <Box sx={{ p: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ReportProblemIcon sx={{ color: 'error.main', fontSize: 20 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main' }}>
-                  Sin stock: {alertGeneral.critical.length || 0}
-                </Typography>
-              </Box>
-              {alertGeneral.critical.length > 0 && (
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {alertGeneral.critical.map((p) => (
-                    <Chip key={p} label={p} size="small" color="error" variant="filled" sx={{ fontSize: '0.7rem', height: 24, fontWeight: 600 }} />
-                  ))}
-                </Box>
-              )}
-            </Box>
-            {alertGeneral.low.length > 0 && (
-              <Box sx={{ px: 1.5, pb: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap', borderTop: '1px dashed', borderColor: 'warning.main' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 1 }}>
-                  <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E65100' }}>
-                    Stock bajo (3 o menos): {alertGeneral.low.length}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', pt: 1 }}>
-                  {alertGeneral.low.map((p) => {
-                    const qty = stock[p] || 0;
-                    return (
-                      <Chip key={p} label={`${p} (${qty})`} size="small" color="warning" variant="filled" sx={{ fontSize: '0.7rem', height: 24, fontWeight: 600 }} />
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-          </Paper>
-        )}
+        <Legend />
 
-        {/* Botones */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 1, flexWrap: 'wrap' }}>
-          <Button variant="contained" startIcon={<AddBoxIcon />} onClick={() => setDlgGeneral(true)}>
-            Agregar Stock
-          </Button>
-          {!editingStock ? (
-            <Button variant="outlined" onClick={startEditStock}>Editar Stock</Button>
-          ) : (
-            <>
-              <Button variant="outlined" color="error" onClick={cancelEditStock} startIcon={<CloseIcon />}>Cancelar</Button>
-              <Button variant="contained" color="success" onClick={handleSaveStock} startIcon={<SaveIcon />} disabled={savingStock}>
-                {savingStock ? 'Guardando...' : 'Guardar'}
-              </Button>
-            </>
-          )}
+        {/* Botones con badges de alerta */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <AlertBadge count={alertGeneral.critical.length} severity="error" label="sin stock" />
+            <AlertBadge count={alertGeneral.low.length} severity="warning" label="stock bajo" />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={() => setDlgGeneral(true)}>
+              Agregar Stock
+            </Button>
+            {!editingStock ? (
+              <Button variant="outlined" size="small" onClick={startEditStock}>Editar Stock</Button>
+            ) : (
+              <>
+                <Button variant="outlined" color="error" size="small" onClick={cancelEditStock} startIcon={<CloseIcon />}>Cancelar</Button>
+                <Button variant="contained" color="success" size="small" onClick={handleSaveStock} startIcon={<SaveIcon />} disabled={savingStock}>
+                  {savingStock ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </>
+            )}
+          </Box>
         </Box>
 
-        {/* Tabla */}
-        <Card sx={{ mb: 3, overflowX: 'auto' }}>
+        {/* Tabla — sin columna Estado, las filas tienen color + borde lateral + icono */}
+        <Card sx={{ mb: 3, overflowX: 'auto', borderRadius: 2 }}>
           <CardContent sx={{ p: 1 }}>
             <TableContainer sx={{ maxHeight: 500 }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ ...headCell, minWidth: 200 }}>Producto</TableCell>
-                    <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 110 }}>Cant. en Almacen</TableCell>
-                    <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 90 }}>En Islas</TableCell>
-                    <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 100 }}>Estado</TableCell>
+                    <TableCell sx={{ ...headCell, minWidth: 220 }}>Producto</TableCell>
+                    <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 130 }}>Cant. en Almacen</TableCell>
+                    <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 100 }}>En Islas</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {islandInventoryData.map((row) => {
-                    const isCritical = row.generalQty <= STOCK_CRITICAL;
-                    const isLow = !isCritical && row.generalQty <= STOCK_LOW;
-                    const rowBg = isCritical ? '#FFCDD2' : isLow ? '#FFE0B2' : 'transparent';
+                    const status = getStatus(row.generalQty);
+                    const sc = STATUS_COLORS[status];
+                    const StatusIcon = sc.icon;
 
                     return (
-                      <TableRow key={row.productName} hover>
-                        <TableCell sx={{ ...bodyCell, fontWeight: 500, bgcolor: rowBg }}>{row.productName}</TableCell>
-                        <TableCell sx={{ ...bodyCell, textAlign: 'right', fontWeight: 600, bgcolor: rowBg }}>
+                      <TableRow
+                        key={row.productName}
+                        hover
+                        sx={{
+                          borderLeft: `4px solid ${sc.border}`,
+                          bgcolor: sc.bg,
+                          '&:hover': { bgcolor: `${sc.bg}cc` },
+                          transition: 'background-color 0.2s ease',
+                        }}
+                      >
+                        <TableCell sx={{ ...bodyCell, fontWeight: 600, bgcolor: 'transparent' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <StatusIcon sx={{ fontSize: 18, color: sc.border }} />
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600, color: sc.text }}
+                            >
+                              {row.productName}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ ...bodyCell, textAlign: 'right', fontWeight: 700, bgcolor: 'transparent', color: sc.text }}>
                           {editingStock && editStock ? (
                             <TextField
                               type="number"
                               variant="standard"
                               value={editStock[row.productName] ?? 0}
                               onChange={(e) => setEditStock({ ...editStock, [row.productName]: parseInt(e.target.value) || 0 })}
-                              sx={{ width: 65, '& input': { textAlign: 'right', fontSize: '0.85rem' } }}
+                              sx={{ width: 65, '& input': { textAlign: 'right', fontSize: '0.85rem', fontWeight: 700 } }}
                               inputProps={{ min: 0 }}
                             />
                           ) : (
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.generalQty}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: sc.text }}>
+                              {row.generalQty}
+                            </Typography>
                           )}
                         </TableCell>
-                        <TableCell sx={{ ...bodyCell, textAlign: 'right', color: 'info.main', fontWeight: 600, bgcolor: rowBg }}>
+                        <TableCell sx={{ ...bodyCell, textAlign: 'right', fontWeight: 600, bgcolor: 'transparent' }}>
                           {row.totalEnIslas}
-                        </TableCell>
-                        <TableCell sx={{ ...bodyCell, textAlign: 'right', bgcolor: rowBg }}>
-                          {isCritical && (
-                            <Chip icon={<ReportProblemIcon sx={{ fontSize: '0.85rem !important' }} />} label="Sin stock" size="small" color="error" variant="outlined" sx={{ fontSize: '0.65rem', height: 22 }} />
-                          )}
-                          {isLow && (
-                            <Chip icon={<WarningAmberIcon sx={{ fontSize: '0.85rem !important' }} />} label="Stock bajo" size="small" color="warning" variant="outlined" sx={{ fontSize: '0.65rem', height: 22 }} />
-                          )}
-                          {!isCritical && !isLow && row.generalQty > STOCK_LOW && (
-                            <Chip label="OK" size="small" color="success" variant="outlined" sx={{ fontSize: '0.65rem', height: 22 }} />
-                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -529,18 +704,6 @@ export default function Inventario() {
                     <TableCell sx={resumenCell}>Total</TableCell>
                     <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>{totals.totalGeneralUnits}</TableCell>
                     <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>{totals.totalDistributed}</TableCell>
-                    <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>
-                      {alertGeneral.critical.length === 0 && alertGeneral.low.length === 0 ? 'OK' : (
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-                          {alertGeneral.critical.length > 0 && (
-                            <Chip label={`${alertGeneral.critical.length} sin stock`} size="small" color="error" sx={{ fontSize: '0.6rem', height: 20 }} />
-                          )}
-                          {alertGeneral.low.length > 0 && (
-                            <Chip label={`${alertGeneral.low.length} bajo`} size="small" color="warning" sx={{ fontSize: '0.6rem', height: 20 }} />
-                          )}
-                        </Box>
-                      )}
-                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -551,7 +714,7 @@ export default function Inventario() {
         {/* Resumen */}
         <Grid container spacing={2}>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: 'primary.main' }}>
+            <Card sx={{ borderLeft: '4px solid', borderColor: 'primary.main', borderRadius: 2 }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Productos Activos</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>{activeProducts.length}</Typography>
@@ -559,7 +722,7 @@ export default function Inventario() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: 'primary.main' }}>
+            <Card sx={{ borderLeft: '4px solid', borderColor: 'primary.main', borderRadius: 2 }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Unidades en Almacen</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>{totals.totalGeneralUnits}</Typography>
@@ -567,7 +730,7 @@ export default function Inventario() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: 'info.main' }}>
+            <Card sx={{ borderLeft: '4px solid', borderColor: 'info.main', borderRadius: 2 }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Distribuidas a Islas</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main' }}>{totals.totalDistributed}</Typography>
@@ -575,10 +738,17 @@ export default function Inventario() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: alertGeneral.critical.length > 0 ? 'error.main' : 'success.main' }}>
+            <Card sx={{
+              borderLeft: '4px solid',
+              borderColor: alertGeneral.critical.length > 0 ? STATUS_COLORS.critical.border : STATUS_COLORS.normal.border,
+              borderRadius: 2,
+            }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Alertas</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: alertGeneral.critical.length > 0 ? 'error.main' : 'success.main' }}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 700,
+                  color: alertGeneral.critical.length > 0 ? STATUS_COLORS.critical.text : STATUS_COLORS.normal.text,
+                }}>
                   {alertGeneral.critical.length + alertGeneral.low.length}
                 </Typography>
               </CardContent>
@@ -591,64 +761,36 @@ export default function Inventario() {
           TAB 1 — INVENTARIO POR ISLA
           ══════════════════════════════════════════════ */}
       <TabPanel value={tab} index={1}>
-        {/* Alertas consolidadas por isla */}
-        {(alertIslands.critical.length > 0 || alertIslands.low.length > 0) && (
-          <Paper variant="outlined" sx={{ mb: 2, borderColor: alertIslands.critical.length > 0 ? 'error.main' : 'warning.main', bgcolor: alertIslands.critical.length > 0 ? '#FFF5F5' : '#FFFBF0' }}>
-            <Box sx={{ p: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ReportProblemIcon sx={{ color: 'error.main', fontSize: 20 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main' }}>
-                  Agotados en islas: {alertIslands.critical.length || 0}
-                </Typography>
-              </Box>
-              {alertIslands.critical.length > 0 && (
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {alertIslands.critical.map((a, i) => (
-                    <Chip key={i} label={`${a.product} — ${ISLAND_LABELS[a.island]} (${a.quedan})`} size="small" color="error" variant="filled" sx={{ fontSize: '0.7rem', height: 24, fontWeight: 600 }} />
-                  ))}
-                </Box>
-              )}
-            </Box>
-            {alertIslands.low.length > 0 && (
-              <Box sx={{ px: 1.5, pb: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap', borderTop: '1px dashed', borderColor: 'warning.main' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 1 }}>
-                  <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E65100' }}>
-                    Stock bajo en islas: {alertIslands.low.length}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', pt: 1 }}>
-                  {alertIslands.low.map((a, i) => (
-                    <Chip key={i} label={`${a.product} — ${ISLAND_LABELS[a.island]} (${a.quedan})`} size="small" color="warning" variant="filled" sx={{ fontSize: '0.7rem', height: 24, fontWeight: 600 }} />
-                  ))}
-                </Box>
-              </Box>
-            )}
-          </Paper>
-        )}
+        <Legend />
 
-        {/* Botones */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 1, flexWrap: 'wrap' }}>
-          <Button variant="contained" startIcon={<SwapHorizIcon />} onClick={() => { setDlgDistribute(true); setDlgDistProduct(''); setDlgDistIsland(''); setDlgDistQty(''); }}>
-            Distribuir a Isla
-          </Button>
-          <Button variant="outlined" startIcon={<UndoIcon />} onClick={() => { setDlgReturn(true); setDlgRetProduct(''); setDlgRetIsland(''); setDlgRetQty(''); }}>
-            Retornar a Almacen
-          </Button>
-          {!editingIslandStock ? (
-            <Button variant="outlined" onClick={startEditIslandStock}>Editar Stock por Isla</Button>
-          ) : (
-            <>
-              <Button variant="outlined" color="error" onClick={cancelEditIslandStock} startIcon={<CloseIcon />}>Cancelar</Button>
-              <Button variant="contained" color="success" onClick={handleSaveIslandStock} startIcon={<SaveIcon />} disabled={savingIsland}>
-                {savingIsland ? 'Guardando...' : 'Guardar Stock Isla'}
-              </Button>
-            </>
-          )}
+        {/* Botones con badges de alerta */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <AlertBadge count={alertIslands.critical.length} severity="error" label="agotados" />
+            <AlertBadge count={alertIslands.low.length} severity="warning" label="stock bajo" />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button variant="contained" size="small" startIcon={<SwapHorizIcon />} onClick={() => { setDlgDistribute(true); setDlgDistProduct(''); setDlgDistIsland(''); setDlgDistQty(''); }}>
+              Distribuir
+            </Button>
+            <Button variant="outlined" size="small" startIcon={<UndoIcon />} onClick={() => { setDlgReturn(true); setDlgRetProduct(''); setDlgRetIsland(''); setDlgRetQty(''); }}>
+              Retornar
+            </Button>
+            {!editingIslandStock ? (
+              <Button variant="outlined" size="small" onClick={startEditIslandStock}>Editar Stock Isla</Button>
+            ) : (
+              <>
+                <Button variant="outlined" color="error" size="small" onClick={cancelEditIslandStock} startIcon={<CloseIcon />}>Cancelar</Button>
+                <Button variant="contained" color="success" size="small" onClick={handleSaveIslandStock} startIcon={<SaveIcon />} disabled={savingIsland}>
+                  {savingIsland ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </>
+            )}
+          </Box>
         </Box>
 
         {/* Tabla por isla */}
-        <Card sx={{ mb: 3, overflowX: 'auto' }}>
+        <Card sx={{ mb: 3, overflowX: 'auto', borderRadius: 2 }}>
           <CardContent sx={{ p: 1 }}>
             <TableContainer sx={{ maxHeight: 600 }}>
               <Table size="small" stickyHeader>
@@ -657,7 +799,7 @@ export default function Inventario() {
                     <TableCell sx={{ ...headCell, minWidth: 180, position: 'sticky', left: 0, zIndex: 3 }}>Producto</TableCell>
                     {islandIds.map((id) => (
                       <React.Fragment key={id}>
-                        <TableCell sx={{ ...headCell, textAlign: 'center', bgcolor: '#888', color: '#fff', minWidth: 90 }} colSpan={3}>
+                        <TableCell sx={{ ...headCell, textAlign: 'center', bgcolor: '#37474F', color: '#fff', minWidth: 90 }} colSpan={3}>
                           {ISLAND_LABELS[id]}
                         </TableCell>
                       </React.Fragment>
@@ -665,22 +807,49 @@ export default function Inventario() {
                   </TableRow>
                   {/* Sub-encabezados */}
                   <TableRow>
-                    <TableCell sx={{ ...headCell, position: 'sticky', left: 0, zIndex: 2, bgcolor: '#999' }} />
+                    <TableCell sx={{ ...headCell, position: 'sticky', left: 0, zIndex: 2, bgcolor: '#546E7A' }} />
                     {islandIds.map((id) => (
                       <React.Fragment key={id}>
-                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#999', fontSize: '0.7rem' }}>En Isla</TableCell>
-                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#999', fontSize: '0.7rem' }}>Vendido</TableCell>
-                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#999', fontSize: '0.7rem' }}>Quedan</TableCell>
+                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#546E7A', fontSize: '0.7rem' }}>En Isla</TableCell>
+                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#546E7A', fontSize: '0.7rem' }}>
+                          {hasActiveShift ? 'Vendido' : '—'}
+                        </TableCell>
+                        <TableCell sx={{ ...headCell, textAlign: 'right', minWidth: 80, bgcolor: '#546E7A', fontSize: '0.7rem' }}>
+                          {hasActiveShift ? 'Quedan' : 'Stock'}
+                        </TableCell>
                       </React.Fragment>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {islandInventoryData.map((row) => {
+                    let worstStatus = 'empty';
+                    islandIds.forEach((id) => {
+                      const d = row.perIsland[id];
+                      const s = getStatusForIsland(d.islStock, d.quedan);
+                      if (s === 'critical') worstStatus = 'critical';
+                      else if (s === 'low' && worstStatus !== 'critical') worstStatus = 'low';
+                      else if (s === 'normal' && worstStatus === 'empty') worstStatus = 'normal';
+                    });
+
+                    const sc = STATUS_COLORS[worstStatus];
+                    const RowIcon = sc.icon;
+
                     return (
-                      <TableRow key={row.productName} hover>
-                        <TableCell sx={{ ...bodyCell, fontWeight: 500, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
-                          {row.productName}
+                      <TableRow
+                        key={row.productName}
+                        hover
+                        sx={{
+                          borderLeft: `4px solid ${sc.border}`,
+                          '&:hover': { bgcolor: `${sc.bg}44` },
+                          transition: 'background-color 0.2s ease',
+                        }}
+                      >
+                        <TableCell sx={{ ...bodyCell, fontWeight: 600, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <RowIcon sx={{ fontSize: 16, color: sc.border }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: sc.text }}>{row.productName}</Typography>
+                          </Box>
                         </TableCell>
                         {islandIds.map((id) => {
                           const d = row.perIsland[id];
@@ -688,14 +857,17 @@ export default function Inventario() {
                             ? (editIslandStock[String(id)]?.[row.productName] ?? 0)
                             : d.islStock;
 
-                          const isCritical = d.islStock > 0 && d.quedan <= STOCK_CRITICAL;
-                          const isLow = d.islStock > 0 && d.quedan > STOCK_CRITICAL && d.quedan <= STOCK_LOW;
-                          const cellBg = isCritical ? '#FFCDD2' : isLow ? '#FFE0B2' : 'transparent';
-                          const cellColor = isCritical ? 'error.main' : isLow ? 'warning.main' : 'text.primary';
+                          const cellStatus = getStatusForIsland(d.islStock, d.quedan);
+                          const cellSc = STATUS_COLORS[cellStatus];
+                          const isTracked = d.islStock > 0;
+                          const quedanDisplay = hasActiveShift ? d.quedan : (d.islStock > 0 ? d.islStock : '');
 
                           return (
                             <React.Fragment key={id}>
-                              <TableCell sx={{ ...bodyCell, textAlign: 'right', color: 'info.main', fontWeight: 600 }}>
+                              <TableCell sx={{
+                                ...bodyCell, textAlign: 'right', color: 'info.main', fontWeight: 600,
+                                bgcolor: isTracked ? cellSc.bg : 'transparent',
+                              }}>
                                 {editingIslandStock && editIslandStock ? (
                                   <TextField
                                     type="number"
@@ -714,11 +886,21 @@ export default function Inventario() {
                                   d.islStock || ''
                                 )}
                               </TableCell>
-                              <TableCell sx={{ ...bodyCell, textAlign: 'right', color: 'success.main', fontWeight: 600 }}>
-                                {d.sold || ''}
+                              <TableCell sx={{
+                                ...bodyCell, textAlign: 'right',
+                                color: hasActiveShift && d.sold > 0 ? 'success.main' : 'text.disabled',
+                                fontWeight: hasActiveShift && d.sold > 0 ? 700 : 400,
+                                bgcolor: isTracked ? cellSc.bg : 'transparent',
+                              }}>
+                                {hasActiveShift ? (d.sold || '') : '—'}
                               </TableCell>
-                              <TableCell sx={{ ...bodyCell, textAlign: 'right', fontWeight: 700, color: cellColor, bgcolor: cellBg }}>
-                                {d.islStock > 0 ? d.quedan : ''}
+                              <TableCell sx={{
+                                ...bodyCell, textAlign: 'right', fontWeight: 800,
+                                color: cellSc.text,
+                                bgcolor: isTracked ? cellSc.cell : 'transparent',
+                                borderBottom: isTracked ? `2px solid ${cellSc.border}` : undefined,
+                              }}>
+                                {quedanDisplay}
                               </TableCell>
                             </React.Fragment>
                           );
@@ -741,8 +923,16 @@ export default function Inventario() {
                       return (
                         <React.Fragment key={id}>
                           <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>{islandStockTotal}</TableCell>
-                          <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>{islandSoldTotal}</TableCell>
-                          <TableCell sx={{ ...resumenCell, textAlign: 'right', color: islandRemaining < 0 ? '#FFCDD2' : '#fff' }}>{islandRemaining}</TableCell>
+                          <TableCell sx={{ ...resumenCell, textAlign: 'right' }}>
+                            {hasActiveShift ? islandSoldTotal : '—'}
+                          </TableCell>
+                          <TableCell sx={{
+                            ...resumenCell, textAlign: 'right',
+                            color: islandRemaining <= STOCK_CRITICAL ? STATUS_COLORS.critical.text : '#fff',
+                            bgcolor: islandRemaining <= STOCK_CRITICAL ? STATUS_COLORS.critical.cell : undefined,
+                          }}>
+                            {hasActiveShift ? islandRemaining : islandStockTotal}
+                          </TableCell>
                         </React.Fragment>
                       );
                     })}
@@ -756,7 +946,7 @@ export default function Inventario() {
         {/* Resumen por Isla */}
         <Grid container spacing={2}>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: 'info.main' }}>
+            <Card sx={{ borderLeft: '4px solid', borderColor: 'info.main', borderRadius: 2 }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Distribuidas a Islas</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main' }}>{totals.totalDistributed}</Typography>
@@ -764,26 +954,51 @@ export default function Inventario() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: 'success.main' }}>
+            <Card sx={{ borderLeft: '4px solid', borderColor: hasActiveShift ? 'success.main' : 'grey.400', borderRadius: 2 }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Vendidas en Turno</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>{totals.totalSold}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  {hasActiveShift ? 'Vendidas en Turno' : 'Ventas (con turno)'}
+                </Typography>
+                <Typography variant="h5" sx={{
+                  fontWeight: 700,
+                  color: hasActiveShift ? 'success.main' : 'text.disabled',
+                }}>
+                  {hasActiveShift ? totals.totalSold : '—'}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: totals.totalRemaining < 0 ? 'error.main' : 'primary.main' }}>
+            <Card sx={{
+              borderLeft: '4px solid',
+              borderColor: (hasActiveShift && totals.totalRemaining < 0) ? STATUS_COLORS.critical.border : 'primary.main',
+              borderRadius: 2,
+            }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Quedan en Islas</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: totals.totalRemaining < 0 ? 'error.main' : 'primary.main' }}>{totals.totalRemaining}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  {hasActiveShift ? 'Quedan en Islas' : 'Stock Total en Islas'}
+                </Typography>
+                <Typography variant="h5" sx={{
+                  fontWeight: 700,
+                  color: (hasActiveShift && totals.totalRemaining < 0) ? STATUS_COLORS.critical.text : 'primary.main',
+                }}>
+                  {hasActiveShift ? totals.totalRemaining : totals.totalDistributed}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Card sx={{ borderLeft: '4px solid', borderColor: alertIslands.critical.length > 0 ? 'error.main' : 'success.main' }}>
+            <Card sx={{
+              borderLeft: '4px solid',
+              borderColor: alertIslands.critical.length > 0 ? STATUS_COLORS.critical.border : STATUS_COLORS.normal.border,
+              borderRadius: 2,
+            }}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Alertas</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: alertIslands.critical.length > 0 ? 'error.main' : 'success.main' }}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 700,
+                  color: alertIslands.critical.length > 0 ? STATUS_COLORS.critical.text : STATUS_COLORS.normal.text,
+                }}>
                   {alertIslands.critical.length + alertIslands.low.length}
                 </Typography>
               </CardContent>

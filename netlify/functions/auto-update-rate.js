@@ -3,11 +3,11 @@
 // SEGURIDAD: Requiere header secreto (X-Cron-Secret) O query param (?secret=xxx)
 //           o autenticación Firebase para invocaciones manuales
 //
-// LÓGICA DE ROTACIÓN:
+// LÓGICA DE ROTACIÓN (1 sola ejecución diaria a las 11:45 PM):
 //   1. API devuelve nueva tasa (ej: 55.50)
-//   2. tasa2 actual → pasa a tasa1
-//   3. nueva tasa de la API → se guarda como tasa2
-//   4. Ciclo constante cada 3 minutos en horario 15:00 - 22:00 (TODOS LOS DÍAS)
+//   2. tasa2 actual → pasa a tasa1 (tasa anterior del día)
+//   3. nueva tasa de la API → se guarda como tasa2 (tasa nueva del día)
+//   4. CRON dispara 1 vez a las 11:45 PM (hora Venezuela) todos los días
 //
 // ROTACIÓN CON GUARDIA:
 //   - Siempre rota: tasa2 → tasa1, API → tasa2
@@ -16,6 +16,14 @@
 //   - Si quedan diferentes → el 1TS usa ambas tasas (correcto)
 //   - Solo escribe en Firebase si los valores finales cambiaron
 //   - No depende de fechaValor ni de días hábiles
+//
+// FLUJO DE TURNOS:
+//   - 2TS (2PM-10PM): Siempre usa UNA SOLA tasa (tasa1). Si tasa2 ≠ tasa1,
+//     el Dashboard promueve tasa2→tasa1 al iniciar el 2TS.
+//   - 1TS (6AM-2PM): Usa AMBAS tasas si son diferentes (tasa1=tasa anterior,
+//     tasa2=tasa nueva). Si son iguales, usa una sola tasa.
+//   - CRON 11:45 PM: Captura la tasa más reciente del día justo antes de cerrar
+//     la jornada, garantizando que el 1TS tenga las 2 tasas disponibles.
 
 import admin from 'firebase-admin';
 import { verifyAuth, getSecurityHeaders, handleCorsPreflight } from '../lib/verifyAuth.js';
@@ -42,10 +50,12 @@ function initializeFirebase() {
 const securityHeaders = getSecurityHeaders();
 
 // Horarios de operación (hora Venezuela) — TODOS LOS DÍAS
-const WAKE_UP_HOUR = 14;
-const WAKE_UP_MINUTE = 58;
-const START_HOUR = 15;
-const END_HOUR = 22;
+// Wake-up: 23:40 (despierta Render antes de la actualización)
+// Actualización: 23:45 (única ejecución diaria)
+const WAKE_UP_HOUR = 23;
+const WAKE_UP_MINUTE = 40;
+const START_HOUR = 23;
+const END_HOUR = 23;
 const UPDATE_INTERVAL = 3;
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -108,7 +118,7 @@ export const handler = async (event, context) => {
   const dayName = DAY_NAMES[currentDay] || 'Desconocido';
 
   // ----------------------------------------------------------------
-  // 14:58 TODOS LOS DÍAS: DESPERTAR API (PING)
+  // 23:40 TODOS LOS DÍAS: DESPERTAR API (PING)
   // ----------------------------------------------------------------
   if (currentHour === WAKE_UP_HOUR && currentMinute === WAKE_UP_MINUTE) {
     console.log(`${currentHour}:${currentMinute} (${dayName}) - Enviando ping para despertar Render...`);
@@ -128,13 +138,13 @@ export const handler = async (event, context) => {
         action: 'wake-up',
         day: dayName,
         time: `${currentHour}:${currentMinute}`,
-        message: 'API despertando para el horario de actualización',
+        message: 'API despertando para actualización 23:45',
       }),
     };
   }
 
   // ----------------------------------------------------------------
-  // 15:00 - 22:00 TODOS LOS DÍAS: ACTUALIZAR TASA CADA 3 MIN
+  // 23:45 TODOS LOS DÍAS: ACTUALIZAR TASA (ÚNICA EJECUCIÓN DIARIA)
   // ----------------------------------------------------------------
   const isInUpdateWindow = currentHour >= START_HOUR && currentHour <= END_HOUR;
   const shouldUpdateNow = currentMinute % UPDATE_INTERVAL === 0;
@@ -250,9 +260,9 @@ export const handler = async (event, context) => {
   if (currentHour < WAKE_UP_HOUR) {
     nextAction = `Esperando ${WAKE_UP_HOUR}:${String(WAKE_UP_MINUTE).padStart(2, '0')} para despertar API`;
   } else if (currentHour < START_HOUR) {
-    nextAction = `Esperando ${START_HOUR}:00 para comenzar actualizaciones`;
+    nextAction = `Esperando ${START_HOUR}:45 para actualización de tasa`;
   } else if (currentHour > END_HOUR) {
-    nextAction = `Esperando ${START_HOUR}:00 del día siguiente`;
+    nextAction = 'Próxima actualización hoy a las 23:45';
   } else {
     nextAction = `Próxima actualización en minuto ${Math.ceil(currentMinute / UPDATE_INTERVAL) * UPDATE_INTERVAL}`;
   }
@@ -266,7 +276,7 @@ export const handler = async (event, context) => {
       action: 'idle',
       day: dayName,
       currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
-      updateWindow: `${START_HOUR}:00 - ${END_HOUR}:00 (todos los días)`,
+      updateWindow: '23:45 (una vez al día)',
       nextAction,
     }),
   };
