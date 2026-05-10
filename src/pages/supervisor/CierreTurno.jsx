@@ -149,6 +149,10 @@ export default function CierreTurno() {
   const tasa1 = currentShift.tasa1 || 1;
   const tasa2 = currentShift.tasa2 || 0;
 
+  // 2TS (PM) = operador DIURNO → una sola tasa, una sola tarjeta PV
+  // 1TS (AM) = operador NOCTURNO → dos tasas, dos tarjetas PV
+  const is2TS = currentShift.operatorShiftType !== 'NOCTURNO';
+
   const islandLabels = {};
   (currentShift.islands || []).forEach((isl, idx) => {
     islandLabels[isl.islandId] = `Isla ${isl.islandId}`;
@@ -286,111 +290,170 @@ export default function CierreTurno() {
               </CardContent>
             </Card>
 
-            {/* PV Tasa 1 — SIEMPRE visible */}
-            <Card sx={{ mb: 2 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
-                  Punto de Venta (Tasa 1: {formatBs(tasa1)})
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="Monto 1 (Bs.)"
-                      value={island.pvMonto1 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pvMonto1', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
-                    />
+            {/* ═══ PUNTO DE VENTA ═══ */}
+            {/* 2TS (PM) → una sola tarjeta PV con tasa1 */}
+            {is2TS ? (
+              <Card sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
+                    Punto de Venta (Tasa: {formatBs(tasa1)})
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={4}>
+                      <CurrencyInput
+                        label="Monto 1 (Bs.)"
+                        value={island.pvMonto1 || 0}
+                        onChange={(v) => {
+                          updateIslandField(iid, 'pvMonto1', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
+                        }}
+                        currency="BS"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <CurrencyInput
+                        label="Monto 2 (Bs.)"
+                        value={island.pvMonto2 || 0}
+                        onChange={(v) => {
+                          updateIslandField(iid, 'pvMonto2', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
+                        }}
+                        currency="BS"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <CurrencyInput
+                        label="Monto 3 (Bs.)"
+                        value={island.pvMonto3 || 0}
+                        onChange={(v) => {
+                          updateIslandField(iid, 'pvMonto3', v);
+                          setTimeout(() => recalcIslandPV(iid), 0);
+                        }}
+                        currency="BS"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="Monto 2 (Bs.)"
-                      value={island.pvMonto2 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pvMonto2', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Chip
+                      label={`Total PV: ${formatBs(island.pvTotalBs || 0)} = ${formatUSD(island.pvTotalUSD || 0)}`}
+                      color="secondary"
+                      size="small"
+                      sx={{ fontWeight: 600 }}
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="Monto 3 (Bs.)"
-                      value={island.pvMonto3 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pvMonto3', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
-                    />
-                  </Grid>
-                </Grid>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ textAlign: 'right' }}>
-                  <Chip
-                    label={`Total PV Tasa 1: ${formatBs(island.pvTotalBs || 0)} = ${formatUSD(island.pvTotalUSD || 0)}`}
-                    color="secondary"
-                    size="small"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
+                  </Box>
+                </CardContent>
+              </Card>
+            ) : (
+              /* 1TS (AM) → dos tarjetas PV (Tasa 1 y Tasa 2) */
+              <>
+                {/* PV Tasa 1 */}
+                <Card sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'secondary.main' }}>
+                      Punto de Venta (Tasa 1: {formatBs(tasa1)})
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="Monto 1 (Bs.)"
+                          value={island.pvMonto1 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pvMonto1', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="Monto 2 (Bs.)"
+                          value={island.pvMonto2 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pvMonto2', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="Monto 3 (Bs.)"
+                          value={island.pvMonto3 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pvMonto3', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                    </Grid>
+                    <Divider sx={{ my: 2 }} />
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Chip
+                        label={`Total PV Tasa 1: ${formatBs(island.pvTotalBs || 0)} = ${formatUSD(island.pvTotalUSD || 0)}`}
+                        color="secondary"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
 
-            {/* PV Tasa 2 — SIEMPRE visible */}
-            <Card sx={{ mb: 2 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'info.main' }}>
-                  Punto de Venta (Tasa 2: {formatBs(tasa2 || 0)})
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="PV2 Monto 1 (Bs.)"
-                      value={island.pv2Monto1 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pv2Monto1', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="PV2 Monto 2 (Bs.)"
-                      value={island.pv2Monto2 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pv2Monto2', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <CurrencyInput
-                      label="PV2 Monto 3 (Bs.)"
-                      value={island.pv2Monto3 || 0}
-                      onChange={(v) => {
-                        updateIslandField(iid, 'pv2Monto3', v);
-                        setTimeout(() => recalcIslandPV(iid), 0);
-                      }}
-                      currency="BS"
-                    />
-                  </Grid>
-                </Grid>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ textAlign: 'right' }}>
-                  <Chip
-                    label={`Total PV Tasa 2: ${formatBs(island.pv2TotalBs || 0)} = ${formatUSD(island.pv2TotalUSD || 0)}`}
-                    color="info"
-                    size="small"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
+                {/* PV Tasa 2 */}
+                <Card sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'info.main' }}>
+                      Punto de Venta (Tasa 2: {formatBs(tasa2 || 0)})
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="PV2 Monto 1 (Bs.)"
+                          value={island.pv2Monto1 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pv2Monto1', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="PV2 Monto 2 (Bs.)"
+                          value={island.pv2Monto2 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pv2Monto2', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <CurrencyInput
+                          label="PV2 Monto 3 (Bs.)"
+                          value={island.pv2Monto3 || 0}
+                          onChange={(v) => {
+                            updateIslandField(iid, 'pv2Monto3', v);
+                            setTimeout(() => recalcIslandPV(iid), 0);
+                          }}
+                          currency="BS"
+                        />
+                      </Grid>
+                    </Grid>
+                    <Divider sx={{ my: 2 }} />
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Chip
+                        label={`Total PV Tasa 2: ${formatBs(island.pv2TotalBs || 0)} = ${formatUSD(island.pv2TotalUSD || 0)}`}
+                        color="info"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
             {/* Vales */}
             <Card sx={{ mb: 2 }}>
@@ -610,7 +673,7 @@ export default function CierreTurno() {
                   return (
                     <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#FFF3E0', borderRadius: 1.5, border: '1px solid #FFB74D' }}>
                       <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 600 }}>
-                        {label}: {formatUSD(totalUSD)} = {formatBs(totalBs)} (Tasa 1: {formatBs(tasa1)})
+                        {label}: {formatUSD(totalUSD)} = {formatBs(totalBs)} (Tasa: {formatBs(tasa1)})
                       </Typography>
                     </Paper>
                   );
