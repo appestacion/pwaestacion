@@ -399,16 +399,16 @@ const useCierreStore = create((set, get) => ({
         const db = getDb();
         const shiftsRef = collection(db, 'shifts');
 
-        if (unsubscribeShiftsHistory) unsubscribeShiftsHistory();
+        if (unsubscribeShiftsHistory) unsubscribeShiftsHistory;
 
+        // FIX Bug #3: Añadido limit(50) para no descargar todos los cierres
         unsubscribeShiftsHistory = onSnapshot(
-          query(shiftsRef, where('status', '==', 'cerrado'), orderBy('createdAt', 'desc')),
+          query(shiftsRef, where('status', '==', 'cerrado'), orderBy('createdAt', 'desc'), limit(50)),
           (snapshot) => {
             const firestoreShifts = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
             const config = useConfigStore.getState().config || {};
             const completeShifts = firestoreShifts
-              .map((s) => ensureShiftStructure(s, config))
-              .slice(0, 50);
+              .map((s) => ensureShiftStructure(s, config));
 
             set({ shiftsHistory: completeShifts, firestoreActive: true, loadingHistory: false });
           },
@@ -472,7 +472,10 @@ const useCierreStore = create((set, get) => ({
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
-        const snapshot = await getDocs(query(collection(db, 'shifts'), where('status', '==', 'cerrado')));
+        // FIX Bug #4: Añadido limit(500) para no escanear toda la colección
+        const snapshot = await getDocs(
+          query(collection(db, 'shifts'), where('status', '==', 'cerrado'), orderBy('createdAt', 'desc'), limit(500))
+        );
         const dates = new Set();
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();

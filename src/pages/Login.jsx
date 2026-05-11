@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -391,11 +392,22 @@ export default function LoginPage() {
 }
 
 function darkenColor(hex, percent) {
+  if (!hex || typeof hex !== 'string') return '#8B0000';
+
   hex = hex.replace('#', '');
+
+  // Validar que el string resultante sea un hex válido (3 o 6 caracteres hexadecimales)
+  if (!/^[0-9A-Fa-f]{3}$/.test(hex) && !/^[0-9A-Fa-f]{6}$/.test(hex)) {
+    return '#8B0000';
+  }
+
   if (hex.length === 3) {
     hex = hex.split('').map((c) => c + c).join('');
   }
+
   const num = parseInt(hex, 16);
+  if (isNaN(num)) return '#8B0000';
+
   const r = Math.max(0, (num >> 16) - Math.round(255 * (percent / 100)));
   const g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * (percent / 100)));
   const b = Math.max(0, (num & 0x0000FF) - Math.round(255 * (percent / 100)));

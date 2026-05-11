@@ -3,7 +3,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { STORAGE_KEYS } from '../services/storage.js';
 import { getFirebaseAuth, getSecondaryAuth, getDb, isFirebaseConfigured } from '../config/firebase.js';
 import {
   signInWithEmailAndPassword,
@@ -206,13 +205,37 @@ const useStore = create(
       },
 
       /**
-       * Eliminar usuario: borra el perfil de Firestore.
-       * El usuario de Firebase Auth seguira existiendo pero no tendra perfil.
+       * Eliminar usuario via serverless function:
+       * 1. Elimina de Firebase Auth (impide login)
+       * 2. Elimina perfil de Firestore
+       * Requiere token del admin logueado.
        */
       deleteUser: async (id) => {
         try {
-          const db = getDb();
-          await deleteDoc(doc(db, 'users', id));
+          const auth = getFirebaseAuth();
+          const currentUser = auth.currentUser;
+          if (!currentUser) {
+            throw new Error('No hay sesión activa');
+          }
+
+          const token = await currentUser.getIdToken();
+
+          const response = await fetch('/.netlify/functions/deleteUser', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ uid: id }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Error al eliminar usuario');
+          }
+
+          return data;
         } catch (error) {
           console.error('Error eliminando usuario:', error);
           throw error;

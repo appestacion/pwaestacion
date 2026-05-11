@@ -29,6 +29,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CloseIcon from '@mui/icons-material/Close';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
+import HistoryIcon from '@mui/icons-material/History';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
@@ -44,6 +45,7 @@ const supervisorMenuItems = [
   { path: '/biblia', label: 'Biblia', icon: <BookIcon /> },
   { path: '/cuadre-pv', label: 'Cuadre PV', icon: <PointOfSaleIcon /> },
   { path: '/inventario', label: 'Inventario', icon: <InventoryIcon /> },
+  { path: '/historial-cierres', label: 'Historial Cierres', icon: <HistoryIcon /> },
   { path: '/generar-pdf', label: 'Generar PDF', icon: <PictureAsPdfIcon /> },
   { path: '/estadisticas', label: 'Estadisticas', icon: <BarChartIcon /> },
 ];

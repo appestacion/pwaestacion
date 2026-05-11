@@ -1,5 +1,5 @@
 // src/pages/supervisor/Dashboard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -24,6 +24,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useNavigate } from 'react-router-dom';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
+import useStore from '../../store/useStore.js';
 import { formatBs, formatNumber } from '../../lib/formatters.js';
 import { calcTotalLitersSold, calcLitersByIsland } from '../../lib/calculations.js';
 import { SHIFT_LABELS, SHIFT_LABELS_SHORT, SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT, ISLAND_LABELS } from '../../config/constants.js';
@@ -55,6 +56,7 @@ export default function SupervisorDashboard() {
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
   const updateConfig = useConfigStore((state) => state.updateConfig);
+  const user = useStore((state) => state.user);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isXs = useMediaQuery(theme.breakpoints.down('xs'));
@@ -86,10 +88,20 @@ export default function SupervisorDashboard() {
 
   const handleCloseShift = () => {
     closeShift();
-    navigate('/generar-pdf');
   };
 
+  const [shiftJustClosed, setShiftJustClosed] = useState(false);
+
   const totalLiters = currentShift ? calcTotalLitersSold(currentShift.pumpReadings) : 0;
+
+  // Detectar cuando se acaba de cerrar un turno (currentShift pasa de algo a null)
+  const prevShiftRef = React.useRef(!!currentShift);
+  React.useEffect(() => {
+    if (prevShiftRef.current && !currentShift) {
+      setShiftJustClosed(true);
+    }
+    prevShiftRef.current = !!currentShift;
+  }, [currentShift]);
   const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
 
   // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas (solo si son diferentes)
@@ -128,6 +140,43 @@ export default function SupervisorDashboard() {
 
       {!currentShift ? (
         /* ========== SIN TURNO ACTIVO ========== */
+        shiftJustClosed ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '60vh',
+              textAlign: 'center',
+              px: 3,
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: 80, color: '#2E7D32', mb: 3 }} />
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#2E7D32', mb: 1 }}>
+              Turno Cerrado
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'text.secondary' }}>
+              Gracias por tu trabajo, {user?.name || 'Supervisor'}
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => setShiftJustClosed(false)}
+              sx={{
+                bgcolor: '#003399',
+                '&:hover': { bgcolor: '#002277' },
+                fontWeight: 700,
+                px: 5,
+                py: 1.5,
+                borderRadius: 3,
+                fontSize: '1.1rem',
+              }}
+            >
+              Aceptar
+            </Button>
+          </Box>
+        ) : (
         <>
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontSize: isXs ? '0.78rem' : undefined }}>
             No hay un turno activo. Selecciona tu turno de supervisor para comenzar el cierre del turno de operadores correspondiente.
@@ -210,6 +259,7 @@ export default function SupervisorDashboard() {
             ))}
           </Grid>
         </>
+        )
       ) : (
         /* ========== TURNO ACTIVO ========== */
         <>

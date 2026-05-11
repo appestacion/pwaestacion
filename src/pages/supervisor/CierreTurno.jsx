@@ -1,5 +1,5 @@
 // src/pages/supervisor/CierreTurno.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -54,6 +54,32 @@ export default function CierreTurno() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('punto_de_venta');
+
+  // Ref para debounce del recálculo PV — evita múltiples recalculaciones
+  // cuando el usuario teclea rápido en un campo de montos.
+  const recalcTimerRef = useRef(null);
+
+  // Actualiza un campo PV y recalcula los totales de forma segura.
+  // Se ejecuta de forma síncrona (sin setTimeout) para evitar race conditions
+  // con el listener onSnapshot de Firestore. Un debounce ligero (50ms)
+  // evita calcular N veces por N keystrokes rápidos.
+  const handlePVFieldChange = useCallback((islandId, field, value) => {
+    updateIslandField(islandId, field, value);
+
+    // Limpiar el timer anterior y programar uno nuevo
+    if (recalcTimerRef.current) clearTimeout(recalcTimerRef.current);
+    recalcTimerRef.current = setTimeout(() => {
+      recalcIslandPV(islandId);
+      recalcTimerRef.current = null;
+    }, 50);
+  }, [updateIslandField, recalcIslandPV]);
+
+  // Limpiar el timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (recalcTimerRef.current) clearTimeout(recalcTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     loadCurrentShift();
@@ -303,10 +329,7 @@ export default function CierreTurno() {
                       <CurrencyInput
                         label="Monto 1 (Bs.)"
                         value={island.pvMonto1 || 0}
-                        onChange={(v) => {
-                          updateIslandField(iid, 'pvMonto1', v);
-                          setTimeout(() => recalcIslandPV(iid), 0);
-                        }}
+                        onChange={(v) => handlePVFieldChange(iid, 'pvMonto1', v)}
                         currency="BS"
                       />
                     </Grid>
@@ -314,10 +337,7 @@ export default function CierreTurno() {
                       <CurrencyInput
                         label="Monto 2 (Bs.)"
                         value={island.pvMonto2 || 0}
-                        onChange={(v) => {
-                          updateIslandField(iid, 'pvMonto2', v);
-                          setTimeout(() => recalcIslandPV(iid), 0);
-                        }}
+                        onChange={(v) => handlePVFieldChange(iid, 'pvMonto2', v)}
                         currency="BS"
                       />
                     </Grid>
@@ -325,10 +345,7 @@ export default function CierreTurno() {
                       <CurrencyInput
                         label="Monto 3 (Bs.)"
                         value={island.pvMonto3 || 0}
-                        onChange={(v) => {
-                          updateIslandField(iid, 'pvMonto3', v);
-                          setTimeout(() => recalcIslandPV(iid), 0);
-                        }}
+                        onChange={(v) => handlePVFieldChange(iid, 'pvMonto3', v)}
                         currency="BS"
                       />
                     </Grid>
@@ -358,10 +375,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="Monto 1 (Bs.)"
                           value={island.pvMonto1 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pvMonto1', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pvMonto1', v)}
                           currency="BS"
                         />
                       </Grid>
@@ -369,10 +383,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="Monto 2 (Bs.)"
                           value={island.pvMonto2 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pvMonto2', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pvMonto2', v)}
                           currency="BS"
                         />
                       </Grid>
@@ -380,10 +391,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="Monto 3 (Bs.)"
                           value={island.pvMonto3 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pvMonto3', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pvMonto3', v)}
                           currency="BS"
                         />
                       </Grid>
@@ -411,10 +419,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="PV2 Monto 1 (Bs.)"
                           value={island.pv2Monto1 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pv2Monto1', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pv2Monto1', v)}
                           currency="BS"
                         />
                       </Grid>
@@ -422,10 +427,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="PV2 Monto 2 (Bs.)"
                           value={island.pv2Monto2 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pv2Monto2', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pv2Monto2', v)}
                           currency="BS"
                         />
                       </Grid>
@@ -433,10 +435,7 @@ export default function CierreTurno() {
                         <CurrencyInput
                           label="PV2 Monto 3 (Bs.)"
                           value={island.pv2Monto3 || 0}
-                          onChange={(v) => {
-                            updateIslandField(iid, 'pv2Monto3', v);
-                            setTimeout(() => recalcIslandPV(iid), 0);
-                          }}
+                          onChange={(v) => handlePVFieldChange(iid, 'pv2Monto3', v)}
                           currency="BS"
                         />
                       </Grid>

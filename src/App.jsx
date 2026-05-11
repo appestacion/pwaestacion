@@ -39,6 +39,7 @@ import RecepcionGandola from './pages/supervisor/RecepcionGandola.jsx';
 import GenerarPDF from './pages/supervisor/GenerarPDF.jsx';
 import ReporteLecturaRecepcion from './pages/supervisor/ReporteLecturaRecepcion.jsx';
 import Estadisticas from './pages/supervisor/Estadisticas.jsx';
+import HistorialCierres from './pages/HistorialCierres.jsx';
 
 function AppInitializer({ children }) {
   const initAuth = useStore((state) => state.initAuth);
@@ -130,6 +131,7 @@ export default function App() {
                   <Route path="recepcion-gandola" element={<RecepcionGandola />} />
                   <Route path="generar-pdf" element={<GenerarPDF />} />
                   <Route path="estadisticas" element={<Estadisticas />} />
+                  <Route path="historial-cierres" element={<HistorialCierres />} />
                 </Route>
               </Route>
 
