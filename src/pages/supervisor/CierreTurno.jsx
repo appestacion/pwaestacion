@@ -560,10 +560,10 @@ export default function CierreTurno() {
                   <Grid item xs={6}>
                     <Paper sx={{ p: 2, bgcolor: hasReadings ? '#E3F2FD' : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                        Litros Vendidos
+                        $ por Litros Vendidos
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: hasReadings ? '#1565C0' : '#9E9E9E' }}>
-                        {hasReadings ? `${formatNumber(biblia.litersRef || 0, 2)} L` : '—'}
+                        {hasReadings ? formatUSD(biblia.litersRef || 0) : '—'}
                       </Typography>
                     </Paper>
                   </Grid>

@@ -147,6 +147,9 @@ function buildReporteData(dayShifts, selectedShift, receptionsHistory, config) {
   const totalDespues = despDesc.reduce((s, tk) => s + tk.liters, 0);
   const totalInvFinal = invFinal.reduce((s, tk) => s + tk.liters, 0);
   const totalGandola = gandola?.tankReadings?.reduce((s, tk) => s + (tk.litersDifference || 0), 0) || 0;
+  const totalCompartment = gandola
+    ? (gandola.compartment1Liters || 0) + (gandola.compartment2Liters || 0) + (gandola.compartment3Liters || 0)
+    : 0;
 
   const tasa1 = diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0;
   const tasa2 = nocturnoShift?.tasa2 || 0;
@@ -160,7 +163,7 @@ function buildReporteData(dayShifts, selectedShift, receptionsHistory, config) {
     nocturnoShiftForDisplay,
     invInicial, antesDesc, despDesc, invFinal,
     totalInvInicial, totalAntes, totalDespues, totalInvFinal,
-    gandola, totalGandola,
+    gandola, totalGandola, totalCompartment,
     currentShift: selectedShift,
   };
 }

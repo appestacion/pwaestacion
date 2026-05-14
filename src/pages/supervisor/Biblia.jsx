@@ -13,6 +13,8 @@ import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import WarningIcon from '@mui/icons-material/Warning';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia, calculateBibliaTotals } from '../../lib/calculations.js';
@@ -38,8 +40,8 @@ export default function Biblia() {
 
   const totals = useMemo(() => {
     if (biblia.length === 0) return null;
-    return calculateBibliaTotals(biblia);
-  }, [biblia]);
+    return calculateBibliaTotals(biblia, currentShift);
+  }, [biblia, currentShift]);
 
   if (!currentShift) {
     return <Alert severity="warning">No hay un turno activo.</Alert>;
@@ -66,10 +68,26 @@ export default function Biblia() {
   const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
-  // Total del Resumen: suma solo lo visible en la tabla
+
+  // Total del Resumen: suma todo lo visible en la tabla (incluyendo gastos y pagos)
+  // Si hay sobregiro, se excluye Bs (negativo)
+  const itemsTotalUSD = (totals.resumenItems || []).reduce((s, item) => s + item.montoUSD, 0);
   const totalResumenUSD = haySobregiro
-    ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + totals.totalVales + totals.totalTransferencia)
-    : totals.totalIngresosUSD;
+    ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD)
+    : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
+
+  // ── Cálculos para tarjetas de sobregiro ──
+  const totalGastosPagosUSD = (totals.resumenItems || [])
+    .filter(i => i.tipo === 'Gastos' || i.tipo === 'Pagos')
+    .reduce((s, i) => s + i.montoUSD, 0);
+  const totalCajaChicaUSD = sobregiroUSD + totalGastosPagosUSD;
+  const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
+
+  // ── Cálculos para Comprobación ──
+  const totalLitersSold = totals.totalLitersRef * 2;
+  const ajustadoUSD = haySobregiro ? (totalResumenUSD - totalCajaChicaUSD) : totalResumenUSD;
+  const ajustadoLitros = ajustadoUSD * 2;
+  const comprobacionOk = Math.abs(totalLitersSold - ajustadoLitros) <= 1;
 
   // ── Estilos de celda ──
   const lbl = { ...c, fontWeight: 600, whiteSpace: 'nowrap' };
@@ -105,9 +123,9 @@ export default function Biblia() {
             <TableCell sx={dataCell}></TableCell>
             <TableCell sx={dataCell}>{data.puntoTotal > 0 ? formatUSD(data.puntoTotal) : ''}</TableCell>
           </TableRow>
-          {/* UE: valor de UE$ en celda derecha */}
+          {/* UE$: valor de UE$ en celda derecha */}
           <TableRow>
-            <TableCell sx={lbl}>UE:</TableCell>
+            <TableCell sx={lbl}>UE$:</TableCell>
             <TableCell sx={dataCell}></TableCell>
             <TableCell sx={dataCell}>{data.ueUSD > 0 ? formatUSD(data.ueUSD) : ''}</TableCell>
           </TableRow>
@@ -117,9 +135,9 @@ export default function Biblia() {
             <TableCell sx={descCell}>{data.valesDescripcion || ''}</TableCell>
             <TableCell sx={dataCell}>{data.valesMonto > 0 ? formatUSD(data.valesMonto) : ''}</TableCell>
           </TableRow>
-          {/* Transferencias: descripción izquierda, valor derecha */}
+          {/* Transferencia(s): descripción izquierda, valor derecha */}
           <TableRow>
-            <TableCell sx={lbl}>Transferencias:</TableCell>
+            <TableCell sx={lbl}>Transferencia(s):</TableCell>
             <TableCell sx={descCell}>{data.transferenciaDescripcion || ''}</TableCell>
             <TableCell sx={dataCell}>{data.transferenciaMonto > 0 ? formatUSD(data.transferenciaMonto) : ''}</TableCell>
           </TableRow>
@@ -134,53 +152,56 @@ export default function Biblia() {
     </TableContainer>
   );
 
-  // ── Render: Tabla RESUMEN (2 columnas) ──
-  const renderResumenTable = () => (
-    <TableContainer>
-      <Table size="small" sx={{ '& td': { border: b } }}>
-        <TableBody>
-          <TableRow>
-            <TableCell sx={resumenSec} colSpan={2}>RESUMEN</TableCell>
-          </TableRow>
-          {/* Bs: (totalBs - propinaBs) / tasa1 */}
-          <TableRow>
-            <TableCell sx={lbl}>Bs.:</TableCell>
-            <TableCell sx={dataCell}>{haySobregiro ? '' : (bsResumenUSD > 0 ? formatUSD(bsResumenUSD) : '')}</TableCell>
-          </TableRow>
-          {/* $: cortes sin UE$ */}
-          <TableRow>
-            <TableCell sx={lbl}>$:</TableCell>
-            <TableCell sx={dataCell}>{totals.totalUsdSinUE > 0 ? formatUSD(totals.totalUsdSinUE) : ''}</TableCell>
-          </TableRow>
-          {/* Punto */}
-          <TableRow>
-            <TableCell sx={lbl}>Punto:</TableCell>
-            <TableCell sx={dataCell}>{totals.totalPunto > 0 ? formatUSD(totals.totalPunto) : ''}</TableCell>
-          </TableRow>
-          {/* UE: suma de UE de cada isla */}
-          <TableRow>
-            <TableCell sx={lbl}>UE:</TableCell>
-            <TableCell sx={dataCell}>{totals.totalUeUSD > 0 ? formatUSD(totals.totalUeUSD) : ''}</TableCell>
-          </TableRow>
-          {/* Vale(s) */}
-          <TableRow>
-            <TableCell sx={lbl}>Vale(s):</TableCell>
-            <TableCell sx={dataCell}>{totals.totalVales > 0 ? formatUSD(totals.totalVales) : ''}</TableCell>
-          </TableRow>
-          {/* Transferencias */}
-          <TableRow>
-            <TableCell sx={lbl}>Transferencias:</TableCell>
-            <TableCell sx={dataCell}>{totals.totalTransferencia > 0 ? formatUSD(totals.totalTransferencia) : ''}</TableCell>
-          </TableRow>
-          {/* Total */}
-          <TableRow>
-            <TableCell sx={{ ...tot, bgcolor: '#888', color: '#fff' }}>Total:</TableCell>
-            <TableCell sx={totalValue}>{formatUSD(totalResumenUSD)}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
+  // ── Render: Tabla RESUMEN (2 columnas) con líneas individuales ──
+  const renderResumenTable = () => {
+    const items = totals.resumenItems || [];
+
+    return (
+      <TableContainer>
+        <Table size="small" sx={{ '& td': { border: b } }}>
+          <TableBody>
+            <TableRow>
+              <TableCell sx={resumenSec} colSpan={2}>RESUMEN</TableCell>
+            </TableRow>
+            {/* Bs: (totalBs - propinaBs) / tasa1 */}
+            <TableRow>
+              <TableCell sx={lbl}>Bs.:</TableCell>
+              <TableCell sx={dataCell}>{haySobregiro ? '' : (bsResumenUSD > 0 ? formatUSD(bsResumenUSD) : '')}</TableCell>
+            </TableRow>
+            {/* $: cortes sin UE$ */}
+            <TableRow>
+              <TableCell sx={lbl}>$:</TableCell>
+              <TableCell sx={dataCell}>{totals.totalUsdSinUE > 0 ? formatUSD(totals.totalUsdSinUE) : ''}</TableCell>
+            </TableRow>
+            {/* Punto */}
+            <TableRow>
+              <TableCell sx={lbl}>Punto:</TableCell>
+              <TableCell sx={dataCell}>{totals.totalPunto > 0 ? formatUSD(totals.totalPunto) : ''}</TableCell>
+            </TableRow>
+            {/* UE$: suma de UE de cada isla */}
+            <TableRow>
+              <TableCell sx={lbl}>UE$:</TableCell>
+              <TableCell sx={dataCell}>{totals.totalUeUSD > 0 ? formatUSD(totals.totalUeUSD) : ''}</TableCell>
+            </TableRow>
+            {/* ── Líneas individuales: vales, transferencias, gastos, pagos ── */}
+            {items.map((item, idx) => (
+              <TableRow key={`res-item-${idx}`}>
+                <TableCell sx={lbl}>
+                  {item.tipo}{item.concepto ? `: (${item.concepto})` : ':'}
+                </TableCell>
+                <TableCell sx={dataCell}>{item.montoUSD > 0 ? formatUSD(item.montoUSD) : ''}</TableCell>
+              </TableRow>
+            ))}
+            {/* Total */}
+            <TableRow>
+              <TableCell sx={{ ...tot, bgcolor: '#888', color: '#fff' }}>Total:</TableCell>
+              <TableCell sx={totalValue}>{formatUSD(totalResumenUSD)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
   // ── Construir grilla ──
   const allBlocks = [...biblia.map(b => ({ type: 'isla', data: b })), { type: 'resumen' }];
@@ -272,26 +293,128 @@ export default function Biblia() {
         ))}
       </Box>
 
-      {/* ═══ Tarjeta Sobregiro (si aplica) ═══ */}
+      {/* ═══ Tarjetas de Sobregiro (3 en línea, mismo tamaño) ═══ */}
       {haySobregiro && (
-        <Paper sx={{
+        <Box sx={{
+          display: 'flex',
+          gap: 2,
           mt: 3,
           mx: 'auto',
-          maxWidth: 400,
-          p: 2,
-          bgcolor: '#FFF3E0',
-          border: '2px solid #E65100',
-          borderRadius: 2,
-          textAlign: 'center',
+          maxWidth: 900,
+          flexWrap: 'wrap',
         }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#E65100', letterSpacing: 1 }}>
-            SOBREGIRO
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: '#BF360C', mt: 1 }}>
-            {formatUSD(sobregiroUSD)}
-          </Typography>
-        </Paper>
+          {/* 1. SOBREGIRO */}
+          <Paper sx={{
+            flex: '1 1 0',
+            minWidth: 200,
+            p: 2,
+            bgcolor: '#FFF3E0',
+            border: '2px solid #E65100',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#E65100', letterSpacing: 1 }}>
+              SOBREGIRO
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: '#BF360C', mt: 1 }}>
+              {formatUSD(sobregiroUSD)}
+            </Typography>
+          </Paper>
+
+          {/* 2. TOTAL GASTOS Y PAGOS */}
+          <Paper sx={{
+            flex: '1 1 0',
+            minWidth: 200,
+            p: 2,
+            bgcolor: '#E3F2FD',
+            border: '2px solid #1565C0',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1565C0', letterSpacing: 1 }}>
+              TOTAL GASTOS Y PAGOS
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: '#0D47A1', mt: 1 }}>
+              {formatUSD(totalGastosPagosUSD)}
+            </Typography>
+          </Paper>
+
+          {/* 3. TOTAL A TOMAR DE CAJA CHICA */}
+          <Paper sx={{
+            flex: '1 1 0',
+            minWidth: 200,
+            p: 2,
+            bgcolor: '#E8F5E9',
+            border: '2px solid #2E7D32',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#2E7D32', letterSpacing: 1 }}>
+              TOTAL A TOMAR DE CAJA CHICA
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: '#1B5E20', mt: 1 }}>
+              {formatUSD(totalCajaChicaUSD)}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#2E7D32', fontWeight: 600, mt: 0.5 }}>
+              {formatBs(totalCajaChicaBs)}
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1, fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: '#E65100' }}>Sobregiro: {formatUSD(sobregiroUSD)}</Typography>
+              <Typography variant="caption" sx={{ color: '#1565C0' }}>Gastos y Pagos: {formatUSD(totalGastosPagosUSD)}</Typography>
+            </Box>
+          </Paper>
+        </Box>
       )}
+
+      {/* ═══ Tarjeta Comprobación (siempre visible, NO aparece en PDF) ═══ */}
+      <Paper sx={{
+        mt: 3,
+        mx: 'auto',
+        maxWidth: 500,
+        p: 2,
+        bgcolor: comprobacionOk ? '#E8F5E9' : '#FFF3E0',
+        border: `2px solid ${comprobacionOk ? '#2E7D32' : '#E65100'}`,
+        borderRadius: 2,
+        textAlign: 'center',
+      }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 1, color: comprobacionOk ? '#2E7D32' : '#E65100' }}>
+          COMPROBACIÓN
+        </Typography>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5, px: 1 }}>
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Litros Vendidos</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatNumber(totalLitersSold, 2)} L</Typography>
+          </Box>
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {haySobregiro ? 'Resumen − Caja Chica × 2' : 'Total Resumen × 2'}
+            </Typography>
+            <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatNumber(ajustadoLitros, 2)} L</Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0.5,
+          mt: 1.5,
+          color: comprobacionOk ? '#2E7D32' : '#E65100',
+        }}>
+          {comprobacionOk ? (
+            <>
+              <CheckCircleIcon />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Correcto</Typography>
+            </>
+          ) : (
+            <>
+              <WarningIcon />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Mandar a Revisión</Typography>
+            </>
+          )}
+        </Box>
+      </Paper>
     </Box>
   );
 }

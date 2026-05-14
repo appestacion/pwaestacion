@@ -68,13 +68,21 @@ export function calculateBiblia(shift) {
       ? island.vales.reduce((s, v) => s + (v.monto || 0), 0)
       : (island.valesMonto || 0);
     const valesDescripcion = Array.isArray(island.vales)
-      ? island.vales.map(v => v.descripcion || '').filter(Boolean).join(', ')
+      ? island.vales.filter(v => (v.monto || 0) > 0).map(v => {
+          const desc = v.descripcion || 'Sin desc';
+          const monto = v.monto || 0;
+          return `${desc} ${monto}`;
+        }).join(', ')
       : (island.valesDescripcion || '');
     const transferenciaMonto = Array.isArray(island.transferencias)
       ? island.transferencias.reduce((s, t) => s + (t.monto || 0), 0)
       : (island.transferenciaMonto || 0);
     const transferenciaDescripcion = Array.isArray(island.transferencias)
-      ? island.transferencias.map(t => t.descripcion || '').filter(Boolean).join(', ')
+      ? island.transferencias.filter(t => (t.monto || 0) > 0).map(t => {
+          const desc = t.descripcion || 'Sin desc';
+          const monto = t.monto || 0;
+          return `${desc} ${monto}`;
+        }).join(', ')
       : (island.transferenciaDescripcion || '');
 
     const ingresosTotalUSD = bsInUSD + usdTotal + puntoTotal + valesMonto + transferenciaMonto;
@@ -109,7 +117,77 @@ export function calculateBiblia(shift) {
   });
 }
 
-export function calculateBibliaTotals(biblia) {
+export function calculateBibliaTotals(biblia, shift) {
+  const tasa1 = shift?.tasa1 || 0;
+
+  // ── Gastos: soporta montoBs (nuevo, en Bs) y monto (viejo, en USD) ──
+  const shiftGastos = Array.isArray(shift?.gastos) ? shift.gastos : [];
+  const shiftGastosUSD = shiftGastos.reduce((s, g) => {
+    if (g.montoBs !== undefined) {
+      return s + (tasa1 > 0 ? (g.montoBs || 0) / tasa1 : 0);
+    }
+    return s + (g.monto || 0);
+  }, 0);
+
+  // ── Pagos: soporta montoBs (nuevo, en Bs) y monto (viejo, en USD) ──
+  const shiftPagos = Array.isArray(shift?.pagos) ? shift.pagos : [];
+  const shiftPagosUSD = shiftPagos.reduce((s, p) => {
+    if (p.montoBs !== undefined) {
+      return s + (tasa1 > 0 ? (p.montoBs || 0) / tasa1 : 0);
+    }
+    return s + (p.monto || 0);
+  }, 0);
+
+  // ── resumenItems: una línea por cada vale, transferencia, gasto y pago ──
+  // Cada item: { tipo: string, concepto: string, montoUSD: number }
+  const resumenItems = [];
+
+  // Vales de todas las islas
+  (shift?.islands || []).forEach((island) => {
+    (island.vales || []).forEach((v) => {
+      const monto = v.monto || 0;
+      if (monto > 0) {
+        resumenItems.push({ tipo: 'Vale', concepto: v.descripcion || '', montoUSD: monto });
+      }
+    });
+  });
+
+  // Transferencias de todas las islas
+  (shift?.islands || []).forEach((island) => {
+    (island.transferencias || []).forEach((t) => {
+      const monto = t.monto || 0;
+      if (monto > 0) {
+        resumenItems.push({ tipo: 'Transferencia', concepto: t.descripcion || '', montoUSD: monto });
+      }
+    });
+  });
+
+  // Gastos del turno (Bs → USD)
+  shiftGastos.forEach((g) => {
+    let montoUSD;
+    if (g.montoBs !== undefined) {
+      montoUSD = tasa1 > 0 ? (g.montoBs || 0) / tasa1 : 0;
+    } else {
+      montoUSD = g.monto || 0;
+    }
+    if (montoUSD > 0) {
+      resumenItems.push({ tipo: 'Gasto', concepto: g.descripcion || '', montoUSD });
+    }
+  });
+
+  // Pagos del turno (Bs → USD)
+  shiftPagos.forEach((p) => {
+    let montoUSD;
+    if (p.montoBs !== undefined) {
+      montoUSD = tasa1 > 0 ? (p.montoBs || 0) / tasa1 : 0;
+    } else {
+      montoUSD = p.monto || 0;
+    }
+    if (montoUSD > 0) {
+      resumenItems.push({ tipo: 'Pago', concepto: p.descripcion || '', montoUSD });
+    }
+  });
+
   return {
     totalLitersRef: biblia.reduce((s, b) => s + b.litersRef, 0),
     totalBs: biblia.reduce((s, b) => s + b.bsTotal, 0),
@@ -126,9 +204,14 @@ export function calculateBibliaTotals(biblia) {
     totalValesDescripcion: biblia.map(b => b.valesDescripcion).filter(Boolean).join(', '),
     totalTransferencia: biblia.reduce((s, b) => s + b.transferenciaMonto, 0),
     totalTransferenciaDescripcion: biblia.map(b => b.transferenciaDescripcion).filter(Boolean).join(', '),
+    totalGastos: shiftGastosUSD,
+    totalGastosDescripcion: shiftGastos.map(g => g.descripcion || '').filter(Boolean).join(', '),
+    totalPagos: shiftPagosUSD,
+    totalPagosDescripcion: shiftPagos.map(p => p.descripcion || '').filter(Boolean).join(', '),
     totalIngresosUSD: biblia.reduce((s, b) => s + b.ingresosTotalUSD, 0),
     totalPropinaUSD: biblia.reduce((s, b) => s + b.propinaUSD, 0),
     totalPropinaBs: biblia.reduce((s, b) => s + b.propinaBs, 0),
+    resumenItems,
   };
 }
 

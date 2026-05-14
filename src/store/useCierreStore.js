@@ -78,6 +78,8 @@ function createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, 
     pumpReadings,
     tankReadings,
     gandolaLiters: 0,
+    gastos: [],
+    pagos: [],
     islands,
     status: 'en_progreso',
     createdAt: new Date().toISOString(),
@@ -160,11 +162,6 @@ async function saveShiftToFirestore(shift) {
   }
 }
 
-/**
- * Determine the shift date based on supervisor shift type.
- * AM supervisor closes the NOCTURNO operator shift of the PREVIOUS day.
- * PM supervisor closes the DIURNO operator shift of the CURRENT day.
- */
 function getShiftDate(supervisorShiftType) {
   if (supervisorShiftType === 'AM') {
     const yesterday = subDays(getVenezuelaDate(), 1);
@@ -184,7 +181,6 @@ const useCierreStore = create((set, get) => ({
     const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
     const shift = createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, config);
 
-    // Set correct date based on supervisor shift type
     shift.date = getShiftDate(supervisorShiftType);
 
     set({ currentShift: shift });
@@ -331,6 +327,58 @@ const useCierreStore = create((set, get) => ({
     debounceSyncToFirestore(updated);
   },
 
+  // ── Gastos y Pagos a nivel turno (no por isla) ──
+  addShiftGasto: (gasto) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const updated = { ...currentShift, gastos: [...(currentShift.gastos || []), gasto] };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+  removeShiftGasto: (index) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const gastos = [...(currentShift.gastos || [])];
+    gastos.splice(index, 1);
+    const updated = { ...currentShift, gastos };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+  updateShiftGasto: (index, field, value) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const gastos = [...(currentShift.gastos || [])];
+    gastos[index] = { ...gastos[index], [field]: value };
+    const updated = { ...currentShift, gastos };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+  addShiftPago: (pago) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const updated = { ...currentShift, pagos: [...(currentShift.pagos || []), pago] };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+  removeShiftPago: (index) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const pagos = [...(currentShift.pagos || [])];
+    pagos.splice(index, 1);
+    const updated = { ...currentShift, pagos };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+  updateShiftPago: (index, field, value) => {
+    const { currentShift } = get();
+    if (!currentShift) return;
+    const pagos = [...(currentShift.pagos || [])];
+    pagos[index] = { ...pagos[index], [field]: value };
+    const updated = { ...currentShift, pagos };
+    set({ currentShift: updated });
+    debounceSyncToFirestore(updated);
+  },
+
   updateTasa: (field, value) => {
     const { currentShift } = get();
     if (!currentShift) return;
@@ -401,7 +449,6 @@ const useCierreStore = create((set, get) => ({
 
         if (unsubscribeShiftsHistory) unsubscribeShiftsHistory;
 
-        // FIX Bug #3: Añadido limit(50) para no descargar todos los cierres
         unsubscribeShiftsHistory = onSnapshot(
           query(shiftsRef, where('status', '==', 'cerrado'), orderBy('createdAt', 'desc'), limit(50)),
           (snapshot) => {
@@ -468,11 +515,43 @@ const useCierreStore = create((set, get) => ({
     return null;
   },
 
+  getPreviousShiftFinalReadings: async (currentShiftType) => {
+    // Determinar el tipo de turno anterior y la fecha
+    // Secuencia: 2TS(PM) → 1TS(AM) → 2TS(PM) → 1TS(AM)
+    const prevOperatorType = currentShiftType === 'DIURNO' ? 'NOCTURNO' : 'DIURNO';
+    const config = useConfigStore.getState().config || {};
+    const supervisorType = config.supervisorShiftType || 'PM';
+
+    // Buscar el turno cerrado más reciente del tipo de operador opuesto
+    if (isFirebaseConfigured()) {
+      try {
+        const db = getDb();
+        const q = query(
+          collection(db, 'shifts'),
+          where('status', '==', 'cerrado'),
+          where('operatorShiftType', '==', prevOperatorType),
+          orderBy('closedAt', 'desc'),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const prevShift = snapshot.docs[0].data();
+          return {
+            pumpReadings: prevShift.pumpReadings || [],
+            tankReadings: prevShift.tankReadings || [],
+          };
+        }
+      } catch (error) {
+        console.error('Error consultando turno anterior:', error);
+      }
+    }
+    return null;
+  },
+
   loadDatesWithShifts: async () => {
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
-        // FIX Bug #4: Añadido limit(500) para no escanear toda la colección
         const snapshot = await getDocs(
           query(collection(db, 'shifts'), where('status', '==', 'cerrado'), orderBy('createdAt', 'desc'), limit(500))
         );

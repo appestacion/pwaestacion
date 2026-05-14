@@ -124,7 +124,7 @@ export default function GenerarPDF() {
   const { receptionsHistory, loadReceptionsHistory } = useGandolaStore();
 
   const [dayShifts, setDayShifts] = useState([]);
-  const [loadingReporte, setLoadingReporte] = useState(false);
+  const [loadingReporte, setLoadingReporte] = useState(true);
   const [generating, setGenerating] = useState(null); // key del PDF que se está generando
   const [sharing, setSharing] = useState(null); // key del PDF que se está compartiendo
 
@@ -167,8 +167,8 @@ export default function GenerarPDF() {
 
   const bibliaTotals = useMemo(() => {
     if (biblia.length === 0) return null;
-    return calculateBibliaTotals(biblia);
-  }, [biblia]);
+    return calculateBibliaTotals(biblia, currentShift);
+  }, [biblia, currentShift]);
 
   // ── Cálculos: Cuadre PV ──
   const cuadre = useMemo(() => {
@@ -308,6 +308,9 @@ export default function GenerarPDF() {
     const totalDespues = despDesc.reduce((s, tk) => s + tk.liters, 0);
     const totalInvFinal = invFinal.reduce((s, tk) => s + tk.liters, 0);
     const totalGandola = gandola?.tankReadings?.reduce((s, tk) => s + (tk.litersDifference || 0), 0) || 0;
+    const totalCompartment = gandola
+      ? (gandola.compartment1Liters || 0) + (gandola.compartment2Liters || 0) + (gandola.compartment3Liters || 0)
+      : 0;
 
     const tasa1 = diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0;
     const tasa2 = nocturnoShift?.tasa2 || 0;
@@ -321,7 +324,7 @@ export default function GenerarPDF() {
       nocturnoShiftForDisplay,
       invInicial, antesDesc, despDesc, invFinal,
       totalInvInicial, totalAntes, totalDespues, totalInvFinal,
-      gandola, totalGandola,
+      gandola, totalGandola, totalCompartment,
       currentShift,
     };
   }, [dayShifts, currentShift, receptionsHistory, config, islandCount]);
@@ -470,10 +473,16 @@ export default function GenerarPDF() {
     }));
   }, [currentShift]);
 
-  // ── Validaciones por PDF ──
+  // ── Validaciones por PDF (disabled = sin datos, NO mientras carga) ──
   const getDisabled = (key) => {
     if (key === 'cierre' || key === 'biblia' || key === 'cuadre') return !currentShift;
-    if (key === 'reporte') return !reporteData || loadingReporte;
+    if (key === 'reporte') return !reporteData && !loadingReporte;
+    return false;
+  };
+
+  // ── Indicador de carga por PDF ──
+  const getLoading = (key) => {
+    if (key === 'reporte') return loadingReporte;
     return false;
   };
 
@@ -490,6 +499,7 @@ export default function GenerarPDF() {
           {PDF_CARDS.filter(c => !c.requiresShift).map((card) => {
             const Icon = card.icon;
             const disabled = getDisabled(card.key);
+            const isLoading = getLoading(card.key);
             const isGen = generating === card.key;
             const isShar = sharing === card.key;
             return (
@@ -499,24 +509,30 @@ export default function GenerarPDF() {
                     <Icon sx={{ fontSize: 40, color: card.color, mb: 1 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>{card.title}</Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontSize: '0.8rem' }}>{card.desc}</Typography>
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <Button variant="contained" size="small" startIcon={isGen ? <CircularProgress size={16} /> : <DownloadIcon />} onClick={() => handleGenerate(card.key, 'download')} disabled={disabled || isGen}>
-                        Descargar
-                      </Button>
-                      <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={() => handleGenerate(card.key, 'print')} disabled={disabled}>
-                        Imprimir
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={isShar ? <CircularProgress size={14} /> : <ShareIcon />}
-                        onClick={() => handleShareWhatsApp(card.key)}
-                        disabled={disabled || isShar}
-                        sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' } }}
-                      >
-                        WhatsApp
-                      </Button>
-                    </Box>
+                    {isLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                        <CircularProgress size={24} sx={{ color: card.color }} />
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Button variant="contained" size="small" startIcon={isGen ? <CircularProgress size={16} /> : <DownloadIcon />} onClick={() => handleGenerate(card.key, 'download')} disabled={disabled || isGen}>
+                          Descargar
+                        </Button>
+                        <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={() => handleGenerate(card.key, 'print')} disabled={disabled}>
+                          Imprimir
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={isShar ? <CircularProgress size={14} /> : <ShareIcon />}
+                          onClick={() => handleShareWhatsApp(card.key)}
+                          disabled={disabled || isShar}
+                          sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' } }}
+                        >
+                          WhatsApp
+                        </Button>
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -590,6 +606,7 @@ export default function GenerarPDF() {
             {PDF_CARDS.map((card) => {
               const Icon = card.icon;
               const disabled = getDisabled(card.key);
+              const isLoading = getLoading(card.key);
               const isGen = generating === card.key;
               const isShar = sharing === card.key;
               return (
@@ -609,37 +626,44 @@ export default function GenerarPDF() {
                         <Icon sx={{ fontSize: 40, color: disabled ? 'text.disabled' : card.color, mb: 1 }} />
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>{card.title}</Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontSize: '0.78rem' }}>{card.desc}</Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', flexWrap: 'wrap' }}>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={isGen ? <CircularProgress size={14} /> : <DownloadIcon />}
-                            onClick={() => handleGenerate(card.key, 'download')}
-                            disabled={disabled || isGen}
-                            sx={{ bgcolor: card.color, '&:hover': { bgcolor: card.color, opacity: 0.85 } }}
-                          >
-                            {isGen ? '...' : 'Descargar'}
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<PrintIcon />}
-                            onClick={() => handleGenerate(card.key, 'print')}
-                            disabled={disabled}
-                          >
-                            Imprimir
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={isShar ? <CircularProgress size={14} /> : <ShareIcon />}
-                            onClick={() => handleShareWhatsApp(card.key)}
-                            disabled={disabled || isShar}
-                            sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' }, fontSize: '0.7rem' }}
-                          >
-                            {isShar ? '...' : 'WhatsApp'}
-                          </Button>
-                        </Box>
+                        {isLoading ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, py: 0.5 }}>
+                            <CircularProgress size={18} sx={{ color: card.color }} />
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Cargando datos...</Typography>
+                          </Box>
+                        ) : (
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={isGen ? <CircularProgress size={14} /> : <DownloadIcon />}
+                              onClick={() => handleGenerate(card.key, 'download')}
+                              disabled={disabled || isGen}
+                              sx={{ bgcolor: card.color, '&:hover': { bgcolor: card.color, opacity: 0.85 } }}
+                            >
+                              {isGen ? '...' : 'Descargar'}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<PrintIcon />}
+                              onClick={() => handleGenerate(card.key, 'print')}
+                              disabled={disabled}
+                            >
+                              Imprimir
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={isShar ? <CircularProgress size={14} /> : <ShareIcon />}
+                              onClick={() => handleShareWhatsApp(card.key)}
+                              disabled={disabled || isShar}
+                              sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' }, fontSize: '0.7rem' }}
+                            >
+                              {isShar ? '...' : 'WhatsApp'}
+                            </Button>
+                          </Box>
+                        )}
                       </CardContent>
                     </Card>
                   </Tooltip>
@@ -682,7 +706,7 @@ export default function GenerarPDF() {
                   <Chip label={`${biblia.length} islas (biblia)`} size="small" variant="outlined" color={biblia.length > 0 ? 'success' : 'default'} />
                   <Chip label={`${cuadre.length} islas (cuadre)`} size="small" variant="outlined" color={cuadre.length > 0 ? 'success' : 'default'} />
                   <Chip label={`${islandInventoryData.length} productos`} size="small" variant="outlined" color={islandInventoryData.length > 0 ? 'info' : 'default'} />
-                  <Chip label={reporteData ? 'Reporte OK' : 'Sin reporte'} size="small" variant="outlined" color={reporteData ? 'success' : 'warning'} />
+                  <Chip label={loadingReporte ? 'Cargando reporte...' : reporteData ? 'Reporte OK' : 'Sin reporte'} size="small" variant="outlined" color={loadingReporte ? 'default' : reporteData ? 'success' : 'warning'} />
                 </Box>
               </Box>
             </CardContent>

@@ -40,6 +40,7 @@ import GenerarPDF from './pages/supervisor/GenerarPDF.jsx';
 import ReporteLecturaRecepcion from './pages/supervisor/ReporteLecturaRecepcion.jsx';
 import Estadisticas from './pages/supervisor/Estadisticas.jsx';
 import HistorialCierres from './pages/HistorialCierres.jsx';
+import GastosPagos from './pages/supervisor/GastosPagos.jsx';
 
 function AppInitializer({ children }) {
   const initAuth = useStore((state) => state.initAuth);
@@ -132,6 +133,7 @@ export default function App() {
                   <Route path="generar-pdf" element={<GenerarPDF />} />
                   <Route path="estadisticas" element={<Estadisticas />} />
                   <Route path="historial-cierres" element={<HistorialCierres />} />
+                  <Route path="gastos-pagos" element={<GastosPagos />} />
                 </Route>
               </Route>
 

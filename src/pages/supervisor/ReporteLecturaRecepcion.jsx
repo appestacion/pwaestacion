@@ -179,6 +179,11 @@ export default function ReporteLecturaRecepcion() {
     return gandola.tankReadings.reduce((s, tk) => s + (tk.litersDifference || 0), 0);
   }, [gandola]);
 
+  const totalCompartment = useMemo(() => {
+    if (!gandola) return 0;
+    return (gandola.compartment1Liters || 0) + (gandola.compartment2Liters || 0) + (gandola.compartment3Liters || 0);
+  }, [gandola]);
+
   const hasData = dayShifts.length > 0;
   const tasa1 = diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0;
   const tasa2 = nocturnoShift?.tasa2 || 0;
@@ -292,8 +297,8 @@ export default function ReporteLecturaRecepcion() {
         <TableBody>
           <TableRow>
             <TableCell sx={{ ...tot, bgcolor: '#fff3cd', textAlign: 'right', color: '#856404' }}>Gandola:</TableCell>
-            <TableCell sx={{ ...tot, textAlign: 'center', bgcolor: '#fff3cd', color: '#856404' }}>
-              {gandola ? formatNumber(totalGandola, 0) : DASH}
+            <TableCell sx={{ ...tot, textAlign: 'center', bgcolor: '#fff3cd', color: '#856404', fontWeight: 800 }}>
+              {gandola ? formatNumber(totalCompartment, 0) : DASH}
             </TableCell>
           </TableRow>
         </TableBody>

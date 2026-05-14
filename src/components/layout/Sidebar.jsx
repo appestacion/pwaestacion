@@ -30,6 +30,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CloseIcon from '@mui/icons-material/Close';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import HistoryIcon from '@mui/icons-material/History';
+import PaymentsIcon from '@mui/icons-material/Payments';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
@@ -39,6 +40,7 @@ const DRAWER_WIDTH = 260;
 const supervisorMenuItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/recepcion-gandola', label: 'Recepcion Gandola', icon: <LocalShippingIcon /> },
+  { path: '/gastos-pagos', label: 'Gastos y Pagos', icon: <PaymentsIcon /> },
   { path: '/lecturas', label: 'Lecturas', icon: <SpeedIcon /> },
   { path: '/cierre', label: 'Cierre de Turno', icon: <ReceiptLongIcon /> },
   { path: '/reporte', label: 'Reporte', icon: <DescriptionIcon /> },
@@ -69,7 +71,15 @@ export default function Sidebar() {
 
   const handleNavigate = (path) => {
     navigate(path);
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+      if (document.activeElement) document.activeElement.blur();
+    }
+  };
+
+  const handleCloseDrawer = () => {
+    if (document.activeElement) document.activeElement.blur();
+    setSidebarOpen(false);
   };
 
   const drawerContent = (
@@ -124,7 +134,7 @@ export default function Sidebar() {
               {config.stationName}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-              Sistema de Cierre
+              Sistema de Cierre de Turno
             </Typography>
           </Box>
         </Box>
@@ -199,14 +209,12 @@ export default function Sidebar() {
       </List>
 
       <Divider />
-      <Box sx={{ p: 2 }}>
-        {config.stationRif && config.stationRif !== 'J-00000000-0' && (
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-            {config.stationRif}
-          </Typography>
-        )}
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {config.stationAddress}
+      <Box sx={{ p: 2, textAlign: 'center' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}>
+          © {new Date().getFullYear()} Copyright. Desarrollado por Erick Simosa
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.6rem' }}>
+          ericksimosa@gmail.com - 0424 3036024
         </Typography>
       </Box>
     </Box>
@@ -217,8 +225,8 @@ export default function Sidebar() {
       <Drawer
         variant="temporary"
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        ModalProps={{ keepMounted: true }}
+        onClose={handleCloseDrawer}
+        ModalProps={{ keepMounted: true, disablePortal: false, hideBackdrop: false }}
         sx={{
           '& .MuiDrawer-paper': { width: DRAWER_WIDTH, borderRight: 'none' },
         }}

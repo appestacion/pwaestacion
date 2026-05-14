@@ -91,8 +91,7 @@ function addPageOrientation(doc, orientation) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 1. CIERRE DE TURNO — CARTA VERTICAL, SIN TOTALES, CON UE Bs/UE $
-//     Layout: tablas Bs y $ lado a lado por isla, todo en 1 hoja
+// 1. CIERRE DE TURNO — CARTA VERTICAL, SIN TOTALES, CON UE Bs/UE $ //     Layout: tablas Bs y $ lado a lado por isla, todo en 1 hoja
 // ═══════════════════════════════════════════════════════════════════
 export function generateCierreCortesPDF(shift, stationConfig, sharedDoc = null) {
   const ownDoc = !sharedDoc;
@@ -202,12 +201,10 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   const pw = PAGE.letterL.w;
   const ph = PAGE.letterL.h;
 
-  // Márgenes consistentes con el resto de hojas (14mm) y gap (4mm)
   const margin = 14;
   const gap = 4;
   const contentW = pw - margin * 2 - gap * 2;
 
-  // ★ RATIO 3:2:3 — laterales más anchas, centro más angosto
   const totalFr = 3 + 2 + 3;
   const col1W = contentW * 3 / totalFr;
   const col2W = contentW * 2 / totalFr;
@@ -215,7 +212,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
 
   if (!ownDoc) addPageOrientation(doc, orientation);
 
-  // Header
   doc.setFontSize(14); doc.setTextColor(...RED);
   doc.text(name, margin, 16);
   if (rif && rif !== 'J-00000000-0') {
@@ -252,10 +248,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   let col2Y = contentStartY;
   let col3Y = contentStartY;
 
-  // ═══════════════════════════════════════════════════
-  // RENDER TABLA DE ISLA (columnas laterales)
-  // ★ ESTILO BIBLIA: cellPadding 1.5, grid, bordes
-  // ═══════════════════════════════════════════════════
   const renderIslandTable = (isl, shift, startX, colWidth, currentY) => {
     const filled = !!shift;
     const totalL = isl.pumps.reduce((s, p) => s + p.litersSold, 0);
@@ -292,10 +284,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     return doc.lastAutoTable.finalY + 3;
   };
 
-  // ═══════════════════════════════════════════════════
-  // RENDER TABLA DE TANQUES (columna centro)
-  // ★ ESTILO BIBLIA: cellPadding 1.5, grid, bordes
-  // ═══════════════════════════════════════════════════
   const renderTankTable = (data, label, totalVal, filled, startY, startX, colWidth) => {
     const tanksCount = data.length;
     const headerRow = [
@@ -339,9 +327,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     return doc.lastAutoTable.finalY + 3;
   };
 
-  // ═══════════════════════════════════════════════════
-  // COLUMNA 1 (izquierda) — Diurno 7AM-7PM
-  // ═══════════════════════════════════════════════════
   const x1 = margin;
   col1Y = sectionBanner('7:00 AM a 7:00 PM', x1, col1W, col1Y);
   (rd.diurnoIslands || []).forEach(isl => {
@@ -360,9 +345,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     tableWidth: col1W,
   });
 
-  // ═══════════════════════════════════════════════════
-  // COLUMNA 2 (centro) — Tanques y gandola
-  // ═══════════════════════════════════════════════════
   const x2 = margin + col1W + gap;
   col2Y = sectionBanner('7:00 AM a 7:00 PM', x2, col2W, col2Y);
   col2Y = renderTankTable(rd.invInicial, 'INVENTARIO INICIAL', rd.totalInvInicial, rd.is1TS && !!rd.currentShift, col2Y, x2, col2W);
@@ -373,7 +355,7 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     startY: col2Y,
     body: [[
       { content: 'Gandola:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-      { content: rd.gandola ? formatNumber(rd.totalGandola, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+      { content: rd.gandola ? formatNumber(rd.totalCompartment || 0, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
     ]],
     theme: 'grid',
     styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
@@ -399,9 +381,6 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     tableWidth: col2W,
   });
 
-  // ═══════════════════════════════════════════════════
-  // COLUMNA 3 (derecha) — Nocturno 7PM-7AM
-  // ═══════════════════════════════════════════════════
   const x3 = margin + col1W + gap + col2W + gap;
   col3Y = sectionBanner('7:00 PM a 7:00 AM', x3, col3W, col3Y);
   (rd.displayNocturnoIslands || []).forEach(isl => {
@@ -427,6 +406,7 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
 // ═══════════════════════════════════════════════════════════════════
 // 3. BIBLIA — CARTA VERTICAL
 //     Pantalla: gridTemplateColumns: '1fr 1fr' (2 columnas)
+//     Idéntico a Biblia.jsx
 // ═══════════════════════════════════════════════════════════════════
 export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDoc = null) {
   const ownDoc = !sharedDoc;
@@ -476,8 +456,34 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
     rows.push({ left: blocks[i], right: blocks[i + 1] || null });
   }
 
-  // ★ Sin cellWidth fijo ni tableWidth — autoTable calcula automáticamente
-  // Esto elimina "4 units width could not fit page"
+  // ═══════════════════════════════════════════════════════════════
+  // ★ CÁLCULOS GLOBALES — idénticos a Biblia.jsx (líneas 62-72)
+  // ═══════════════════════════════════════════════════════════════
+  const totalBs = totals?.totalBs || 0;
+  const totalPropinaBs = totals?.totalPropinaBs || 0;
+  const restoBs = totalBs - totalPropinaBs;
+  const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
+  const haySobregiro = bsResumenUSD < 0;
+  const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
+
+  // Total del Resumen: fórmula idéntica a Biblia.jsx
+  const itemsTotalUSD = (totals?.resumenItems || []).reduce((s, item) => s + item.montoUSD, 0);
+  const totalResumenUSD = haySobregiro
+    ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD)
+    : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
+
+  // Valores para tarjetas de sobregiro — idénticos a Biblia.jsx
+  const totalGastosPagosUSD = (totals?.resumenItems || [])
+    .filter(item => item.tipo === 'Gasto' || item.tipo === 'Pago')
+    .reduce((s, item) => s + item.montoUSD, 0);
+  const totalCajaChicaUSD = sobregiroUSD + totalGastosPagosUSD;
+  const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
+
+  // ═══════════════════════════════════════════════════════════════
+  // ★ RENDER TABLA DE ISLA — filas idénticas a Biblia.jsx
+  //    Orden: Bs. → $ → Punto → UE$ → Vale(s) → Transferencia(s) → Propina
+  //    SIN Gastos ni Pagos (esos van en Resumen via resumenItems)
+  // ═══════════════════════════════════════════════════════════════
   const renderIslaBlock = (b, startX, startY, columnWidth) => {
     autoTable(doc, {
       startY,
@@ -501,7 +507,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
           { content: b.puntoTotal > 0 ? formatUSD(b.puntoTotal) : '', styles: { fontSize: 6 } },
         ],
         [
-          { content: 'UE:', styles: { fontStyle: 'bold', fontSize: 6 } },
+          { content: 'UE$:', styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: '', styles: { fontSize: 6 } },
           { content: b.ueUSD > 0 ? formatUSD(b.ueUSD) : '', styles: { fontSize: 6 } },
         ],
@@ -511,7 +517,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
           { content: b.valesMonto > 0 ? formatUSD(b.valesMonto) : '', styles: { fontSize: 6 } },
         ],
         [
-          { content: 'Transf.:', styles: { fontStyle: 'bold', fontSize: 6 } },
+          { content: 'Transferencia(s):', styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: b.transferenciaDescripcion || '', styles: { fontSize: 5, fontStyle: 'italic', textColor: [85, 85, 85] } },
           { content: b.transferenciaMonto > 0 ? formatUSD(b.transferenciaMonto) : '', styles: { fontSize: 6 } },
         ],
@@ -528,76 +534,132 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
     });
   };
 
-  // ★ Sin cellWidth fijo ni tableWidth
+  // ═══════════════════════════════════════════════════════════════
+  // ★ RENDER TABLA RESUMEN — usa resumenItems[] de calculateBibliaTotals
+  //    Cada item: { tipo: 'Vale'|'Transferencia'|'Gasto'|'Pago', concepto, montoUSD }
+  //    Label: tipo + (concepto) si existe — idéntico a Biblia.jsx
+  // ═══════════════════════════════════════════════════════════════
   const renderResumenBlock = (startX, startY, columnWidth) => {
     if (!totals) return;
 
-    const totalBs = totals.totalBs || 0;
-    const totalPropinaBs = totals.totalPropinaBs || 0;
-    const restoBs = totalBs - totalPropinaBs;
-    const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
-    const haySobregiro = bsResumenUSD < 0;
-    const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
-    const totalResumenUSD = haySobregiro
-      ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + totals.totalVales + totals.totalTransferencia)
-      : totals.totalIngresosUSD;
+    const bodyRows = [
+      [
+        { content: 'Bs.:', styles: { fontStyle: 'bold', fontSize: 6 } },
+        { content: haySobregiro ? '' : (bsResumenUSD > 0 ? formatUSD(bsResumenUSD) : ''), styles: { fontSize: 6 } },
+      ],
+      [
+        { content: '$:', styles: { fontStyle: 'bold', fontSize: 6 } },
+        { content: totals.totalUsdSinUE > 0 ? formatUSD(totals.totalUsdSinUE) : '', styles: { fontSize: 6 } },
+      ],
+      [
+        { content: 'Punto:', styles: { fontStyle: 'bold', fontSize: 6 } },
+        { content: totals.totalPunto > 0 ? formatUSD(totals.totalPunto) : '', styles: { fontSize: 6 } },
+      ],
+      [
+        { content: 'UE$:', styles: { fontStyle: 'bold', fontSize: 6 } },
+        { content: totals.totalUeUSD > 0 ? formatUSD(totals.totalUeUSD) : '', styles: { fontSize: 6 } },
+      ],
+    ];
+
+    // Iterar resumenItems[] — cada vale, transferencia, gasto y pago individual
+    const items = totals.resumenItems || [];
+    items.forEach((item) => {
+      const label = item.concepto ? `${item.tipo}: (${item.concepto})` : `${item.tipo}:`;
+      bodyRows.push([
+        { content: label, styles: { fontStyle: 'bold', fontSize: 5.5 } },
+        { content: item.montoUSD > 0 ? formatUSD(item.montoUSD) : '', styles: { fontSize: 6 } },
+      ]);
+    });
+
+    // Fila Total
+    bodyRows.push([
+      { content: 'Total:', styles: { fillColor: DARK_GRAY, textColor: 255, fontStyle: 'bold', fontSize: 7 } },
+      { content: formatUSD(totalResumenUSD), styles: { fillColor: DARK_GRAY, textColor: 255, fontStyle: 'bold', fontSize: 7 } },
+    ]);
 
     autoTable(doc, {
       startY,
       head: [[
         { content: 'RESUMEN', colSpan: 2, styles: { fillColor: DARK_GRAY, textColor: 255, fontStyle: 'bold', fontSize: 7 } },
       ]],
-      body: [
-        [
-          { content: 'Bs.:', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: haySobregiro ? '' : (bsResumenUSD > 0 ? formatUSD(bsResumenUSD) : ''), styles: { fontSize: 6 } },
-        ],
-        [
-          { content: '$:', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: totals.totalUsdSinUE > 0 ? formatUSD(totals.totalUsdSinUE) : '', styles: { fontSize: 6 } },
-        ],
-        [
-          { content: 'Punto:', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: totals.totalPunto > 0 ? formatUSD(totals.totalPunto) : '', styles: { fontSize: 6 } },
-        ],
-        [
-          { content: 'UE:', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: totals.totalUeUSD > 0 ? formatUSD(totals.totalUeUSD) : '', styles: { fontSize: 6 } },
-        ],
-        [
-          { content: 'Vale(s):', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: totals.totalVales > 0 ? formatUSD(totals.totalVales) : '', styles: { fontSize: 6 } },
-        ],
-        [
-          { content: 'Transf.:', styles: { fontStyle: 'bold', fontSize: 6 } },
-          { content: totals.totalTransferencia > 0 ? formatUSD(totals.totalTransferencia) : '', styles: { fontSize: 6 } },
-        ],
-        [
-          { content: 'Total:', styles: { fillColor: DARK_GRAY, textColor: 255, fontStyle: 'bold', fontSize: 7 } },
-          { content: formatUSD(totalResumenUSD), styles: { fillColor: DARK_GRAY, textColor: 255, fontStyle: 'bold', fontSize: 7 } },
-        ],
-      ],
+      body: bodyRows,
       theme: 'grid',
       styles: { halign: 'center', cellPadding: 1.5 },
       columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right' } },
       margin: { left: startX, right: pw - startX - columnWidth },
     });
 
+    // ── Si hay sobregiro: 3 bloques debajo del Resumen ──
     if (haySobregiro) {
-      const sy = doc.lastAutoTable.finalY + 5;
-      const cx = startX + columnWidth / 2;
-      doc.setFontSize(9); doc.setTextColor(230, 81, 0); doc.setFont(undefined, 'bold');
-      doc.text('SOBREGIRO', cx, sy, { align: 'center' });
-      doc.setFontSize(12); doc.setTextColor(191, 54, 12);
-      doc.text(formatUSD(sobregiroUSD), cx, sy + 6, { align: 'center' });
-      doc.setFont(undefined, 'normal');
+      let sy = doc.lastAutoTable.finalY + 5;
+
+      // 1. SOBREGIRO
+      autoTable(doc, {
+        startY: sy,
+        body: [
+          [
+            { content: 'SOBREGIRO', colSpan: 2, styles: { fillColor: [230, 81, 0], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+          ],
+          [
+            { content: formatUSD(sobregiroUSD), colSpan: 2, styles: { fillColor: [255, 243, 224], textColor: [191, 54, 12], fontStyle: 'bold', fontSize: 11, halign: 'center' } },
+          ],
+        ],
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 2 },
+        margin: { left: startX, right: pw - startX - columnWidth },
+      });
+      sy = doc.lastAutoTable.finalY + 3;
+
+      // 2. TOTAL GASTOS Y PAGOS
+      autoTable(doc, {
+        startY: sy,
+        body: [
+          [
+            { content: 'TOTAL GASTOS Y PAGOS', colSpan: 2, styles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+          ],
+          [
+            { content: formatUSD(totalGastosPagosUSD), colSpan: 2, styles: { fillColor: [227, 242, 253], textColor: [13, 71, 161], fontStyle: 'bold', fontSize: 11, halign: 'center' } },
+          ],
+        ],
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 2 },
+        margin: { left: startX, right: pw - startX - columnWidth },
+      });
+      sy = doc.lastAutoTable.finalY + 3;
+
+      // 3. TOTAL A TOMAR DE CAJA CHICA
+      autoTable(doc, {
+        startY: sy,
+        body: [
+          [
+            { content: 'TOTAL A TOMAR DE CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+          ],
+          [
+            { content: formatUSD(totalCajaChicaUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
+          ],
+          [
+            { content: formatBs(totalCajaChicaBs), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 8, halign: 'center' } },
+          ],
+          [
+            { content: `Sobregiro: ${formatUSD(sobregiroUSD)}`, styles: { fillColor: [255, 243, 224], textColor: [230, 81, 0], fontSize: 6 } },
+            { content: `Gastos y Pagos: ${formatUSD(totalGastosPagosUSD)}`, styles: { fillColor: [255, 243, 224], textColor: [21, 101, 192], fontSize: 6 } },
+          ],
+        ],
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 2 },
+        margin: { left: startX, right: pw - startX - columnWidth },
+      });
     }
   };
 
   let maxYThisRow = y;
 
   rows.forEach((row) => {
-    y = ensureSpace(doc, 65, maxYThisRow);
+    const hasSobregiroBlock = row.left.type === 'resumen' || row.right?.type === 'resumen';
+    const resumenItemCount = hasSobregiroBlock ? (totals?.resumenItems?.length || 0) : 0;
+    const sobregiroExtra = hasSobregiroBlock ? 45 : 0;
+    const itemsExtra = resumenItemCount * 5; // ~5mm por cada item adicional
+    y = ensureSpace(doc, 50 + itemsExtra + sobregiroExtra, maxYThisRow);
 
     if (row.left.type === 'isla') {
       renderIslaBlock(row.left.data, xLeft, y, colW);
@@ -1021,8 +1083,8 @@ export function generateAllInOnePDF({ shift, reporteData, biblia, bibliaTotals, 
   doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(...GRAY);
 
   const sections = [];
-  if (shift) sections.push('1. Cierre de Turno — Cortes por Isla (Carta Vertical)');
-  if (reporteData) sections.push('2. Reporte Lectura y Recepción (Carta Horizontal)');
+  if (shift) sections.push('1. Cierre de Turno — Cortes por Isla');
+  if (reporteData) sections.push('2. Reporte Lectura y Recepción');
   if (shift && biblia?.length > 0) sections.push('3. Biblia — Resumen Financiero');
   if (shift && cuadre?.length > 0) sections.push('4. Cuadre Punto de Venta');
   sections.push('5. Inventario por Islas');

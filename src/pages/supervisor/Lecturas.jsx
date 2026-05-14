@@ -17,6 +17,7 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatNumber } from '../../lib/formatters.js';
 import { TANK_LABELS, SHIFT_LABELS } from '../../config/constants.js';
@@ -53,6 +54,9 @@ export default function Lecturas() {
 
   const isNocturno = currentShift.operatorShiftType === 'NOCTURNO';
   const is1TS = currentShift.supervisorShiftType === 'AM';
+
+  // Verificar si hay lecturas iniciales auto-llenadas (al menos una > 0)
+  const hasAutoInitial = (currentShift.pumpReadings || []).some((r) => r.initialReading > 0);
 
   // Agrupar lecturas por isla para mostrar subtotales
   const readingsByIsland = useMemo(() => {
@@ -158,8 +162,23 @@ export default function Lecturas() {
       {/* Pump Readings */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, color: 'secondary.main', fontWeight: 700 }}>
-            Lecturas de Surtidores
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="h6" sx={{ color: 'secondary.main', fontWeight: 700 }}>
+              Lecturas de Surtidores
+            </Typography>
+            {hasAutoInitial && (
+              <Chip
+                icon={<AutoAwesomeIcon sx={{ fontSize: '0.85rem !important' }} />}
+                label="Lect. inicial automática"
+                size="small"
+                variant="outlined"
+                sx={{ height: 22, fontSize: '0.7rem', color: '#1565C0', borderColor: '#1565C0', bgcolor: '#E3F2FD' }}
+              />
+            )}
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
+            La lectura inicial se carga automáticamente desde la lectura final del turno anterior.
+            Los campos siguen siendo editables por si requieren corrección.
           </Typography>
           <TableContainer>
             <Table size="small">
@@ -167,7 +186,9 @@ export default function Lecturas() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>Isla</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Surtidor</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }} align="right">Lectura Inicial</TableCell>
+                  <TableCell sx={{ fontWeight: 700, bgcolor: '#E3F2FD' }} align="right">
+                    Lectura Inicial
+                  </TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="right">Lectura Final</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="right" style={{ backgroundColor: '#E8F5E9', color: '#2E7D32' }}>
                     Litros Vendidos
@@ -183,7 +204,7 @@ export default function Lecturas() {
                         <TableRow key={`${reading.islandId}-${reading.pumpNumber}`}>
                           <TableCell>Isla {reading.islandId}</TableCell>
                           <TableCell>Surtidor {reading.pumpNumber}</TableCell>
-                          <TableCell align="right">
+                          <TableCell align="right" sx={{ bgcolor: '#E3F2FD' }}>
                             <TextField
                               type="number"
                               variant="standard"
