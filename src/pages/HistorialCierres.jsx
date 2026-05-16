@@ -38,6 +38,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 
+import useStore from '../store/useStore.js';
 import { useCierreStore } from '../store/useCierreStore.js';
 import { useConfigStore } from '../store/useConfigStore.js';
 import { useProductStore } from '../store/useProductStore.js';
@@ -65,7 +66,7 @@ const resumenSec = { ...sec, bgcolor: '#888', color: '#fff' };
 // Helper: buildReporteData — igual lógica que GenerarPDF.jsx
 // Construye el objeto de datos para generateReportePDF().
 // ═══════════════════════════════════════════════════════════════
-function buildReporteData(dayShifts, selectedShift, receptionsHistory, config) {
+function buildReporteData(dayShifts, selectedShift, receptionsHistory, config, supervisorName) {
   const selectedDate = selectedShift.date;
   const supervisorType = selectedShift.supervisorShiftType || 'PM';
   const is1TS = supervisorType === 'AM';
@@ -85,7 +86,7 @@ function buildReporteData(dayShifts, selectedShift, receptionsHistory, config) {
             pumpNumber: r.pumpNumber,
             initialReading: r.initialReading || 0,
             finalReading: r.finalReading || 0,
-            litersSold: r.litersSold || 0,
+            litersSold: Math.max(0, r.litersSold || 0),
           });
         }
       });
@@ -165,6 +166,7 @@ function buildReporteData(dayShifts, selectedShift, receptionsHistory, config) {
     totalInvInicial, totalAntes, totalDespues, totalInvFinal,
     gandola, totalGandola, totalCompartment,
     currentShift: selectedShift,
+    supervisorName: supervisorName || '',
   };
 }
 
@@ -174,6 +176,7 @@ export default function HistorialCierres() {
   const { products, loadProducts } = useProductStore();
   const { stock, islandStock, loadStock, loadIslandStock } = useInventoryStore();
   const { receptionsHistory, loadReceptionsHistory } = useGandolaStore();
+  const userName = useStore((s) => s.user?.name) || '';
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -206,11 +209,16 @@ export default function HistorialCierres() {
     return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   }, []);
 
-  // ── Filtrar turnos por fecha ──
+  // ── Filtrar turnos por fecha y deduplicar por ID ──
   const filteredShifts = useMemo(() => {
     if (!shiftsHistory) return [];
+    const seen = new Set();
     return shiftsHistory.filter((shift) => {
       if (!shift.date) return false;
+      // Deduplicar: si ya vimos este ID, omitir
+      if (shift.id && seen.has(shift.id)) return false;
+      if (shift.id) seen.add(shift.id);
+
       const shiftDate = parseShiftDate(shift.date);
       if (!shiftDate) return true;
 
@@ -277,7 +285,7 @@ export default function HistorialCierres() {
       try {
         const dayShifts = await loadShiftsByDate(selectedShift.date);
         if (dayShifts && dayShifts.length > 0) {
-          reporteData = buildReporteData(dayShifts, selectedShift, receptionsHistory, config);
+          reporteData = buildReporteData(dayShifts, selectedShift, receptionsHistory, config, userName);
         }
       } catch (e) {
         console.warn('No se pudo calcular reporteData:', e);
@@ -346,7 +354,7 @@ export default function HistorialCierres() {
   // ── Obtener total litros de un turno ──
   const getShiftTotalLiters = useCallback((shift) => {
     if (!shift?.pumpReadings) return 0;
-    return shift.pumpReadings.reduce((sum, r) => sum + (r.litersSold || 0), 0);
+    return shift.pumpReadings.reduce((sum, r) => sum + Math.max(0, r.litersSold || 0), 0);
   }, []);
 
   // ── Obtener total USD de un turno (de biblia) ──
@@ -706,7 +714,7 @@ export default function HistorialCierres() {
 // Componente interno: Reporte Completo (dentro del Dialog)
 // Muestra todas las tablas del informe: encabezado, surtidores, tanques, cortes,
 // biblia por isla, cuadre PV, totales, productos vendidos, vales y transferencias.
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 function ReporteCompleto({ shift, config, products }) {
   // ── Cálculos ──
   const biblia = useMemo(() => calculateBiblia(shift), [shift]);
@@ -861,7 +869,7 @@ function ReporteCompleto({ shift, config, products }) {
   // ── Total litros por isla (para la tabla de surtidores) ──
   const getIslandLiters = (islandId) => {
     const pumps = pumpsByIsland[islandId] || [];
-    return pumps.reduce((sum, r) => sum + (r.litersSold || 0), 0);
+    return pumps.reduce((sum, r) => sum + Math.max(0, r.litersSold || 0), 0);
   };
 
   return (
@@ -953,7 +961,7 @@ function ReporteCompleto({ shift, config, products }) {
                             <TableCell sx={{ ...c, textAlign: 'center' }}>{pump.pumpNumber}</TableCell>
                             <TableCell sx={{ ...c, textAlign: 'center' }}>{formatNumber(pump.initialReading || 0, 0)}</TableCell>
                             <TableCell sx={{ ...c, textAlign: 'center' }}>{formatNumber(pump.finalReading || 0, 0)}</TableCell>
-                            <TableCell sx={{ ...c, textAlign: 'center' }}>{formatNumber(pump.litersSold || 0, 0)}</TableCell>
+                            <TableCell sx={{ ...c, textAlign: 'center' }}>{formatNumber(Math.max(0, pump.litersSold || 0), 0)}</TableCell>
                           </TableRow>
                         ))}
                         <TableRow>

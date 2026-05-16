@@ -40,7 +40,7 @@ const DRAWER_WIDTH = 260;
 const supervisorMenuItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/recepcion-gandola', label: 'Recepcion Gandola', icon: <LocalShippingIcon /> },
-  { path: '/gastos-pagos', label: 'Gastos y Pagos', icon: <PaymentsIcon /> },
+  { path: '/gastos', label: 'Gastos', icon: <PaymentsIcon /> },
   { path: '/lecturas', label: 'Lecturas', icon: <SpeedIcon /> },
   { path: '/cierre', label: 'Cierre de Turno', icon: <ReceiptLongIcon /> },
   { path: '/reporte', label: 'Reporte', icon: <DescriptionIcon /> },

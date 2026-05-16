@@ -130,9 +130,17 @@ export function generateCierreCortesPDF(shift, stationConfig, sharedDoc = null) 
   const fs = 7;
   const cp = 1;
 
+  const allBsTotal = { v: 0 };
+  const allUsdTotal = { v: 0 };
+
   (shift.islands || []).forEach((island) => {
     const cBs  = (island.cortesBs || []).slice(0, maxC);
     const cUsd = (island.cortesUSD || []).slice(0, maxC);
+
+    const islandBsTotal = (island.bsAdicionales || 0) + cBs.reduce((s, v) => s + v, 0);
+    const islandUsdTotal = (island.usdAdicionales || 0) + cUsd.reduce((s, v) => s + v, 0);
+    allBsTotal.v += islandBsTotal;
+    allUsdTotal.v += islandUsdTotal;
 
     doc.setFontSize(8); doc.setTextColor(255, 255, 255);
     doc.setFillColor(...SLATE); doc.rect(mL, y - 3.5, pw - mL - mR, 6, 'F');
@@ -144,11 +152,19 @@ export function generateCierreCortesPDF(shift, stationConfig, sharedDoc = null) 
       { content: 'UE Bs.', styles: { fontStyle: 'bold', fillColor: YELLOW_BG, textColor: WARN_TXT } },
       { content: island.bsAdicionales ? formatBs(island.bsAdicionales) : formatBs(0), styles: { fillColor: YELLOW_BG, textColor: WARN_TXT } },
     ]);
+    bsRows.push([
+      { content: `Total Isla:`, styles: { fontStyle: 'bold', fontSize: fs, halign: 'left' } },
+      { content: formatBs(islandBsTotal), styles: { fontStyle: 'bold', fontSize: fs } },
+    ]);
 
     const usdRows = cUsd.map((v, i) => [`Corte ${i + 1}`, formatUSD(v)]);
     usdRows.push([
       { content: 'UE $', styles: { fontStyle: 'bold', fillColor: YELLOW_BG, textColor: WARN_TXT } },
       { content: island.usdAdicionales ? formatUSD(island.usdAdicionales) : formatUSD(0), styles: { fillColor: YELLOW_BG, textColor: WARN_TXT } },
+    ]);
+    usdRows.push([
+      { content: `Total Isla:`, styles: { fontStyle: 'bold', fontSize: fs, halign: 'left' } },
+      { content: formatUSD(islandUsdTotal), styles: { fontStyle: 'bold', fontSize: fs } },
     ]);
 
     autoTable(doc, {
@@ -179,6 +195,25 @@ export function generateCierreCortesPDF(shift, stationConfig, sharedDoc = null) 
 
     const usdFinalY = doc.lastAutoTable.finalY;
     y = Math.max(bsFinalY, usdFinalY) + 10;
+  });
+
+  // ── TOTALES DEL TURNO ──
+  autoTable(doc, {
+    startY: y,
+    body: [
+      [
+        { content: 'Total Bs. en el turno:', styles: { fontStyle: 'bold', fontSize: 8, halign: 'right' } },
+        { content: formatBs(allBsTotal.v), styles: { fontStyle: 'bold', fontSize: 8 } },
+      ],
+      [
+        { content: 'Total $ en el turno:', styles: { fontStyle: 'bold', fontSize: 8, halign: 'right' } },
+        { content: formatUSD(allUsdTotal.v), styles: { fontStyle: 'bold', fontSize: 8 } },
+      ],
+    ],
+    theme: 'grid',
+    styles: { fontSize: fs, halign: 'center', cellPadding: cp },
+    margin: { left: mL, right: mR },
+    tableWidth: pw - mL - mR,
   });
 
   if (ownDoc) addFooters(doc, name, addr);
@@ -227,7 +262,8 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   doc.text(`Fecha: ${rd.selectedDate}`, margin, iy);
   doc.text(`Tasa 1: ${formatNumber(rd.tasa1, 2)}`, margin + 66, iy);
   if (rd.tasa2 > 0) doc.text(`Tasa 2: ${formatNumber(rd.tasa2, 2)}`, margin + 126, iy);
-  const supText = rd.is1TS ? 'Supervisor: 1TS (6AM-2PM)' : 'Supervisor: 2TS (2PM-10PM)';
+  const supLabel = rd.is1TS ? '1TS (6AM-2PM)' : '2TS (2PM-10PM)';
+  const supText = rd.supervisorName ? `Supervisor: ${rd.supervisorName} — ${supLabel}` : `Supervisor: ${supLabel}`;
   doc.text(supText, pw - margin, iy, { align: 'right' });
 
   const lineY = iy + 5;
@@ -241,7 +277,7 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     doc.setFillColor(200, 200, 200);
     doc.rect(x, y - 2.5, w, 4, 'F');
     doc.text(text, x + w / 2, y, { align: 'center' });
-    return y + 4;
+    return y + 4.5;
   };
 
   let col1Y = contentStartY;
@@ -324,7 +360,7 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
       tableWidth: colWidth,
     });
 
-    return doc.lastAutoTable.finalY + 3;
+    return doc.lastAutoTable.finalY + 1.5;
   };
 
   const x1 = margin;
@@ -362,24 +398,29 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     margin: { left: x2, right: pw - x2 - col2W },
     tableWidth: col2W,
   });
-  col2Y = doc.lastAutoTable.finalY + 3;
+  col2Y = doc.lastAutoTable.finalY + 1.5;
 
   col2Y = renderTankTable(rd.despDesc, 'DESPUÉS DE LA DESCARGA', rd.totalDespues, !!rd.gandola, col2Y, x2, col2W);
 
+  col2Y += 3; // separación extra antes del banner nocturno
   col2Y = sectionBanner('7:00 PM a 7:00 AM', x2, col2W, col2Y);
   col2Y = renderTankTable(rd.invFinal, 'INVENTARIO FINAL', rd.totalInvFinal, !rd.is1TS && !!rd.currentShift, col2Y, x2, col2W);
 
-  autoTable(doc, {
-    startY: col2Y,
-    body: [[
-      { content: 'Total General:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-      { content: `${formatNumber(rd.totalInvInicial + rd.totalInvFinal, 0)} L`, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
-    ]],
-    theme: 'grid',
-    styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
-    margin: { left: x2, right: pw - x2 - col2W },
-    tableWidth: col2W,
-  });
+  // Total General: solo se muestra si ambos turnos tienen datos reales (shift existente + litros > 0)
+  const showTotalGeneral = !!rd.nocturnoShiftForDisplay && (rd.diurnoTotal || 0) > 0 && (rd.displayNocturnoTotal || 0) > 0;
+  if (showTotalGeneral) {
+    autoTable(doc, {
+      startY: col2Y,
+      body: [[
+        { content: 'Total General:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
+        { content: `${formatNumber((rd.diurnoTotal || 0) + (rd.displayNocturnoTotal || 0), 0)} L`, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+      ]],
+      theme: 'grid',
+      styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
+      margin: { left: x2, right: pw - x2 - col2W },
+      tableWidth: col2W,
+    });
+  }
 
   const x3 = margin + col1W + gap + col2W + gap;
   col3Y = sectionBanner('7:00 PM a 7:00 AM', x3, col3W, col3Y);
@@ -473,16 +514,16 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
     : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
 
   // Valores para tarjetas de sobregiro — idénticos a Biblia.jsx
-  const totalGastosPagosUSD = (totals?.resumenItems || [])
-    .filter(item => item.tipo === 'Gasto' || item.tipo === 'Pago')
+  const totalGastosUSD = (totals?.resumenItems || [])
+    .filter(item => item.tipo === 'Gasto')
     .reduce((s, item) => s + item.montoUSD, 0);
-  const totalCajaChicaUSD = sobregiroUSD + totalGastosPagosUSD;
+  const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
 
   // ═══════════════════════════════════════════════════════════════
   // ★ RENDER TABLA DE ISLA — filas idénticas a Biblia.jsx
   //    Orden: Bs. → $ → Punto → UE$ → Vale(s) → Transferencia(s) → Propina
-  //    SIN Gastos ni Pagos (esos van en Resumen via resumenItems)
+  //    SIN Gastos (esos van en Resumen via resumenItems)
   // ═══════════════════════════════════════════════════════════════
   const renderIslaBlock = (b, startX, startY, columnWidth) => {
     autoTable(doc, {
@@ -536,7 +577,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
 
   // ═══════════════════════════════════════════════════════════════
   // ★ RENDER TABLA RESUMEN — usa resumenItems[] de calculateBibliaTotals
-  //    Cada item: { tipo: 'Vale'|'Transferencia'|'Gasto'|'Pago', concepto, montoUSD }
+  //    Cada item: { tipo: 'Vale'|'Transferencia'|'Gasto', concepto, montoUSD }
   //    Label: tipo + (concepto) si existe — idéntico a Biblia.jsx
   // ═══════════════════════════════════════════════════════════════
   const renderResumenBlock = (startX, startY, columnWidth) => {
@@ -561,7 +602,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
       ],
     ];
 
-    // Iterar resumenItems[] — cada vale, transferencia, gasto y pago individual
+    // Iterar resumenItems[] — cada vale, transferencia y gasto individual
     const items = totals.resumenItems || [];
     items.forEach((item) => {
       const label = item.concepto ? `${item.tipo}: (${item.concepto})` : `${item.tipo}:`;
@@ -610,15 +651,15 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
       });
       sy = doc.lastAutoTable.finalY + 3;
 
-      // 2. TOTAL GASTOS Y PAGOS
+      // 2. TOTAL GASTOS
       autoTable(doc, {
         startY: sy,
         body: [
           [
-            { content: 'TOTAL GASTOS Y PAGOS', colSpan: 2, styles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+            { content: 'TOTAL GASTOS', colSpan: 2, styles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
           ],
           [
-            { content: formatUSD(totalGastosPagosUSD), colSpan: 2, styles: { fillColor: [227, 242, 253], textColor: [13, 71, 161], fontStyle: 'bold', fontSize: 11, halign: 'center' } },
+            { content: formatUSD(totalGastosUSD), colSpan: 2, styles: { fillColor: [227, 242, 253], textColor: [13, 71, 161], fontStyle: 'bold', fontSize: 11, halign: 'center' } },
           ],
         ],
         theme: 'grid',
@@ -642,7 +683,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
           ],
           [
             { content: `Sobregiro: ${formatUSD(sobregiroUSD)}`, styles: { fillColor: [255, 243, 224], textColor: [230, 81, 0], fontSize: 6 } },
-            { content: `Gastos y Pagos: ${formatUSD(totalGastosPagosUSD)}`, styles: { fillColor: [255, 243, 224], textColor: [21, 101, 192], fontSize: 6 } },
+            { content: `Gastos: ${formatUSD(totalGastosUSD)}`, styles: { fillColor: [255, 243, 224], textColor: [21, 101, 192], fontSize: 6 } },
           ],
         ],
         theme: 'grid',
@@ -1067,14 +1108,22 @@ export function generateAllInOnePDF({ shift, reporteData, biblia, bibliaTotals, 
   const turnoLabel = isNoc ? '2TO Nocturno' : '1TO Diurno';
   doc.text(`Turno: ${turnoLabel}`, pw / 2, 112, { align: 'center' });
 
+  // Supervisor: siempre visible en la portada
+  doc.setFontSize(9); doc.setTextColor(...SLATE);
+  const supLbl = reporteData?.is1TS ? '1TS (6AM-2PM)' : '2TS (2PM-10PM)';
+  const supName = reporteData?.supervisorName || '—';
+  doc.text(`Supervisor: ${supName} — ${supLbl}`, pw / 2, 119, { align: 'center' });
+
+  const tasaY = 127;
   doc.setFontSize(8);
-  doc.text(`Tasa: ${formatNumber(shift?.tasa1 || 0, 2)}`, pw / 2, 122, { align: 'center' });
+  doc.text(`Tasa 1: ${formatNumber(shift?.tasa1 || 0, 2)}`, pw / 2, tasaY, { align: 'center' });
   if (shift?.tasa2 > 0 && shift?.tasa2 !== shift?.tasa1) {
-    doc.text(`Tasa 2: ${formatNumber(shift.tasa2, 2)}`, pw / 2, 127, { align: 'center' });
+    doc.text(`Tasa 2: ${formatNumber(shift.tasa2, 2)}`, pw / 2, tasaY + 5, { align: 'center' });
   }
 
+  const genY = (shift?.tasa2 > 0 && shift?.tasa2 !== shift?.tasa1) ? tasaY + 13 : tasaY + 8;
   doc.setFontSize(7); doc.setTextColor(...GRAY);
-  doc.text(`Generado: ${new Date().toLocaleString('es-VE')}`, pw / 2, 140, { align: 'center' });
+  doc.text(`Generado: ${new Date().toLocaleString('es-VE')}`, pw / 2, genY, { align: 'center' });
 
   let yIdx = 160;
   doc.setFontSize(10); doc.setTextColor(...SLATE); doc.setFont(undefined, 'bold');

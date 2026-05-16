@@ -133,7 +133,7 @@ export default function App() {
                   <Route path="generar-pdf" element={<GenerarPDF />} />
                   <Route path="estadisticas" element={<Estadisticas />} />
                   <Route path="historial-cierres" element={<HistorialCierres />} />
-                  <Route path="gastos-pagos" element={<GastosPagos />} />
+                  <Route path="gastos" element={<GastosPagos />} />
                 </Route>
               </Route>
 

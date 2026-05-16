@@ -2,7 +2,8 @@
 import { roundDown2, roundDownTo10 } from './formatters.js';
 
 export function calcLitersSold(reading) {
-  return reading.finalReading - reading.initialReading;
+  const sold = reading.finalReading - reading.initialReading;
+  return Math.max(0, sold);
 }
 
 export function calcBsTotal(island) {
@@ -34,14 +35,14 @@ export function usdToLiters(usd, tasa) {
 }
 
 export function calcTotalLitersSold(readings) {
-  return readings.reduce((sum, r) => sum + r.litersSold, 0);
+  return readings.reduce((sum, r) => sum + Math.max(0, r.litersSold || 0), 0);
 }
 
 export function calcLitersByIsland(readings) {
   const result = {};
   for (const r of readings) {
     const id = r.islandId;
-    result[id] = (result[id] || 0) + r.litersSold;
+    result[id] = (result[id] || 0) + Math.max(0, r.litersSold || 0);
   }
   return result;
 }
@@ -129,16 +130,7 @@ export function calculateBibliaTotals(biblia, shift) {
     return s + (g.monto || 0);
   }, 0);
 
-  // ── Pagos: soporta montoBs (nuevo, en Bs) y monto (viejo, en USD) ──
-  const shiftPagos = Array.isArray(shift?.pagos) ? shift.pagos : [];
-  const shiftPagosUSD = shiftPagos.reduce((s, p) => {
-    if (p.montoBs !== undefined) {
-      return s + (tasa1 > 0 ? (p.montoBs || 0) / tasa1 : 0);
-    }
-    return s + (p.monto || 0);
-  }, 0);
-
-  // ── resumenItems: una línea por cada vale, transferencia, gasto y pago ──
+  // ── resumenItems: una línea por cada vale, transferencia y gasto ──
   // Cada item: { tipo: string, concepto: string, montoUSD: number }
   const resumenItems = [];
 
@@ -175,19 +167,6 @@ export function calculateBibliaTotals(biblia, shift) {
     }
   });
 
-  // Pagos del turno (Bs → USD)
-  shiftPagos.forEach((p) => {
-    let montoUSD;
-    if (p.montoBs !== undefined) {
-      montoUSD = tasa1 > 0 ? (p.montoBs || 0) / tasa1 : 0;
-    } else {
-      montoUSD = p.monto || 0;
-    }
-    if (montoUSD > 0) {
-      resumenItems.push({ tipo: 'Pago', concepto: p.descripcion || '', montoUSD });
-    }
-  });
-
   return {
     totalLitersRef: biblia.reduce((s, b) => s + b.litersRef, 0),
     totalBs: biblia.reduce((s, b) => s + b.bsTotal, 0),
@@ -206,8 +185,6 @@ export function calculateBibliaTotals(biblia, shift) {
     totalTransferenciaDescripcion: biblia.map(b => b.transferenciaDescripcion).filter(Boolean).join(', '),
     totalGastos: shiftGastosUSD,
     totalGastosDescripcion: shiftGastos.map(g => g.descripcion || '').filter(Boolean).join(', '),
-    totalPagos: shiftPagosUSD,
-    totalPagosDescripcion: shiftPagos.map(p => p.descripcion || '').filter(Boolean).join(', '),
     totalIngresosUSD: biblia.reduce((s, b) => s + b.ingresosTotalUSD, 0),
     totalPropinaUSD: biblia.reduce((s, b) => s + b.propinaUSD, 0),
     totalPropinaBs: biblia.reduce((s, b) => s + b.propinaBs, 0),

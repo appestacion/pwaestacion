@@ -36,6 +36,26 @@ export default function Lecturas() {
     loadCurrentShift();
   }, [loadCurrentShift]);
 
+  // Agrupar lecturas por isla para mostrar subtotales
+  // (useMemo SIEMPRE antes del early return — Rules of Hooks)
+  const readingsByIsland = useMemo(() => {
+    const readings = currentShift?.pumpReadings || [];
+    const groups = {};
+    readings.forEach((reading, idx) => {
+      const islandId = reading.islandId;
+      if (!groups[islandId]) {
+        groups[islandId] = [];
+      }
+      groups[islandId].push({ ...reading, originalIndex: idx });
+    });
+    const sortedIslands = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
+    return sortedIslands.map((id) => {
+      const items = groups[id];
+      const totalLiters = items.reduce((s, r) => s + Math.max(0, r.litersSold || 0), 0);
+      return { islandId: id, items, totalLiters };
+    });
+  }, [currentShift?.pumpReadings]);
+
   const handlePumpChange = (index, field, value) => {
     const num = parseFloat(value) || 0;
     updatePumpReading(index, field, num);
@@ -46,6 +66,7 @@ export default function Lecturas() {
     updateTankReading(index, field, num);
   };
 
+  // ── Early return DESPUÉS de todos los hooks ──
   if (!currentShift) {
     return (
       <Alert severity="warning">No hay un turno activo. Ve al Dashboard e inicia un turno.</Alert>
@@ -58,26 +79,7 @@ export default function Lecturas() {
   // Verificar si hay lecturas iniciales auto-llenadas (al menos una > 0)
   const hasAutoInitial = (currentShift.pumpReadings || []).some((r) => r.initialReading > 0);
 
-  // Agrupar lecturas por isla para mostrar subtotales
-  const readingsByIsland = useMemo(() => {
-    const readings = currentShift.pumpReadings || [];
-    const groups = {};
-    readings.forEach((reading, idx) => {
-      const islandId = reading.islandId;
-      if (!groups[islandId]) {
-        groups[islandId] = [];
-      }
-      groups[islandId].push({ ...reading, originalIndex: idx });
-    });
-    const sortedIslands = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
-    return sortedIslands.map((id) => {
-      const items = groups[id];
-      const totalLiters = items.reduce((s, r) => s + (r.litersSold || 0), 0);
-      return { islandId: id, items, totalLiters };
-    });
-  }, [currentShift.pumpReadings]);
-
-  const totalAllLiters = (currentShift.pumpReadings || []).reduce((s, r) => s + (r.litersSold || 0), 0);
+  const totalAllLiters = (currentShift.pumpReadings || []).reduce((s, r) => s + Math.max(0, r.litersSold || 0), 0);
 
   const totalTankLiters = (currentShift.tankReadings || []).reduce((s, t) => s + (t.liters || 0), 0);
 
@@ -226,7 +228,7 @@ export default function Lecturas() {
                             align="right"
                             sx={{ fontWeight: 700, bgcolor: '#E8F5E9', color: hasFinal ? '#2E7D32' : '#9E9E9E' }}
                           >
-                            {hasFinal ? formatNumber(reading.litersSold, 0) : '—'}
+                            {hasFinal ? formatNumber(Math.max(0, reading.litersSold || 0), 0) : '—'}
                           </TableCell>
                         </TableRow>
                       );

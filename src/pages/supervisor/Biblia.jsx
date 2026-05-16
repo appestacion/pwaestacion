@@ -69,7 +69,7 @@ export default function Biblia() {
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
 
-  // Total del Resumen: suma todo lo visible en la tabla (incluyendo gastos y pagos)
+  // Total del Resumen: suma todo lo visible en la tabla (incluyendo gastos)
   // Si hay sobregiro, se excluye Bs (negativo)
   const itemsTotalUSD = (totals.resumenItems || []).reduce((s, item) => s + item.montoUSD, 0);
   const totalResumenUSD = haySobregiro
@@ -77,10 +77,10 @@ export default function Biblia() {
     : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
 
   // ── Cálculos para tarjetas de sobregiro ──
-  const totalGastosPagosUSD = (totals.resumenItems || [])
-    .filter(i => i.tipo === 'Gastos' || i.tipo === 'Pagos')
+  const totalGastosUSD = (totals.resumenItems || [])
+    .filter(i => i.tipo === 'Gasto')
     .reduce((s, i) => s + i.montoUSD, 0);
-  const totalCajaChicaUSD = sobregiroUSD + totalGastosPagosUSD;
+  const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
 
   // ── Cálculos para Comprobación ──
@@ -183,7 +183,7 @@ export default function Biblia() {
               <TableCell sx={lbl}>UE$:</TableCell>
               <TableCell sx={dataCell}>{totals.totalUeUSD > 0 ? formatUSD(totals.totalUeUSD) : ''}</TableCell>
             </TableRow>
-            {/* ── Líneas individuales: vales, transferencias, gastos, pagos ── */}
+            {/* ── Líneas individuales: vales, transferencias, gastos ── */}
             {items.map((item, idx) => (
               <TableRow key={`res-item-${idx}`}>
                 <TableCell sx={lbl}>
@@ -321,7 +321,7 @@ export default function Biblia() {
             </Typography>
           </Paper>
 
-          {/* 2. TOTAL GASTOS Y PAGOS */}
+          {/* 2. TOTAL GASTOS */}
           <Paper sx={{
             flex: '1 1 0',
             minWidth: 200,
@@ -332,10 +332,10 @@ export default function Biblia() {
             textAlign: 'center',
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1565C0', letterSpacing: 1 }}>
-              TOTAL GASTOS Y PAGOS
+              TOTAL GASTOS
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 900, color: '#0D47A1', mt: 1 }}>
-              {formatUSD(totalGastosPagosUSD)}
+              {formatUSD(totalGastosUSD)}
             </Typography>
           </Paper>
 
@@ -360,7 +360,7 @@ export default function Biblia() {
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1, fontSize: '0.7rem' }}>
               <Typography variant="caption" sx={{ color: '#E65100' }}>Sobregiro: {formatUSD(sobregiroUSD)}</Typography>
-              <Typography variant="caption" sx={{ color: '#1565C0' }}>Gastos y Pagos: {formatUSD(totalGastosPagosUSD)}</Typography>
+              <Typography variant="caption" sx={{ color: '#1565C0' }}>Gastos: {formatUSD(totalGastosUSD)}</Typography>
             </Box>
           </Paper>
         </Box>

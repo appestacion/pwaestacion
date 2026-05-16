@@ -93,6 +93,10 @@ export default function SupervisorDashboard() {
   const [shiftJustClosed, setShiftJustClosed] = useState(false);
 
   const totalLiters = currentShift ? calcTotalLitersSold(currentShift.pumpReadings) : 0;
+  const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
+
+  // Detectar si hay al menos una lectura final registrada (para mostrar guion si no)
+  const hasAnyFinal = (currentShift?.pumpReadings || []).some((r) => r.finalReading && r.finalReading > 0);
 
   // Detectar cuando se acaba de cerrar un turno (currentShift pasa de algo a null)
   const prevShiftRef = React.useRef(!!currentShift);
@@ -102,7 +106,6 @@ export default function SupervisorDashboard() {
     }
     prevShiftRef.current = !!currentShift;
   }, [currentShift]);
-  const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
 
   // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas (solo si son diferentes)
   // 2TS (PM) cierra 1TO Diurno → usa solo tasa1
@@ -361,9 +364,9 @@ export default function SupervisorDashboard() {
                   </Typography>
                   <Typography
                     variant={isMobile ? 'h6' : 'h5'}
-                    sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5 }}
+                    sx={{ fontWeight: 700, color: hasAnyFinal ? 'primary.main' : 'text.disabled', mt: 0.5 }}
                   >
-                    {formatNumber(totalLiters, 0)}
+                    {hasAnyFinal ? formatNumber(totalLiters, 0) : '—'}
                   </Typography>
                 </CardContent>
               </Card>
@@ -384,10 +387,10 @@ export default function SupervisorDashboard() {
                     </Typography>
                     <Typography
                       variant={isMobile ? 'h6' : 'h5'}
-                      sx={{ fontWeight: 700, mt: 0.5 }}
+                      sx={{ fontWeight: 700, color: hasAnyFinal ? 'text.primary' : 'text.disabled', mt: 0.5 }}
                     >
-                      {formatNumber(litersByIsland[id], 0)}
-                      <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>L</Typography>
+                      {hasAnyFinal ? formatNumber(litersByIsland[id], 0) : '—'}
+                      {hasAnyFinal && <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>L</Typography>}
                     </Typography>
                   </CardContent>
                 </Card>

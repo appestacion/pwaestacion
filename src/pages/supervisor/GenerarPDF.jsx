@@ -244,7 +244,7 @@ export default function GenerarPDF() {
               pumpNumber: r.pumpNumber,
               initialReading: r.initialReading || 0,
               finalReading: r.finalReading || 0,
-              litersSold: r.litersSold || 0,
+              litersSold: Math.max(0, r.litersSold || 0),
             });
           }
         });

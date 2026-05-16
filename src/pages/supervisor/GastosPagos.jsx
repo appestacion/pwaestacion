@@ -25,9 +25,6 @@ export default function GastosPagos() {
     addShiftGasto,
     removeShiftGasto,
     updateShiftGasto,
-    addShiftPago,
-    removeShiftPago,
-    updateShiftPago,
   } = useCierreStore();
 
   useEffect(() => {
@@ -39,14 +36,11 @@ export default function GastosPagos() {
   }
 
   const gastos = currentShift.gastos || [];
-  const pagos = currentShift.pagos || [];
   const tasa1 = currentShift.tasa1 || 0;
 
   // Calcular totales en Bs y convertir a USD (igual que Punto de Venta)
   const totalGastosBs = gastos.reduce((s, g) => s + (g.montoBs || 0), 0);
   const totalGastosUSD = tasa1 > 0 ? totalGastosBs / tasa1 : 0;
-  const totalPagosBs = pagos.reduce((s, p) => s + (p.montoBs || 0), 0);
-  const totalPagosUSD = tasa1 > 0 ? totalPagosBs / tasa1 : 0;
 
   const renderItemCard = (label, color, items, onAdd, onRemove, onUpdate, totalBs, totalUSD) => (
     <Card sx={{ mb: 2 }}>
@@ -131,9 +125,9 @@ export default function GastosPagos() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Gastos y Pagos</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>Gastos</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Registro de gastos y pagos del turno — {currentShift.date}
+            Registro de gastos del turno — {currentShift.date}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             Ingrese montos en Bolívares (Bs.) — se convierten automáticamente a USD
@@ -152,18 +146,6 @@ export default function GastosPagos() {
         (idx, field, value) => updateShiftGasto(idx, field, value),
         totalGastosBs,
         totalGastosUSD
-      )}
-
-      {/* Pagos */}
-      {renderItemCard(
-        'Pagos',
-        '#1565C0',
-        pagos,
-        () => addShiftPago({ montoBs: 0, descripcion: '' }),
-        (idx) => removeShiftPago(idx),
-        (idx, field, value) => updateShiftPago(idx, field, value),
-        totalPagosBs,
-        totalPagosUSD
       )}
     </Box>
   );

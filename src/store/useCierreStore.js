@@ -79,7 +79,6 @@ function createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, 
     tankReadings,
     gandolaLiters: 0,
     gastos: [],
-    pagos: [],
     islands,
     status: 'en_progreso',
     createdAt: new Date().toISOString(),
@@ -132,7 +131,10 @@ function ensureShiftStructure(shift, config = {}) {
     ...shift,
     id: shift.id || template.id,
     pumpReadings: Array.isArray(shift.pumpReadings) && shift.pumpReadings.length > 0
-      ? shift.pumpReadings : template.pumpReadings,
+      ? shift.pumpReadings.map((r) => ({
+          ...r,
+          litersSold: Math.max(0, calcLitersSold(r)),
+        })) : template.pumpReadings,
     tankReadings: Array.isArray(shift.tankReadings) && shift.tankReadings.length > 0
       ? shift.tankReadings : template.tankReadings,
     islands: Array.isArray(shift.islands) && shift.islands.length > 0
@@ -182,6 +184,28 @@ const useCierreStore = create((set, get) => ({
     const shift = createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, config);
 
     shift.date = getShiftDate(supervisorShiftType);
+
+    // ── Heredar lecturas finales del turno anterior como lecturas iniciales ──
+    try {
+      const prevReadings = await get().getPreviousShiftFinalReadings(operatorShiftType);
+      if (prevReadings && prevReadings.pumpReadings && prevReadings.pumpReadings.length > 0) {
+        shift.pumpReadings = shift.pumpReadings.map((reading) => {
+          const prev = prevReadings.pumpReadings.find(
+            (p) => p.islandId === reading.islandId && p.pumpNumber === reading.pumpNumber
+          );
+          if (prev && prev.finalReading && prev.finalReading > 0) {
+            return {
+              ...reading,
+              initialReading: prev.finalReading,
+              litersSold: calcLitersSold({ ...reading, initialReading: prev.finalReading }),
+            };
+          }
+          return reading;
+        });
+      }
+    } catch (error) {
+      console.error('Error heredando lecturas del turno anterior:', error);
+    }
 
     set({ currentShift: shift });
 
@@ -327,7 +351,7 @@ const useCierreStore = create((set, get) => ({
     debounceSyncToFirestore(updated);
   },
 
-  // ── Gastos y Pagos a nivel turno (no por isla) ──
+  // ── Gastos a nivel turno (no por isla) ──
   addShiftGasto: (gasto) => {
     const { currentShift } = get();
     if (!currentShift) return;
@@ -353,31 +377,7 @@ const useCierreStore = create((set, get) => ({
     set({ currentShift: updated });
     debounceSyncToFirestore(updated);
   },
-  addShiftPago: (pago) => {
-    const { currentShift } = get();
-    if (!currentShift) return;
-    const updated = { ...currentShift, pagos: [...(currentShift.pagos || []), pago] };
-    set({ currentShift: updated });
-    debounceSyncToFirestore(updated);
-  },
-  removeShiftPago: (index) => {
-    const { currentShift } = get();
-    if (!currentShift) return;
-    const pagos = [...(currentShift.pagos || [])];
-    pagos.splice(index, 1);
-    const updated = { ...currentShift, pagos };
-    set({ currentShift: updated });
-    debounceSyncToFirestore(updated);
-  },
-  updateShiftPago: (index, field, value) => {
-    const { currentShift } = get();
-    if (!currentShift) return;
-    const pagos = [...(currentShift.pagos || [])];
-    pagos[index] = { ...pagos[index], [field]: value };
-    const updated = { ...currentShift, pagos };
-    set({ currentShift: updated });
-    debounceSyncToFirestore(updated);
-  },
+
 
   updateTasa: (field, value) => {
     const { currentShift } = get();

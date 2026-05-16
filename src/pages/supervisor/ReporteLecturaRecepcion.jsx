@@ -85,7 +85,7 @@ export default function ReporteLecturaRecepcion() {
             pumpNumber: r.pumpNumber,
             initialReading: r.initialReading || 0,
             finalReading: r.finalReading || 0,
-            litersSold: r.litersSold || 0,
+            litersSold: Math.max(0, r.litersSold || 0),
           });
         }
       });
@@ -314,7 +314,7 @@ export default function ReporteLecturaRecepcion() {
           <TableRow>
             <TableCell sx={{ ...tot, bgcolor: '#78909c', textAlign: 'right', color: '#fff', fontSize: '0.75rem' }}>Total General:</TableCell>
             <TableCell sx={{ ...tot, bgcolor: '#78909c', textAlign: 'center', color: '#fff', fontSize: '0.78rem' }}>
-              {formatNumber(totalInvInicial + totalInvFinal, 0)} L
+              {formatNumber(diurnoTotal + displayNocturnoTotal, 0)} L
             </TableCell>
           </TableRow>
         </TableBody>
@@ -404,7 +404,7 @@ export default function ReporteLecturaRecepcion() {
               7:00 PM a 7:00 AM
             </Typography>
             {renderTankSection(invFinal, 'INVENTARIO FINAL', 'Final Tanques:', totalInvFinal, !is1TS && !!currentShift)}
-            {renderTotalGeneral()}
+            {!!nocturnoShiftForDisplay && diurnoTotal > 0 && displayNocturnoTotal > 0 && renderTotalGeneral()}
           </Box>
 
           {/* ═══ COLUMNA DERECHA — 7:00 PM a 7:00 AM ═══ */}
