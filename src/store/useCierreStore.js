@@ -7,7 +7,7 @@ import { useConfigStore } from './useConfigStore.js';
 import { generateId, getVenezuelaDateString, getVenezuelaDate } from '../lib/formatters.js';
 import { calcLitersSold } from '../lib/calculations.js';
 import { cmToLiters } from '../lib/conversions.js';
-import { isFirebaseConfigured, getDb } from '../config/firebase.js';
+import { isFirebaseConfigured, getDb, getFirebaseAuth } from '../config/firebase.js';
 import {
   collection, doc, setDoc, updateDoc,
   query, where, orderBy, limit, onSnapshot, getDocs, getDoc,
@@ -182,6 +182,12 @@ const useCierreStore = create((set, get) => ({
     const config = useConfigStore.getState().config || {};
     const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
     const shift = createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, config);
+
+    // Asignar createdBy para que Firestore rules permitan update
+    const auth = getFirebaseAuth();
+    if (auth.currentUser) {
+      shift.createdBy = auth.currentUser.uid;
+    }
 
     shift.date = getShiftDate(supervisorShiftType);
 

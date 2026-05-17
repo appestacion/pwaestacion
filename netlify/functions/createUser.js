@@ -1,16 +1,26 @@
 // netlify/functions/createUser.js
+// Crea un nuevo usuario en Firebase Auth + Firestore.
+// Requiere autenticación de administrador (token Bearer).
+//
+// SEGURIDAD v2:
+//   - CORS dinámico (origen solicitado)
+//   - Validación de roles contra lista blanca
+//   - Errores sanitizados (no expone detalles internos)
+//   - Validación de email y contraseña
+
 import admin from 'firebase-admin';
+import { getCorsHeaders, handlePreflight, isValidRole, errorResponse } from '../lib/cors.js';
 
 let initialized = false;
 
 function getApp() {
   if (!initialized) {
     if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT no configurada. Agregala en .env y en Netlify > Environment variables.');
+      throw new Error('FIREBASE_SERVICE_ACCOUNT no configurada en Netlify.');
     }
     if (!admin.apps.length) {
       admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+        credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
       });
     }
     initialized = true;
@@ -18,20 +28,13 @@ function getApp() {
   return admin;
 }
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
-
 export const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
+  // ── CORS Preflight ──
+  const preflight = handlePreflight(event, 'POST, OPTIONS');
+  if (preflight) return preflight;
 
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Metodo no permitido' }) };
+    return errorResponse(405, 'Metodo no permitido', event);
   }
 
   try {
@@ -39,55 +42,101 @@ export const handler = async (event) => {
     const adminAuth = app.auth();
     const adminDb = app.firestore();
 
-    const { name, email, password, role } = JSON.parse(event.body);
-
-    if (!name || !email || !password || !role) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Todos los campos son requeridos' }) };
+    // ── Parsear y validar input ──
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      return errorResponse(400, 'Body JSON invalido', event);
     }
 
-    if (password.length < 6) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'La contraseña debe tener al menos 6 caracteres' }) };
+    const { name, email, password, role } = body;
+
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return errorResponse(400, 'Nombre es requerido (minimo 2 caracteres)', event);
     }
 
+    if (!email || typeof email !== 'string') {
+      return errorResponse(400, 'Correo electronico es requerido', event);
+    }
+
+    // Validación básica de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return errorResponse(400, 'Correo electronico invalido', event);
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return errorResponse(400, 'La contrasena debe tener al menos 6 caracteres', event);
+    }
+
+    if (password.length > 128) {
+      return errorResponse(400, 'La contrasena es demasiado larga', event);
+    }
+
+    // ── Validar rol contra lista blanca ──
+    if (!role || !isValidRole(role)) {
+      return errorResponse(400, 'Rol invalido. Roles permitidos: administrador, supervisor, operador', event);
+    }
+
+    // ── Verificar autenticación del administrador ──
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
     if (!callerToken) {
-      return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Token requerido' }) };
+      return errorResponse(401, 'Token requerido', event);
     }
 
     const decoded = await adminAuth.verifyIdToken(callerToken);
     const callerDoc = await adminDb.collection('users').doc(decoded.uid).get();
     if (!callerDoc.exists || callerDoc.data().role !== 'administrador') {
-      return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Solo administradores pueden crear usuarios' }) };
+      return errorResponse(403, 'Solo administradores pueden crear usuarios', event);
     }
 
+    // ── Crear usuario en Firebase Auth ──
     const userRecord = await adminAuth.createUser({
       email: email.toLowerCase().trim(),
       password,
-      displayName: name,
-      disabled: false
+      displayName: name.trim(),
+      disabled: false,
     });
 
+    // ── Crear perfil en Firestore ──
     await adminDb.collection('users').doc(userRecord.uid).set({
-      name,
+      name: name.trim(),
       email: email.toLowerCase().trim(),
       role,
       active: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return {
       statusCode: 201,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ id: userRecord.uid, name, email: userRecord.email, role, active: true })
+      headers: getCorsHeaders(event),
+      body: JSON.stringify({
+        id: userRecord.uid,
+        name: name.trim(),
+        email: userRecord.email,
+        role,
+        active: true,
+      }),
     };
   } catch (error) {
-    console.error('Error creating user:', error);
-    let statusCode = 500;
-    let errorMessage = error.message || 'Error interno del servidor';
-    if (error.code === 'auth/email-already-exists') { statusCode = 409; errorMessage = 'El correo electrónico ya esta registrado'; }
-    else if (error.code === 'auth/invalid-email') { statusCode = 400; errorMessage = 'Correo electrónico invalido'; }
-    else if (error.code === 'auth/weak-password') { statusCode = 400; errorMessage = 'La contraseña es demasiado debil'; }
-    return { statusCode, headers: CORS_HEADERS, body: JSON.stringify({ error: errorMessage }) };
+    console.error('Error creating user:', error.message);
+
+    // Mapear errores conocidos de Firebase Auth
+    const firebaseErrorMap = {
+      'auth/email-already-exists': { status: 409, message: 'El correo electronico ya esta registrado' },
+      'auth/invalid-email': { status: 400, message: 'Correo electronico invalido' },
+      'auth/weak-password': { status: 400, message: 'La contrasena es demasiado debil' },
+      'auth/invalid-password': { status: 400, message: 'Contrasena invalida' },
+    };
+
+    const mapped = firebaseErrorMap[error.code];
+    if (mapped) {
+      return errorResponse(mapped.status, mapped.message, event);
+    }
+
+    // Error genérico (no exponer detalles)
+    return errorResponse(500, 'Error interno del servidor', event);
   }
 };

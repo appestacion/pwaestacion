@@ -1,22 +1,15 @@
 // netlify/lib/verifyAuth.js
-// Helpers de autenticación y seguridad para Netlify Functions
+// Helpers de autenticación y seguridad para Netlify Functions.
+// Usa cors.js compartido para manejo dinámico de orígenes.
 
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:8888',
-  'https://appestacion.netlify.app',
-].filter(Boolean);
+import { getCorsHeaders, handlePreflight, sanitizeError, corsHeaders } from './cors.js';
 
 /**
- * Headers de seguridad CORS
+ * Headers de seguridad CORS (LEGACY — usa getCorsHeaders(event) en su lugar).
+ * Se mantiene para compatibilidad con auto-update-rate.js.
  */
 export function getSecurityHeaders() {
-  return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS[0] : '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+  return corsHeaders;
 }
 
 /**
@@ -26,7 +19,7 @@ export function handleCorsPreflight(event, headers) {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers,
+      headers: getCorsHeaders(event),
       body: '',
     };
   }
@@ -34,7 +27,8 @@ export function handleCorsPreflight(event, headers) {
 }
 
 /**
- * Verificar autenticación Firebase desde el header Authorization
+ * Verificar autenticación Firebase desde el header Authorization.
+ * Retorna { authenticated, uid, role, email } o { authenticated: false, error }.
  */
 export async function verifyAuth(event, { allowedRoles = [] } = {}) {
   try {
@@ -72,3 +66,6 @@ export async function verifyAuth(event, { allowedRoles = [] } = {}) {
     return { authenticated: false, error: 'Token inválido' };
   }
 }
+
+// Re-exportar lo que necesitan las otras funciones
+export { getCorsHeaders, handlePreflight, sanitizeError, corsHeaders } from './cors.js';

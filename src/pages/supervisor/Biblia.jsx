@@ -19,6 +19,7 @@ import { useCierreStore } from '../../store/useCierreStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia, calculateBibliaTotals } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
+import { bsToUsd, usdToBs } from '../../lib/conversions.js';
 
 // ── Estilos tipo formulario impreso (consistente con ReporteLecturaRecepcion) ──
 const b = '1px solid #666';
@@ -65,7 +66,7 @@ export default function Biblia() {
   const totalBs = totals.totalBs || 0;
   const totalPropinaBs = totals.totalPropinaBs || 0;
   const restoBs = totalBs - totalPropinaBs;
-  const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
+  const bsResumenUSD = bsToUsd(restoBs, tasa1);
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
 
@@ -81,7 +82,7 @@ export default function Biblia() {
     .filter(i => i.tipo === 'Gasto')
     .reduce((s, i) => s + i.montoUSD, 0);
   const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
-  const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
+  const totalCajaChicaBs = usdToBs(totalCajaChicaUSD, tasa1);
 
   // ── Cálculos para Comprobación ──
   const totalLitersSold = totals.totalLitersRef * 2;

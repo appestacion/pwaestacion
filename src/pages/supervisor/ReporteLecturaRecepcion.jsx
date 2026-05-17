@@ -27,6 +27,14 @@ const tot = { ...c, fontWeight: 700, bgcolor: '#dcdcdc' };
 const sec = { ...c, fontWeight: 700, bgcolor: '#bbb', textAlign: 'center', textTransform: 'uppercase' };
 const DASH = '—';
 
+// ── Helper: sumar/restar días a una fecha en formato dd/MM/yyyy ──
+function shiftDateStr(dateStr, days) {
+  const [d, m, y] = dateStr.split('/').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+}
+
 export default function ReporteLecturaRecepcion() {
   const { currentShift, shiftsHistory, loadShiftsHistory, loadShiftsByDate } = useCierreStore();
   const { currentReception, receptionsHistory, loadReceptionsHistory } = useGandolaStore();
@@ -44,14 +52,44 @@ export default function ReporteLecturaRecepcion() {
     loadReceptionsHistory();
   }, [loadShiftsHistory, loadReceptionsHistory]);
 
+  // ── Cargar turnos del día anterior, actual y siguiente ──
+  // 1TS (AM) tiene date = ayer, 2TS (PM) tiene date = hoy.
+  // Cargar 3 días asegura encontrar ambos shifts sin importar quién ve el reporte.
   useEffect(() => {
     if (!selectedDate) return;
     const loadReport = async () => {
       try {
-        const found = await loadShiftsByDate(selectedDate);
-        let all = [...(found || [])];
-        if (currentShift && currentShift.date === selectedDate && currentShift.status === 'en_progreso') {
-          if (!all.find(sh => sh.id === currentShift.id)) all = [...all, currentShift];
+        const prevDate = shiftDateStr(selectedDate, -1);
+        const nextDate = shiftDateStr(selectedDate, 1);
+
+        const [foundPrev, foundCurrent, foundNext] = await Promise.all([
+          loadShiftsByDate(prevDate),
+          loadShiftsByDate(selectedDate),
+          loadShiftsByDate(nextDate),
+        ]);
+
+        // Fusionar y deduplicar por ID
+        const seen = new Set();
+        let all = [];
+        [...(foundCurrent || []), ...(foundPrev || []), ...(foundNext || [])].forEach(sh => {
+          if (!seen.has(sh.id)) {
+            seen.add(sh.id);
+            all.push(sh);
+          }
+        });
+
+        // Ordenar por createdAt descendente para que find() tome el más reciente
+        all.sort((a, b) => {
+          const ta = new Date(a.createdAt || 0).getTime();
+          const tb = new Date(b.createdAt || 0).getTime();
+          return tb - ta;
+        });
+
+        // Incluir turno en progreso si no está ya en la lista
+        if (currentShift && currentShift.status === 'en_progreso') {
+          if (!all.find(sh => sh.id === currentShift.id)) {
+            all.unshift(currentShift);
+          }
         }
         setDayShifts(all);
       } catch (err) {
@@ -64,10 +102,19 @@ export default function ReporteLecturaRecepcion() {
   const diurnoShift = useMemo(() => dayShifts.find(sh => sh.operatorShiftType === 'DIURNO'), [dayShifts]);
   const nocturnoShift = useMemo(() => dayShifts.find(sh => sh.operatorShiftType === 'NOCTURNO'), [dayShifts]);
 
+  // ── Gandola: buscar en fecha actual y fecha adyacente ──
+  // Gandola siempre usa getVenezuelaDateString() (hoy),
+  // pero 1TS tiene selectedDate = ayer, así que también busca hoy.
   const gandola = useMemo(() => {
-    const fromHistory = receptionsHistory.find(r => r.date === selectedDate);
+    const todayStr = getVenezuelaDateString();
+    // Primero buscar por la fecha del gandola (hoy) en el historial
+    const fromHistory = receptionsHistory.find(r => r.date === todayStr);
     if (fromHistory) return fromHistory;
-    if (currentReception?.date === selectedDate) return currentReception;
+    // Luego buscar por selectedDate
+    const fromSelectedDate = receptionsHistory.find(r => r.date === selectedDate);
+    if (fromSelectedDate) return fromSelectedDate;
+    // Finalmente verificar recepción activa
+    if (currentReception) return currentReception;
     return null;
   }, [selectedDate, receptionsHistory, currentReception]);
 
@@ -110,38 +157,35 @@ export default function ReporteLecturaRecepcion() {
   const diurnoTotal = useMemo(() => diurnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0), [diurnoIslands]);
   const nocturnoTotal = useMemo(() => nocturnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0), [nocturnoIslands]);
 
-  // ── Datos de visualización para NOCTURNO según tipo de supervisor ──
+  // ── Datos de visualización para NOCTURNO ──
+  // Siempre ajusta lecturas iniciales desde lectura final del diurno,
+  // para que ambos supervisores (1TS y 2TS) vean datos completos.
   const displayNocturnoIslands = useMemo(() => {
-    if (is1TS) {
-      return nocturnoIslands.map(nIsl => {
-        const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
-        const modifiedPumps = nIsl.pumps.map((p, idx) => {
-          const dPump = dIsl?.pumps?.[idx];
-          if (dPump && !dPump.empty && !p.empty) {
-            const newInitial = dPump.finalReading;
-            return {
-              ...p,
-              initialReading: newInitial,
-              litersSold: Math.max(0, p.finalReading - newInitial),
-            };
-          }
-          return p;
-        });
-        return { ...nIsl, pumps: modifiedPumps };
+    return nocturnoIslands.map(nIsl => {
+      const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
+      const modifiedPumps = nIsl.pumps.map((p, idx) => {
+        const dPump = dIsl?.pumps?.[idx];
+        if (dPump && !dPump.empty && !p.empty) {
+          const newInitial = dPump.finalReading;
+          return {
+            ...p,
+            initialReading: newInitial,
+            litersSold: Math.max(0, p.finalReading - newInitial),
+          };
+        }
+        return p;
       });
-    }
-    return nocturnoIslands.map(nIsl => ({
-      ...nIsl,
-      pumps: nIsl.pumps.map(p => ({ ...p, initialReading: 0, finalReading: 0, litersSold: 0, empty: true })),
-    }));
-  }, [is1TS, nocturnoIslands, diurnoIslands]);
+      return { ...nIsl, pumps: modifiedPumps };
+    });
+  }, [nocturnoIslands, diurnoIslands]);
 
   const displayNocturnoTotal = useMemo(() =>
     displayNocturnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0),
     [displayNocturnoIslands]
   );
 
-  const nocturnoShiftForDisplay = is1TS ? nocturnoShift : null;
+  // Ambos supervisores ven los datos nocturnos cuando existen (1TS ya los llenó)
+  const nocturnoShiftForDisplay = nocturnoShift;
 
   // ── Tanques por sección ──
   const getTankRows = (source, key) => Array.from({ length: tanksCount }, (_, i) => {
@@ -151,9 +195,10 @@ export default function ReporteLecturaRecepcion() {
     return { tankId, cm, liters: cmToLiters(cm) };
   });
 
-  // 1TS: Solo Inventario Inicial desde lecturas de tanques del turno actual
-  // 2TS: Inventario Inicial con guiones (no le corresponde llenarlo)
-  const invInicial = useMemo(() => getTankRows(is1TS ? currentShift : null, 'cm'), [is1TS, currentShift, tanksCount]);
+  // 1TS: Inventario Inicial desde lecturas de tanques del turno actual (1TS)
+  // 2TS: Inventario Inicial desde el turno del 1TS (shift nocturno)
+  // Ahora nocturnoShift siempre se encuentra porque cargamos 3 días de shifts
+  const invInicial = useMemo(() => getTankRows(is1TS ? currentShift : nocturnoShift, 'cm'), [is1TS, currentShift, nocturnoShift, tanksCount]);
   const antesDesc = useMemo(() => Array.from({ length: tanksCount }, (_, i) => {
     const tankId = i + 1;
     const tr = gandola?.tankReadings?.find(r => r.tankId === tankId);
@@ -166,9 +211,9 @@ export default function ReporteLecturaRecepcion() {
     const cm = tr?.cmAfter || 0;
     return { tankId, cm, liters: cmToLiters(cm) };
   }), [gandola, tanksCount]);
-  // 2TS: Solo Inventario Final desde lecturas de tanques del turno actual
-  // 1TS: Inventario Final con guiones (no le corresponde llenarlo)
-  const invFinal = useMemo(() => getTankRows(!is1TS ? currentShift : null, 'cm'), [is1TS, currentShift, tanksCount]);
+  // 2TS: Inventario Final desde lecturas de tanques del turno actual (2TS)
+  // 1TS: Inventario Final desde el turno del 2TS (shift diurno)
+  const invFinal = useMemo(() => getTankRows(!is1TS ? currentShift : diurnoShift, 'cm'), [is1TS, currentShift, diurnoShift, tanksCount]);
 
   const totalInvInicial = useMemo(() => invInicial.reduce((s, tk) => s + tk.liters, 0), [invInicial]);
   const totalAntes = useMemo(() => antesDesc.reduce((s, tk) => s + tk.liters, 0), [antesDesc]);
@@ -396,14 +441,14 @@ export default function ReporteLecturaRecepcion() {
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center', bgcolor: '#90a4ae', color: '#fff', py: 0.5, borderRadius: 0.5, fontSize: '0.78rem' }}>
               7:00 AM a 7:00 PM
             </Typography>
-            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, is1TS && !!currentShift)}
+            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, is1TS ? !!currentShift : !!nocturnoShift)}
             {renderTankSection(antesDesc, 'ANTES DE LA DESCARGA', 'Total:', totalAntes, !!gandola)}
             {renderGandolaTable()}
             {renderTankSection(despDesc, 'DESPUÉS DE LA DESCARGA', 'Total:', totalDespues, !!gandola)}
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center', bgcolor: '#90a4ae', color: '#fff', py: 0.5, borderRadius: 0.5, fontSize: '0.78rem' }}>
               7:00 PM a 7:00 AM
             </Typography>
-            {renderTankSection(invFinal, 'INVENTARIO FINAL', 'Final Tanques:', totalInvFinal, !is1TS && !!currentShift)}
+            {renderTankSection(invFinal, 'INVENTARIO FINAL', 'Final Tanques:', totalInvFinal, !is1TS ? !!currentShift : !!diurnoShift)}
             {!!nocturnoShiftForDisplay && diurnoTotal > 0 && displayNocturnoTotal > 0 && renderTotalGeneral()}
           </Box>
 

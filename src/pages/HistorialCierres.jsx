@@ -47,6 +47,7 @@ import { useGandolaStore } from '../store/useGandolaStore.js';
 import { calculateBiblia, calculateBibliaTotals, calculateCuadrePV, calculateCuadrePVTotals } from '../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber, formatDate, getVenezuelaDateString } from '../lib/formatters.js';
 import { cmToLiters } from '../lib/conversions.js';
+import { bsToUsd, usdToBs } from '../lib/conversions.js';
 import { ISLAND_LABELS, SHIFT_LABELS, CATEGORY_ORDER } from '../config/constants.js';
 import {
   generateAllInOnePDF,
@@ -761,7 +762,7 @@ function ReporteCompleto({ shift, config, products }) {
   const totalBs = bibliaTotals?.totalBs || 0;
   const totalPropinaBs = bibliaTotals?.totalPropinaBs || 0;
   const restoBs = totalBs - totalPropinaBs;
-  const bsResumenUSD = tasa1 > 0 ? restoBs / tasa1 : 0;
+  const bsResumenUSD = bsToUsd(restoBs, tasa1);
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
   const totalResumenUSD = haySobregiro
@@ -1261,7 +1262,7 @@ function ReporteCompleto({ shift, config, products }) {
                           const total = price * ps.quantity;
                           const method = ps.paymentMethod || 'punto_de_venta';
                           const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-                          const totalBs = showBs && tasa1 > 0 ? total * tasa1 : 0;
+                          const totalBs = showBs ? usdToBs(total, tasa1) : 0;
                           const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : 'Ef.$';
                           return (
                             <TableRow key={idx}>

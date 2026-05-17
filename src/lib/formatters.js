@@ -116,3 +116,10 @@ export function roundDown2(num) {
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
+
+/**
+ * Round down to the nearest multiple of `nearest`
+ */
+export function roundDownTo(num, nearest) {
+  return Math.floor(num / nearest) * nearest;
+}

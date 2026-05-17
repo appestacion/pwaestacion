@@ -42,6 +42,14 @@ import {
 } from '../../lib/pdfGenerator.js';
 import { enqueueSnackbar } from 'notistack';
 
+// ── Helper: sumar/restar días a una fecha en formato dd/MM/yyyy ──
+function shiftDateStr(dateStr, days) {
+  const [d, m, y] = dateStr.split('/').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+}
+
 // ── Configuración de cada PDF ──
 const PDF_CARDS = [
   {
@@ -139,15 +147,43 @@ export default function GenerarPDF() {
   }, [loadCurrentShift, loadProducts, loadStock, loadIslandStock, loadShiftsHistory, loadReceptionsHistory]);
 
   // ── Cargar turnos del día (para Reporte) ──
+  // Cargar 3 días (anterior, actual, siguiente) porque 1TS y 2TS tienen fechas distintas.
   useEffect(() => {
     const loadDayShifts = async () => {
       const date = currentShift?.date || getVenezuelaDateString();
       setLoadingReporte(true);
       try {
-        const found = await loadShiftsByDate(date);
-        let all = [...(found || [])];
-        if (currentShift && currentShift.date === date && currentShift.status === 'en_progreso') {
-          if (!all.find(sh => sh.id === currentShift.id)) all = [...all, currentShift];
+        const prevDate = shiftDateStr(date, -1);
+        const nextDate = shiftDateStr(date, 1);
+
+        const [foundPrev, foundCurrent, foundNext] = await Promise.all([
+          loadShiftsByDate(prevDate),
+          loadShiftsByDate(date),
+          loadShiftsByDate(nextDate),
+        ]);
+
+        // Fusionar y deduplicar por ID
+        const seen = new Set();
+        let all = [];
+        [...(foundCurrent || []), ...(foundPrev || []), ...(foundNext || [])].forEach(sh => {
+          if (!seen.has(sh.id)) {
+            seen.add(sh.id);
+            all.push(sh);
+          }
+        });
+
+        // Ordenar por createdAt descendente
+        all.sort((a, b) => {
+          const ta = new Date(a.createdAt || 0).getTime();
+          const tb = new Date(b.createdAt || 0).getTime();
+          return tb - ta;
+        });
+
+        // Incluir turno en progreso si no está ya
+        if (currentShift && currentShift.status === 'en_progreso') {
+          if (!all.find(sh => sh.id === currentShift.id)) {
+            all.unshift(currentShift);
+          }
         }
         setDayShifts(all);
       } catch (err) {
@@ -262,28 +298,25 @@ export default function GenerarPDF() {
     const nocturnoIslands = getIslandsWithPumps(nocturnoShift);
     const diurnoTotal = diurnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0);
 
-    // Display nocturno según tipo de supervisor
-    const displayNocturnoIslands = is1TS
-      ? nocturnoIslands.map(nIsl => {
-          const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
-          return {
-            ...nIsl,
-            pumps: nIsl.pumps.map((p, idx) => {
-              const dPump = dIsl?.pumps?.[idx];
-              if (dPump && !dPump.empty && !p.empty) {
-                return { ...p, initialReading: dPump.finalReading, litersSold: Math.max(0, p.finalReading - dPump.finalReading) };
-              }
-              return p;
-            }),
-          };
-        })
-      : nocturnoIslands.map(nIsl => ({
-          ...nIsl,
-          pumps: nIsl.pumps.map(p => ({ ...p, initialReading: 0, finalReading: 0, litersSold: 0, empty: true })),
-        }));
+    // Display nocturno: siempre ajusta lecturas iniciales desde lectura final del diurno
+    // para que ambos supervisores (1TS y 2TS) vean datos completos.
+    const displayNocturnoIslands = nocturnoIslands.map(nIsl => {
+      const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
+      return {
+        ...nIsl,
+        pumps: nIsl.pumps.map((p, idx) => {
+          const dPump = dIsl?.pumps?.[idx];
+          if (dPump && !dPump.empty && !p.empty) {
+            return { ...p, initialReading: dPump.finalReading, litersSold: Math.max(0, p.finalReading - dPump.finalReading) };
+          }
+          return p;
+        }),
+      };
+    });
 
     const displayNocturnoTotal = displayNocturnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0);
-    const nocturnoShiftForDisplay = is1TS ? nocturnoShift : null;
+    // Ambos supervisores ven los datos nocturnos cuando existen
+    const nocturnoShiftForDisplay = nocturnoShift;
 
     // Tanques
     const getTankRows = (source, key) => Array.from({ length: tanksCount }, (_, i) => {
@@ -293,15 +326,23 @@ export default function GenerarPDF() {
       return { tankId, cm, liters: cmToLiters(cm) };
     });
 
+    // Gandola: buscar en fecha actual y fecha adyacente
+    const todayStr = getVenezuelaDateString();
     const gandola = (() => {
-      const fromHistory = receptionsHistory.find(r => r.date === selectedDate);
-      return fromHistory || null;
+      const fromToday = receptionsHistory.find(r => r.date === todayStr);
+      if (fromToday) return fromToday;
+      const fromSelectedDate = receptionsHistory.find(r => r.date === selectedDate);
+      return fromSelectedDate || null;
     })();
 
-    const invInicial = getTankRows(is1TS ? currentShift : null, 'cm');
+    // 1TS: Inventario Inicial desde su turno actual
+    // 2TS: Inventario Inicial desde el turno del 1TS (nocturnoShift)
+    const invInicial = getTankRows(is1TS ? currentShift : nocturnoShift, 'cm');
     const antesDesc = getTankRows(gandola, 'cmBefore');
     const despDesc = getTankRows(gandola, 'cmAfter');
-    const invFinal = getTankRows(!is1TS ? currentShift : null, 'cm');
+    // 2TS: Inventario Final desde su turno actual
+    // 1TS: Inventario Final desde el turno del 2TS (diurnoShift)
+    const invFinal = getTankRows(!is1TS ? currentShift : diurnoShift, 'cm');
 
     const totalInvInicial = invInicial.reduce((s, tk) => s + tk.liters, 0);
     const totalAntes = antesDesc.reduce((s, tk) => s + tk.liters, 0);

@@ -18,6 +18,7 @@ import { useConfigStore } from '../../store/useConfigStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { calculateCuadrePV, calculateCuadrePVTotals } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
+import { usdToBs } from '../../lib/conversions.js';
 import { ISLAND_LABELS } from '../../config/constants.js';
 
 // ── Estilos tipo formulario impreso (consistente con Biblia) ──
@@ -274,7 +275,7 @@ export default function CuadrePV() {
                       const total = price * ps.quantity;
                       const method = ps.paymentMethod || 'punto_de_venta';
                       const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-                      const totalBs = showBs && tasa1 > 0 ? total * tasa1 : 0;
+                      const totalBs = showBs ? usdToBs(total, tasa1) : 0;
                       const methodLabel = method === 'punto_de_venta' ? 'PV'
                         : method === 'efectivo_bs' ? 'Ef.Bs'
                         : 'Ef.$';

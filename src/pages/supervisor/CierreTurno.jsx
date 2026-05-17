@@ -30,6 +30,7 @@ import { useProductStore } from '../../store/useProductStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
+import { bsToUsd, usdToBs } from '../../lib/conversions.js';
 
 const PAYMENT_METHODS = [
   { value: 'punto_de_venta', label: 'Punto de Venta' },
@@ -215,7 +216,7 @@ export default function CierreTurno() {
         const cortesBsArray = (island.cortesBs || []).slice(0, maxCortes);
         const cortesUSDArray = (island.cortesUSD || []).slice(0, maxCortes);
         const totalCortesBs = cortesBsArray.reduce((s, v) => s + v, 0) + (island.bsAdicionales || 0);
-        const totalCortesBsInUSD = tasa1 > 0 ? totalCortesBs / tasa1 : 0;
+        const totalCortesBsInUSD = bsToUsd(totalCortesBs, tasa1);
         const totalCortesUSD = cortesUSDArray.reduce((s, v) => s + v, 0) + (island.usdAdicionales || 0);
         const totalVales = (island.vales || []).reduce((s, v) => s + (v.monto || 0), 0);
         const totalTransferencias = (island.transferencias || []).reduce((s, t) => s + (t.monto || 0), 0);
@@ -667,7 +668,7 @@ export default function CierreTurno() {
                   const prod = activeProducts.find((p) => p.name === selectedProduct);
                   const priceUSD = prod?.priceUSD || 0;
                   const totalUSD = priceUSD * productQty;
-                  const totalBs = tasa1 > 0 ? totalUSD * tasa1 : 0;
+                  const totalBs = usdToBs(totalUSD, tasa1);
                   const label = selectedPaymentMethod === 'punto_de_venta' ? 'Punto de Venta' : 'Efectivo Bolivares';
                   return (
                     <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#FFF3E0', borderRadius: 1.5, border: '1px solid #FFB74D' }}>
@@ -698,7 +699,7 @@ export default function CierreTurno() {
                           const totalUSD = price * ps.quantity;
                           const method = ps.paymentMethod || 'punto_de_venta';
                           const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-                          const totalBs = showBs && tasa1 > 0 ? totalUSD * tasa1 : 0;
+                          const totalBs = showBs ? usdToBs(totalUSD, tasa1) : 0;
 
                           return (
                             <TableRow key={idx}>

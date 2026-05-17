@@ -17,6 +17,7 @@ import Divider from '@mui/material/Divider';
 import CurrencyInput from '../../components/common/CurrencyInput.jsx';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { formatBs, formatUSD } from '../../lib/formatters.js';
+import { bsToUsd } from '../../lib/conversions.js';
 
 export default function GastosPagos() {
   const {
@@ -40,7 +41,7 @@ export default function GastosPagos() {
 
   // Calcular totales en Bs y convertir a USD (igual que Punto de Venta)
   const totalGastosBs = gastos.reduce((s, g) => s + (g.montoBs || 0), 0);
-  const totalGastosUSD = tasa1 > 0 ? totalGastosBs / tasa1 : 0;
+  const totalGastosUSD = bsToUsd(totalGastosBs, tasa1);
 
   const renderItemCard = (label, color, items, onAdd, onRemove, onUpdate, totalBs, totalUSD) => (
     <Card sx={{ mb: 2 }}>
@@ -69,7 +70,7 @@ export default function GastosPagos() {
         <Grid container spacing={1}>
           {items.map((item, idx) => {
             const itemBs = item.montoBs || 0;
-            const itemUSD = tasa1 > 0 ? itemBs / tasa1 : 0;
+            const itemUSD = bsToUsd(itemBs, tasa1);
             return (
               <React.Fragment key={idx}>
                 <Grid item xs={12} sm={5}>

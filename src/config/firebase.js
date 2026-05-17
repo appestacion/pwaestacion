@@ -1,19 +1,31 @@
 // src/config/firebase.js
-// Configuracion del cliente Firebase con Authentication
-// Reemplaza estos valores con los de tu proyecto Firebase
-// Consigalos en: Firebase Console -> Project Settings -> Your apps -> Firebase SDK snippet
+// Configuracion del cliente Firebase con Authentication.
+//
+// SEGURIDAD v2: NO hay credenciales hardcodeadas.
+// Las credenciales se cargan EXCLUSIVAMENTE desde variables de entorno (VITE_).
+// Si las variables no están configuradas, la app no inicializa Firebase.
+//
+// Para configurar, crea un archivo .env.local en la raiz del proyecto:
+//   VITE_FIREBASE_API_KEY=tu_api_key
+//   VITE_FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
+//   VITE_FIREBASE_PROJECT_ID=tu_proyecto_id
+//   VITE_FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
+//   VITE_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
+//   VITE_FIREBASE_APP_ID=tu_app_id
+//
+// Obtén estos valores en: Firebase Console > Project Settings > Your apps > Firebase SDK snippet
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCcG7sOP4IvPUSje2cUX3BsSPbnTknqADw',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'pwaestacion.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'pwaestacion',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'pwaestacion.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '690033481152',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:690033481152:web:b6eb153299604b1ffda425',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 let app = null;
@@ -24,6 +36,15 @@ let secondaryAuth = null;
 
 export function getFirebaseApp() {
   if (!app) {
+    // Validar que al menos projectId y apiKey estén configurados
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      console.error(
+        '[Firebase] Credenciales no configuradas. ' +
+        'Crea un archivo .env.local con VITE_FIREBASE_API_KEY y VITE_FIREBASE_PROJECT_ID. ' +
+        'Verifica el README para instrucciones.'
+      );
+      return null;
+    }
     app = initializeApp(firebaseConfig);
   }
   return app;
@@ -31,14 +52,18 @@ export function getFirebaseApp() {
 
 export function getDb() {
   if (!db) {
-    db = getFirestore(getFirebaseApp());
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    db = getFirestore(firebaseApp);
   }
   return db;
 }
 
 export function getFirebaseAuth() {
   if (!auth) {
-    auth = getAuth(getFirebaseApp());
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    auth = getAuth(firebaseApp);
   }
   return auth;
 }
@@ -49,17 +74,20 @@ export function getFirebaseAuth() {
  */
 export function getSecondaryAuth() {
   if (!secondaryAuth) {
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) return null;
     secondaryApp = initializeApp(firebaseConfig, 'secondary-admin-auth');
     secondaryAuth = getAuth(secondaryApp);
   }
   return secondaryAuth;
 }
 
-// Verificar si Firebase esta configurado correctamente
+/**
+ * Verifica si Firebase está correctamente configurado (todas las vars de entorno presentes).
+ */
 export function isFirebaseConfigured() {
-  const config = firebaseConfig;
-  return (
-    config.apiKey && config.apiKey !== 'TU_API_KEY' &&
-    config.projectId && config.projectId !== 'TU_PROJECT_ID'
+  return !!(
+    firebaseConfig.apiKey &&
+    firebaseConfig.projectId &&
+    firebaseConfig.authDomain
   );
 }

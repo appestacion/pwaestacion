@@ -34,6 +34,7 @@ export function litersToUSD(liters, tasa) {
  * Convert USD to Bs using tasa
  */
 export function usdToBs(usd, tasa) {
+  if (tasa === 0) return 0;
   return usd * tasa;
 }
 
@@ -43,4 +44,13 @@ export function usdToBs(usd, tasa) {
 export function bsToUsd(bs, tasa) {
   if (tasa === 0) return 0;
   return bs / tasa;
+}
+
+/**
+ * Convert USD to Liters using tasa
+ * Inverse of litersToUSD: liters = usd * 2 / tasa
+ */
+export function usdToLiters(usd, tasa) {
+  if (tasa === 0) return 0;
+  return (usd * 2) / tasa;
 }
