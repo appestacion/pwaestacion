@@ -32,7 +32,9 @@ export default function Configuracion() {
 
   useEffect(() => {
     loadConfig();
-    return () => useConfigStore.getState().cleanup();
+    // NO hacer cleanup del listener aqui — el listener global vive en AppInitializer
+    // para toda la sesion de la app. Hacer cleanup aqui mataba la conexion a Firestore
+    // cuando el usuario navegaba fuera de esta pagina.
   }, [loadConfig]);
 
   useEffect(() => {
@@ -283,7 +285,7 @@ export default function Configuracion() {
               </Typography>
               <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
                 Cada vez que la API actualiza: tasa2 actual pasa a tasa1, y la nueva tasa se guarda como tasa2.
-                Horario: Todos los días, 3:00 PM - 10:00 PM, cada 3 minutos.
+                Horario: Todos los días a las 11:45 PM.
               </Typography>
             </Alert>
           )}

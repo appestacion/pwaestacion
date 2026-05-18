@@ -54,9 +54,9 @@ const supervisorMenuItems = [
 
 const adminMenuItems = [
   { path: '/admin', label: 'Admin Dashboard', icon: <DashboardIcon /> },
-  { path: '/admin/usuarios', label: 'Gestión Usuarios', icon: <PeopleIcon /> },
-  { path: '/admin/productos', label: 'Gestión Productos', icon: <CategoryIcon /> },
-  { path: '/admin/configuracion', label: 'Configuración', icon: <SettingsIcon /> },
+  { path: '/admin/usuarios', label: 'Gestion Usuarios', icon: <PeopleIcon /> },
+  { path: '/admin/productos', label: 'Gestion Productos', icon: <CategoryIcon /> },
+  { path: '/admin/configuracion', label: 'Configuracion', icon: <SettingsIcon /> },
 ];
 
 export default function Sidebar() {
@@ -81,6 +81,8 @@ export default function Sidebar() {
     if (document.activeElement) document.activeElement.blur();
     setSidebarOpen(false);
   };
+
+  const menuItems = user?.role === 'administrador' ? adminMenuItems : supervisorMenuItems;
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -151,41 +153,14 @@ export default function Sidebar() {
 
       <Divider />
 
-      {/* Supervisor Menu */}
+      {/* Menu segun rol */}
       <List sx={{ flex: 1, py: 1 }}>
         {user?.role === 'administrador' && (
-          <>
-            <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
-              ADMINISTRACIÓN
-            </Typography>
-            {adminMenuItems.map((item) => (
-              <ListItem key={item.path} disablePadding sx={{ px: 1 }}>
-                <ListItemButton
-                  selected={location.pathname === item.path}
-                  onClick={() => handleNavigate(item.path)}
-                  sx={{
-                    borderRadius: 2,
-                    mb: 0.5,
-                    '&.Mui-selected': {
-                      backgroundColor: 'primary.main',
-                      color: 'white',
-                      '& .MuiListItemIcon-root': { color: 'white' },
-                      '&:hover': { backgroundColor: 'primary.dark' },
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.875rem' }} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
-              OPERACIONES
-            </Typography>
-          </>
+          <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
+            ADMINISTRACION
+          </Typography>
         )}
-        {supervisorMenuItems.map((item) => (
+        {menuItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ px: 1 }}>
             <ListItemButton
               selected={location.pathname === item.path}

@@ -387,6 +387,16 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <Box sx={{ position: 'absolute', bottom: 12, textAlign: 'center', width: '100%' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 600, fontSize: '0.7rem' }}>
+          © {new Date().getFullYear()} Copyright. Desarrollado por Erick Simosa
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.6rem' }}>
+          ericksimosa@gmail.com - 0424 3036024
+        </Typography>
+      </Box>
     </Box>
   );
 }

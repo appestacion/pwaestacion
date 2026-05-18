@@ -10,6 +10,9 @@ import {
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
 import {
   doc,
@@ -19,7 +22,14 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  disableNetwork,
+  enableNetwork,
 } from 'firebase/firestore';
+import { useConfigStore } from './useConfigStore.js';
+import { useCierreStore } from './useCierreStore.js';
+import { useProductStore } from './useProductStore.js';
+import { useInventoryStore } from './useInventoryStore.js';
+import { useGandolaStore } from './useGandolaStore.js';
 
 // Bandera para evitar registrar el listener multiples veces
 let authListenerSetup = false;
@@ -51,6 +61,14 @@ const useStore = create(
           if (firebaseUser) {
             try {
               const db = getDb();
+
+              // Asegurar que Firestore este online antes de leer el perfil.
+              // Esto es necesario despues de un logout (que llama disableNetwork).
+              // Ignora el error "Target ID already exists" si ya estaba habilitado.
+              try {
+                await enableNetwork(db);
+              } catch (_) {}
+
               const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
 
               if (userDoc.exists()) {
@@ -102,16 +120,76 @@ const useStore = create(
       },
 
       /**
-       * Cerrar sesión
+       * Cerrar sesión.
+       * 1. Limpia todos los listeners de Firestore
+       * 2. Deshabilita la red de Firestore (bloquea reconexiones sin auth)
+       * 3. Ejecuta signOut de Firebase Auth
+       * NOTA: enableNetwork() se rehabilita automaticamente en initAuth()
+       * (onAuthStateChanged) cuando el usuario vuelva a iniciar sesion.
        */
       logout: async () => {
         try {
+          // Paso 1: Limpiar todos los listeners de Firestore
+          useConfigStore.getState().cleanup();
+          useCierreStore.getState().cleanup();
+          useProductStore.getState().cleanup();
+          useInventoryStore.getState().cleanup();
+          useGandolaStore.getState().cleanup();
+
+          // Paso 2: Deshabilitar red de Firestore
+          if (isFirebaseConfigured()) {
+            try {
+              const db = getDb();
+              await disableNetwork(db);
+            } catch (_) {}
+          }
+
+          // Paso 3: Cerrar sesión en Firebase Auth
           const auth = getFirebaseAuth();
           await signOut(auth);
         } catch (error) {
           console.error('Error cerrando sesión:', error);
         }
         set({ user: null, isAuthenticated: false });
+      },
+
+      /**
+       * Cambiar la contraseña del usuario actual.
+       * Requiere la contraseña actual para re-autenticar (politica de Firebase).
+       *
+       * @param {string} currentPassword - Contraseña actual del usuario
+       * @param {string} newPassword - Nueva contraseña (minimo 6 caracteres)
+       * @returns {Promise<boolean>} true si se cambio correctamente
+       * @throws {Error} Si la contraseña actual es incorrecta o la nueva es debil
+       */
+      changePassword: async (currentPassword, newPassword) => {
+        try {
+          const auth = getFirebaseAuth();
+          const currentUser = auth.currentUser;
+
+          if (!currentUser) {
+            throw new Error('No hay sesión activa');
+          }
+
+          // Re-autenticar con la contraseña actual antes de cambiarla
+          const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+          await reauthenticateWithCredential(currentUser, credential);
+
+          // Cambiar la contraseña
+          await updatePassword(currentUser, newPassword);
+
+          return true;
+        } catch (error) {
+          const messages = {
+            'auth/wrong-password': 'La contraseña actual es incorrecta',
+            'auth/invalid-credential': 'La contraseña actual es incorrecta',
+            'auth/weak-password': 'La nueva contraseña debe tener al menos 6 caracteres',
+            'auth/requires-recent-login': 'Por seguridad, vuelve a iniciar sesión e intenta de nuevo',
+            'auth/network-request-failed': 'Error de conexion. Verifique su internet.',
+            'auth/too-many-requests': 'Demasiados intentos. Intente mas tarde.',
+          };
+          throw new Error(messages[error.code] || 'Error al cambiar la contraseña');
+        }
       },
 
       /**
@@ -205,10 +283,7 @@ const useStore = create(
       },
 
       /**
-       * Eliminar usuario via serverless function:
-       * 1. Elimina de Firebase Auth (impide login)
-       * 2. Elimina perfil de Firestore
-       * Requiere token del admin logueado.
+       * Eliminar usuario via serverless function.
        */
       deleteUser: async (id) => {
         try {

@@ -1,5 +1,4 @@
-// src/App.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -44,6 +43,8 @@ import GastosPagos from './pages/supervisor/GastosPagos.jsx';
 
 function AppInitializer({ children }) {
   const initAuth = useStore((state) => state.initAuth);
+  const authLoading = useStore((state) => state.authLoading);
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
   const loadCurrentShift = useCierreStore((state) => state.loadCurrentShift);
   const loadProducts = useProductStore((state) => state.loadProducts);
   const loadConfig = useConfigStore((state) => state.loadConfig);
@@ -53,10 +54,9 @@ function AppInitializer({ children }) {
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
   const initNetwork = useNetworkStore((state) => state.init);
 
-  // Suscribirse al nombre, color y logo de la estacion para actualizar PWA
   const config = useConfigStore((state) => state.config);
+  const firestoreDataLoaded = useRef(false);
 
-  // Actualizar la identidad de la PWA cuando cambie la config de la estacion
   useEffect(() => {
     if (config.stationName && config.stationName !== 'Mi Estacion de Servicio') {
       updatePWAIdentity(
@@ -67,19 +67,50 @@ function AppInitializer({ children }) {
     }
   }, [config.stationName, config.stationColorPrimary, config.stationLogo]);
 
+  // Fase 1: Solo inicializacion que NO requiere auth
   useEffect(() => {
     initNetwork();
     initAuth();
-    loadConfig();
-    loadProducts();
-    loadStock();
-    loadIslandStock();
-    loadCurrentShift();
-    loadCurrentReception();
-  }, [initNetwork, initAuth, loadProducts, loadConfig, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
+  }, [initNetwork, initAuth]);
 
-  // Mientras la config se carga (primera vez sin cache), mostrar spinner
-  // Esto evita el flash de "Mi Estacion de Servicio"
+  // Fase 2: Rehabilitar red + cargar datos de Firestore despues de auth
+  useEffect(() => {
+    if (!isAuthenticated) {
+      firestoreDataLoaded.current = false;
+      return;
+    }
+    if (!authLoading && !firestoreDataLoaded.current) {
+      firestoreDataLoaded.current = true;
+
+      // Rehabilitar la red de Firestore (puede estar deshabilitada por el logout)
+      // y luego cargar los datos. Esto se hace en secuencia para asegurar que
+      // los listeners se crean con credenciales válidas.
+      const loadFirestoreData = async () => {
+        try {
+          const { enableNetwork, isFirebaseConfigured, getDb } = await import('./config/firebase.js');
+          if (isFirebaseConfigured()) {
+            try {
+              const db = getDb();
+              await enableNetwork(db);
+            } catch (_) {
+              // Si la red ya está habilitada, no es error
+            }
+          }
+        } catch (_) {}
+
+        // Ahora crear todos los listeners con credenciales válidas
+        loadConfig();
+        loadProducts();
+        loadStock();
+        loadIslandStock();
+        loadCurrentShift();
+        loadCurrentReception();
+      };
+
+      loadFirestoreData();
+    }
+  }, [authLoading, isAuthenticated, loadConfig, loadProducts, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
+
   if (configLoading) {
     return (
       <Box
@@ -107,20 +138,14 @@ export default function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppInitializer>
             <Routes>
-              {/* Public */}
               <Route path="/login" element={<Login />} />
-
-              {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>
-                {/* Admin Routes */}
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="usuarios" element={<Usuarios />} />
                   <Route path="productos" element={<Productos />} />
                   <Route path="configuracion" element={<Configuracion />} />
                 </Route>
-
-                {/* Supervisor Routes */}
                 <Route element={<SupervisorLayout />}>
                   <Route index element={<SupervisorDashboard />} />
                   <Route path="lecturas" element={<Lecturas />} />
@@ -136,8 +161,6 @@ export default function App() {
                   <Route path="gastos" element={<GastosPagos />} />
                 </Route>
               </Route>
-
-              {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AppInitializer>

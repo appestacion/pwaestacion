@@ -13,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Chip from '@mui/material/Chip';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -23,6 +24,7 @@ import { useCierreStore } from '../../store/useCierreStore.js';
 import { useNetworkStore } from '../../store/useNetworkStore.js';
 import { formatDate, getVenezuelaDate } from '../../lib/formatters.js';
 import { SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT } from '../../config/constants.js';
+import ChangePasswordDialog from '../ChangePasswordDialog.jsx';
 
 export default function Topbar() {
   const theme = useTheme();
@@ -35,11 +37,17 @@ export default function Topbar() {
   const isOnline = useNetworkStore((state) => state.isOnline);
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const handleLogout = async () => {
     setAnchorEl(null);
     await logout();
     navigate('/login', { replace: true });
+  };
+
+  const handleOpenPasswordDialog = () => {
+    setAnchorEl(null);
+    setPasswordDialogOpen(true);
   };
 
   const now = getVenezuelaDate();
@@ -140,11 +148,21 @@ export default function Topbar() {
             </Typography>
           </Box>
           <Divider />
+          <MenuItem onClick={handleOpenPasswordDialog}>
+            <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
+            Cambiar Contraseña
+          </MenuItem>
+          <Divider />
           <MenuItem onClick={handleLogout}>
             <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
             Cerrar Sesión
           </MenuItem>
         </Menu>
+
+        <ChangePasswordDialog
+          open={passwordDialogOpen}
+          onClose={() => setPasswordDialogOpen(false)}
+        />
       </Toolbar>
     </AppBar>
   );
