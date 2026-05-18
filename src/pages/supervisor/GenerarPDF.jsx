@@ -1,4 +1,3 @@
-// src/pages/supervisor/GenerarPDF.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -24,6 +23,7 @@ import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { useGandolaStore } from '../../store/useGandolaStore.js';
+import useStore from '../../store/useStore.js';
 import { calculateBiblia, calculateBibliaTotals, calculateCuadrePV, calculateCuadrePVTotals } from '../../lib/calculations.js';
 import { getVenezuelaDateString, formatNumber } from '../../lib/formatters.js';
 import { cmToLiters } from '../../lib/conversions.js';
@@ -42,7 +42,6 @@ import {
 } from '../../lib/pdfGenerator.js';
 import { enqueueSnackbar } from 'notistack';
 
-// ── Configuración de cada PDF ──
 const PDF_CARDS = [
   {
     key: 'cierre',
@@ -86,13 +85,11 @@ const PDF_CARDS = [
   },
 ];
 
-// ── WhatsApp sharing helper ──
 async function shareViaWhatsApp(doc, filename) {
   try {
     const blob = getPdfBlob(doc);
     const file = new File([blob], filename, { type: 'application/pdf' });
 
-    // Intentar Web Share API (móvil)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
@@ -103,10 +100,9 @@ async function shareViaWhatsApp(doc, filename) {
       return true;
     }
   } catch (err) {
-    if (err.name === 'AbortError') return true; // Usuario canceló
+    if (err.name === 'AbortError') return true;
   }
 
-  // Fallback: descargar archivo
   downloadBlob(doc, filename);
   enqueueSnackbar({
     message: 'PDF descargado. Ábrelo y compártelo por WhatsApp manualmente.',
@@ -122,13 +118,13 @@ export default function GenerarPDF() {
   const { stock, islandStock, loadStock, loadIslandStock } = useInventoryStore();
   const config = useConfigStore((s) => s.config);
   const { receptionsHistory, loadReceptionsHistory } = useGandolaStore();
+  const userName = useStore((s) => s.user?.name || '');
 
   const [dayShifts, setDayShifts] = useState([]);
   const [loadingReporte, setLoadingReporte] = useState(true);
-  const [generating, setGenerating] = useState(null); // key del PDF que se está generando
-  const [sharing, setSharing] = useState(null); // key del PDF que se está compartiendo
+  const [generating, setGenerating] = useState(null);
+  const [sharing, setSharing] = useState(null);
 
-  // ── Cargar datos iniciales ──
   useEffect(() => {
     loadCurrentShift();
     loadProducts();
@@ -138,7 +134,6 @@ export default function GenerarPDF() {
     loadReceptionsHistory();
   }, [loadCurrentShift, loadProducts, loadStock, loadIslandStock, loadShiftsHistory, loadReceptionsHistory]);
 
-  // ── Cargar turnos del día (para Reporte) ──
   useEffect(() => {
     const loadDayShifts = async () => {
       const date = currentShift?.date || getVenezuelaDateString();
@@ -159,7 +154,6 @@ export default function GenerarPDF() {
     if (currentShift?.date || true) loadDayShifts();
   }, [currentShift, loadShiftsByDate]);
 
-  // ── Cálculos: Biblia ──
   const biblia = useMemo(() => {
     if (!currentShift) return [];
     return calculateBiblia(currentShift);
@@ -170,7 +164,6 @@ export default function GenerarPDF() {
     return calculateBibliaTotals(biblia, currentShift);
   }, [biblia, currentShift]);
 
-  // ── Cálculos: Cuadre PV ──
   const cuadre = useMemo(() => {
     if (!currentShift) return [];
     return calculateCuadrePV(currentShift);
@@ -181,7 +174,6 @@ export default function GenerarPDF() {
     return calculateCuadrePVTotals(cuadre, currentShift.tasa1, currentShift.tasa2);
   }, [currentShift, cuadre]);
 
-  // ── Cálculos: Inventario por islas ──
   const islandCount = config.islandsCount || 3;
   const islandIds = useMemo(() => Array.from({ length: islandCount }, (_, i) => i + 1), [islandCount]);
 
@@ -221,7 +213,6 @@ export default function GenerarPDF() {
     });
   }, [activeProducts, stock, islandStock, islandsSold, islandIds]);
 
-  // ── Cálculos: Reporte (igual lógica que ReporteLecturaRecepcion.jsx) ──
   const reporteData = useMemo(() => {
     if (dayShifts.length === 0) return null;
 
@@ -233,7 +224,6 @@ export default function GenerarPDF() {
     const diurnoShift = dayShifts.find(sh => sh.operatorShiftType === 'DIURNO');
     const nocturnoShift = dayShifts.find(sh => sh.operatorShiftType === 'NOCTURNO');
 
-    // Agrupar surtidores por isla
     const getIslandsWithPumps = (shift) => {
       const map = {};
       for (let i = 1; i <= islandCount; i++) map[i] = { islandId: i, pumps: [] };
@@ -262,7 +252,6 @@ export default function GenerarPDF() {
     const nocturnoIslands = getIslandsWithPumps(nocturnoShift);
     const diurnoTotal = diurnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0);
 
-    // Display nocturno según tipo de supervisor
     const displayNocturnoIslands = is1TS
       ? nocturnoIslands.map(nIsl => {
           const dIsl = diurnoIslands.find(d => d.islandId === nIsl.islandId);
@@ -285,7 +274,6 @@ export default function GenerarPDF() {
     const displayNocturnoTotal = displayNocturnoIslands.reduce((s, i) => s + i.pumps.reduce((ps, p) => ps + p.litersSold, 0), 0);
     const nocturnoShiftForDisplay = is1TS ? nocturnoShift : null;
 
-    // Tanques
     const getTankRows = (source, key) => Array.from({ length: tanksCount }, (_, i) => {
       const tankId = i + 1;
       const tr = source?.tankReadings?.find(r => r.tankId === tankId);
@@ -298,7 +286,11 @@ export default function GenerarPDF() {
       return fromHistory || null;
     })();
 
-    const invInicial = getTankRows(is1TS ? currentShift : null, 'cm');
+    const prevShiftForInv = is1TS
+      ? currentShift
+      : shiftsHistory.find(sh => sh.operatorShiftType === 'NOCTURNO' && sh.status === 'cerrado') || null;
+
+    const invInicial = getTankRows(prevShiftForInv, 'cm');
     const antesDesc = getTankRows(gandola, 'cmBefore');
     const despDesc = getTankRows(gandola, 'cmAfter');
     const invFinal = getTankRows(!is1TS ? currentShift : null, 'cm');
@@ -315,8 +307,11 @@ export default function GenerarPDF() {
     const tasa1 = diurnoShift?.tasa1 || nocturnoShift?.tasa1 || 0;
     const tasa2 = nocturnoShift?.tasa2 || 0;
 
+    const hasInvInicial = !!prevShiftForInv;
+
     return {
       selectedDate, is1TS, tasa1, tasa2,
+      supervisorName: userName,
       diurnoIslands, nocturnoIslands,
       diurnoShift, nocturnoShift,
       diurnoTotal, nocturnoTotal: displayNocturnoTotal,
@@ -326,10 +321,10 @@ export default function GenerarPDF() {
       totalInvInicial, totalAntes, totalDespues, totalInvFinal,
       gandola, totalGandola, totalCompartment,
       currentShift,
+      hasInvInicial,
     };
-  }, [dayShifts, currentShift, receptionsHistory, config, islandCount]);
+  }, [dayShifts, currentShift, receptionsHistory, config, islandCount, shiftsHistory, userName]);
 
-  // ── Generar PDF individual ──
   const handleGenerate = (key, action) => {
     try {
       const baseName = safeFilename(config.stationName);
@@ -388,7 +383,6 @@ export default function GenerarPDF() {
     }
   };
 
-  // ── Descargar TODO en UN SOLO PDF ──
   const handleDownloadAll = () => {
     try {
       const baseName = safeFilename(config.stationName);
@@ -417,7 +411,6 @@ export default function GenerarPDF() {
     }
   };
 
-  // ── Compartir TODO por WhatsApp (PDF combinado) ──
   const handleShareAllWhatsApp = async () => {
     try {
       const baseName = safeFilename(config.stationName);
@@ -449,7 +442,6 @@ export default function GenerarPDF() {
     }
   };
 
-  // ── Compartir PDF individual por WhatsApp ──
   const handleShareWhatsApp = async (key) => {
     try {
       setSharing(key);
@@ -459,7 +451,6 @@ export default function GenerarPDF() {
     }
   };
 
-  // ── Resumen del turno ──
   const getShiftLabel = (shift) => {
     if (shift?.operatorShiftType) return SHIFT_LABELS[shift.operatorShiftType] || shift.operatorShiftType;
     return shift?.shiftType || 'N/A';
@@ -473,28 +464,22 @@ export default function GenerarPDF() {
     }));
   }, [currentShift]);
 
-  // ── Validaciones por PDF (disabled = sin datos, NO mientras carga) ──
   const getDisabled = (key) => {
     if (key === 'cierre' || key === 'biblia' || key === 'cuadre') return !currentShift;
     if (key === 'reporte') return !reporteData && !loadingReporte;
     return false;
   };
 
-  // ── Indicador de carga por PDF ──
   const getLoading = (key) => {
     if (key === 'reporte') return loadingReporte;
     return false;
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER: Sin turno activo
-  // ═══════════════════════════════════════════════════════════════
   if (!currentShift) {
     return (
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>Generar PDF</Typography>
 
-        {/* PDFs que no requieren turno */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           {PDF_CARDS.filter(c => !c.requiresShift).map((card) => {
             const Icon = card.icon;
@@ -540,7 +525,6 @@ export default function GenerarPDF() {
           })}
         </Grid>
 
-        {/* Historial de turnos cerrados */}
         {shiftsHistory.length > 0 ? (
           <Card>
             <CardContent>
@@ -565,9 +549,6 @@ export default function GenerarPDF() {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER: Con turno activo
-  // ═══════════════════════════════════════════════════════════════
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
@@ -578,7 +559,6 @@ export default function GenerarPDF() {
       </Box>
 
       <Grid container spacing={2}>
-        {/* ── Tarjetas de PDF ── */}
         <Grid item xs={12} md={8}>
           <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
             <Button
@@ -673,7 +653,6 @@ export default function GenerarPDF() {
           </Grid>
         </Grid>
 
-        {/* ── Resumen del turno ── */}
         <Grid item xs={12} md={4}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
@@ -697,7 +676,6 @@ export default function GenerarPDF() {
                 ))}
               </Box>
 
-              {/* Info adicional */}
               <Box sx={{ mt: 3, p: 1.5, bgcolor: '#F5F5F5', borderRadius: 1 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
                   Datos disponibles

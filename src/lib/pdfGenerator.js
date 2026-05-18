@@ -383,7 +383,7 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
 
   const x2 = margin + col1W + gap;
   col2Y = sectionBanner('7:00 AM a 7:00 PM', x2, col2W, col2Y);
-  col2Y = renderTankTable(rd.invInicial, 'INVENTARIO INICIAL', rd.totalInvInicial, rd.is1TS && !!rd.currentShift, col2Y, x2, col2W);
+  col2Y = renderTankTable(rd.invInicial, 'INVENTARIO INICIAL', rd.totalInvInicial, !!rd.hasInvInicial, col2Y, x2, col2W);
 
   col2Y = renderTankTable(rd.antesDesc, 'ANTES DE LA DESCARGA', rd.totalAntes, !!rd.gandola, col2Y, x2, col2W);
 

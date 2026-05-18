@@ -151,9 +151,15 @@ export default function ReporteLecturaRecepcion() {
     return { tankId, cm, liters: cmToLiters(cm) };
   });
 
-  // 1TS: Solo Inventario Inicial desde lecturas de tanques del turno actual
-  // 2TS: Inventario Inicial con guiones (no le corresponde llenarlo)
-  const invInicial = useMemo(() => getTankRows(is1TS ? currentShift : null, 'cm'), [is1TS, currentShift, tanksCount]);
+  // 1TS: Inventario Inicial desde lecturas de tanques del turno actual
+  // 2TS: Inventario Inicial desde el turno 1TS (NOCTURNO) cerrado más reciente
+  const prevShiftForInv = useMemo(() => {
+    if (is1TS) return currentShift;
+    // 2TS: buscar el turno 1TS (NOCTURNO) cerrado más reciente
+    return shiftsHistory.find(sh => sh.operatorShiftType === 'NOCTURNO' && sh.status === 'cerrado') || null;
+  }, [is1TS, currentShift, shiftsHistory]);
+
+  const invInicial = useMemo(() => getTankRows(prevShiftForInv, 'cm'), [prevShiftForInv, tanksCount]);
   const antesDesc = useMemo(() => Array.from({ length: tanksCount }, (_, i) => {
     const tankId = i + 1;
     const tr = gandola?.tankReadings?.find(r => r.tankId === tankId);
@@ -396,7 +402,7 @@ export default function ReporteLecturaRecepcion() {
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center', bgcolor: '#90a4ae', color: '#fff', py: 0.5, borderRadius: 0.5, fontSize: '0.78rem' }}>
               7:00 AM a 7:00 PM
             </Typography>
-            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, is1TS && !!currentShift)}
+            {renderTankSection(invInicial, 'INVENTARIO INICIAL', 'Inicial Tanques:', totalInvInicial, !!prevShiftForInv)}
             {renderTankSection(antesDesc, 'ANTES DE LA DESCARGA', 'Total:', totalAntes, !!gandola)}
             {renderGandolaTable()}
             {renderTankSection(despDesc, 'DESPUÉS DE LA DESCARGA', 'Total:', totalDespues, !!gandola)}
