@@ -145,6 +145,7 @@ function ensureShiftStructure(shift, config = {}) {
 let unsubscribeCurrentShift = null;
 let unsubscribeShiftsHistory = null;
 let syncTimeout = null;
+let currentShiftListening = false; // Guard: evitar listener duplicado (StrictMode)
 
 function debounceSyncToFirestore(shift) {
   if (syncTimeout) clearTimeout(syncTimeout);
@@ -229,35 +230,44 @@ const useCierreStore = create((set, get) => ({
   },
 
   loadCurrentShift: () => {
-    if (isFirebaseConfigured()) {
-      try {
-        const db = getDb();
-        const q = query(
-          collection(db, 'shifts'),
-          where('status', '==', 'en_progreso'),
-          orderBy('createdAt', 'desc'),
-          limit(1)
-        );
+    if (currentShiftListening) return; // Guard: evitar listener duplicado (StrictMode)
+    if (!isFirebaseConfigured()) return;
 
-        if (unsubscribeCurrentShift) unsubscribeCurrentShift();
+    currentShiftListening = true;
+    try {
+      const db = getDb();
+      const q = query(
+        collection(db, 'shifts'),
+        where('status', '==', 'en_progreso'),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
 
-        unsubscribeCurrentShift = onSnapshot(
-          q,
-          (snapshot) => {
-            if (!snapshot.empty) {
-              const shiftData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-              const config = useConfigStore.getState().config || {};
-              const shift = ensureShiftStructure(shiftData, config);
-              set({ currentShift: shift, firestoreActive: true });
-            }
-          },
-          (error) => {
-            console.error('Error Firestore onSnapshot (currentShift):', error);
+      if (unsubscribeCurrentShift) unsubscribeCurrentShift();
+
+      unsubscribeCurrentShift = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const shiftData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            const config = useConfigStore.getState().config || {};
+            const shift = ensureShiftStructure(shiftData, config);
+            set({ currentShift: shift, firestoreActive: true });
           }
-        );
-      } catch (error) {
-        console.error('Error escuchando turno actual:', error);
-      }
+        },
+        (error) => {
+          // HMR / StrictMode: el listener anterior sigue vivo tras reload del módulo.
+          if (error.message?.includes('Target ID already exists')) {
+            console.warn('[CierreStore] Listener ya activo (HMR), se reutiliza.');
+            return;
+          }
+          console.error('Error Firestore onSnapshot (currentShift):', error);
+          currentShiftListening = false;
+        }
+      );
+    } catch (error) {
+      currentShiftListening = false;
+      console.error('Error escuchando turno actual:', error);
     }
   },
 
@@ -453,7 +463,7 @@ const useCierreStore = create((set, get) => ({
         const db = getDb();
         const shiftsRef = collection(db, 'shifts');
 
-        if (unsubscribeShiftsHistory) unsubscribeShiftsHistory;
+        if (unsubscribeShiftsHistory) unsubscribeShiftsHistory();
 
         unsubscribeShiftsHistory = onSnapshot(
           query(shiftsRef, where('status', '==', 'cerrado'), orderBy('createdAt', 'desc'), limit(50)),
@@ -466,6 +476,10 @@ const useCierreStore = create((set, get) => ({
             set({ shiftsHistory: completeShifts, firestoreActive: true, loadingHistory: false });
           },
           (error) => {
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[CierreStore] Listener historial ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (shifts):', error);
             set({ firestoreActive: false, loadingHistory: false });
           }
@@ -578,6 +592,7 @@ const useCierreStore = create((set, get) => ({
     if (unsubscribeCurrentShift) { unsubscribeCurrentShift(); unsubscribeCurrentShift = null; }
     if (unsubscribeShiftsHistory) { unsubscribeShiftsHistory(); unsubscribeShiftsHistory = null; }
     if (syncTimeout) { clearTimeout(syncTimeout); syncTimeout = null; }
+    currentShiftListening = false; // Reset guard
   },
 }));
 

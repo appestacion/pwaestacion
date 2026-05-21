@@ -120,8 +120,22 @@ export default function LoginPage() {
           background: `linear-gradient(160deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
           borderRadius: '0 0 50% 50%',
           zIndex: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-      />
+      >
+        <Box
+          component="img"
+          src="/PDVSA.png"
+          alt="PDVSA"
+          sx={{
+            height: { xs: 160, sm: 260, md: 320 },
+            filter: 'brightness(0) invert(1)',
+            opacity: 0.4,
+          }}
+        />
+      </Box>
 
       <Card
         sx={{
@@ -169,7 +183,7 @@ export default function LoginPage() {
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3, fontSize: '0.8rem' }}>
-            Sistema de Cierre de Estación de Servicio
+            Sistema de Cierre de Turno de Estación de Servicio
           </Typography>
 
           {/* ========== MODO LOGIN ========== */}

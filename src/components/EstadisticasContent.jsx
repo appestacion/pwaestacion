@@ -31,6 +31,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useCierreStore } from '../store/useCierreStore.js';
 import { useGandolaStore } from '../store/useGandolaStore.js';
+import { useConfigStore } from '../store/useConfigStore.js';
 import { formatNumber, formatUSD, formatBs } from '../lib/formatters.js';
 import { calcTotalLitersSold, calcLitersByIsland, calculateBiblia, calculateBibliaTotals } from '../lib/calculations.js';
 import { SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS, ISLAND_LABELS, getIslandColor } from '../config/constants.js';
@@ -40,6 +41,8 @@ const COLORS_PIE = ['#CE1126', '#003399', '#FFD100', '#00A651', '#FF6600', '#9C2
 export default function EstadisticasContent() {
   const { shiftsHistory, loadShiftsHistory } = useCierreStore();
   const { receptionsHistory, loadReceptionsHistory } = useGandolaStore();
+  const config = useConfigStore((s) => s.config) || {};
+  const precioLitroUSD = config.precioLitroUSD || 0.50;
   const [periodo, setPeriodo] = useState('todos');
 
   useEffect(() => {
@@ -83,19 +86,19 @@ export default function EstadisticasContent() {
   // Calculate income totals using Biblia
   const totalIngresosUSD = filteredShifts.reduce((sum, s) => {
     if (!s.islands) return sum;
-    const biblia = calculateBiblia(s);
+    const biblia = calculateBiblia(s, precioLitroUSD);
     const totals = calculateBibliaTotals(biblia);
     return sum + totals.totalIngresosUSD;
   }, 0);
   const totalPropinaUSD = filteredShifts.reduce((sum, s) => {
     if (!s.islands) return sum;
-    const biblia = calculateBiblia(s);
+    const biblia = calculateBiblia(s, precioLitroUSD);
     const totals = calculateBibliaTotals(biblia);
     return sum + totals.totalPropinaUSD;
   }, 0);
   const totalPropinaBs = filteredShifts.reduce((sum, s) => {
     if (!s.islands) return sum;
-    const biblia = calculateBiblia(s);
+    const biblia = calculateBiblia(s, precioLitroUSD);
     const totals = calculateBibliaTotals(biblia);
     return sum + totals.totalPropinaBs;
   }, 0);
@@ -148,7 +151,7 @@ export default function EstadisticasContent() {
     .map((s) => {
       let ingresosUSD = 0;
       if (s.islands) {
-        const biblia = calculateBiblia(s);
+        const biblia = calculateBiblia(s, precioLitroUSD);
         const totals = calculateBibliaTotals(biblia);
         ingresosUSD = totals.totalIngresosUSD;
       }

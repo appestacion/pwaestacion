@@ -154,10 +154,12 @@ export default function GenerarPDF() {
     if (currentShift?.date || true) loadDayShifts();
   }, [currentShift, loadShiftsByDate]);
 
+  const precioLitroUSD = config?.precioLitroUSD || 0.50;
+
   const biblia = useMemo(() => {
     if (!currentShift) return [];
-    return calculateBiblia(currentShift);
-  }, [currentShift]);
+    return calculateBiblia(currentShift, precioLitroUSD);
+  }, [currentShift, precioLitroUSD]);
 
   const bibliaTotals = useMemo(() => {
     if (biblia.length === 0) return null;

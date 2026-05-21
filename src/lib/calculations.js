@@ -29,9 +29,18 @@ export function pvUSDToBs(pvTotalUSD, tasa) {
   return pvTotalUSD * tasa;
 }
 
-export function usdToLiters(usd, tasa) {
-  if (tasa === 0) return 0;
-  return (usd * 2) / tasa;
+/**
+ * Convert USD to Liters using dynamic price per liter.
+ * Now accepts precioLitroUSD parameter (default 0.50 for backward compatibility).
+ * Formula: liters = usd / precioLitroUSD
+ *
+ * @param {number} usd
+ * @param {number} tasa
+ * @param {number} precioLitroUSD - price per liter in USD (default 0.50 = 1 USD = 2 liters)
+ */
+export function usdToLiters(usd, tasa, precioLitroUSD = 0.50) {
+  if (tasa === 0 || precioLitroUSD === 0) return 0;
+  return usd / precioLitroUSD;
 }
 
 export function calcTotalLitersSold(readings) {
@@ -47,11 +56,28 @@ export function calcLitersByIsland(readings) {
   return result;
 }
 
-export function calcLitersRef(litersSold) {
-  return litersSold / 2;
+/**
+ * Calculate the USD reference value for a given amount of liters sold.
+ * Formula: usdRef = litersSold / precioLitroUSD
+ * With default precioLitroUSD=0.50: litersSold / 0.50 = litersSold * 2 (same as before)
+ *
+ * @param {number} litersSold
+ * @param {number} precioLitroUSD - price per liter in USD (default 0.50)
+ */
+export function calcLitersRef(litersSold, precioLitroUSD = 0.50) {
+  if (precioLitroUSD === 0) return 0;
+  return litersSold * precioLitroUSD;
 }
 
-export function calculateBiblia(shift) {
+/**
+ * Calculate the Biblia (financial summary) per island.
+ * Now accepts precioLitroUSD from the shift config (falls back to 0.50).
+ *
+ * @param {Object} shift - The shift document
+ * @param {number} [precioLitroUSD] - Optional override; if not provided, uses shift.precioLitroUSD or 0.50
+ */
+export function calculateBiblia(shift, precioLitroUSD) {
+  const precio = precioLitroUSD || shift.precioLitroUSD || 0.50;
   const litersByIsland = calcLitersByIsland(shift.pumpReadings);
 
   return shift.islands.map((island) => {
@@ -87,7 +113,7 @@ export function calculateBiblia(shift) {
       : (island.transferenciaDescripcion || '');
 
     const ingresosTotalUSD = bsInUSD + usdTotal + puntoTotal + valesMonto + transferenciaMonto;
-    const litersRef = calcLitersRef(litersByIsland[island.islandId] || 0);
+    const litersRef = calcLitersRef(litersByIsland[island.islandId] || 0, precio);
     const propinaCalculo = ingresosTotalUSD - litersRef;
     const propinaUSD = propinaCalculo > 0 ? roundDown2(propinaCalculo) : 0;
     const propinaBs = propinaCalculo > 0 ? roundDownTo10(propinaCalculo * shift.tasa1) : 0;
@@ -192,15 +218,24 @@ export function calculateBibliaTotals(biblia, shift) {
   };
 }
 
+/**
+ * Calculate Cuadre PV (Point of Sale reconciliation) per island.
+ * Now uses dynamic precioLitroUSD from shift config (falls back to 0.50).
+ * Signature unchanged — backward compatible with all 5 call sites.
+ *
+ * @param {Object} shift - The shift document (now reads shift.precioLitroUSD)
+ */
 export function calculateCuadrePV(shift) {
+  const precio = shift.precioLitroUSD || 0.50;
+
   return shift.islands.map((island) => {
     const pvTotalUSD = island.pvTotalUSD;
     const pvTotalBs = island.pvTotalBs;
-    const pvUSDinLiters = pvTotalUSD * 2;
+    const pvUSDinLiters = precio > 0 ? pvTotalUSD / precio : 0;
 
     const pv2TotalUSD = island.pv2TotalUSD;
     const pv2TotalBs = island.pv2TotalBs;
-    const pv2USDinLiters = pv2TotalUSD * 2;
+    const pv2USDinLiters = precio > 0 ? pv2TotalUSD / precio : 0;
 
     return {
       islandId: island.islandId,

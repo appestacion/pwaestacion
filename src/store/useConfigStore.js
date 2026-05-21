@@ -13,6 +13,7 @@ const PERSIST_KEY = 'cierre-smf-config';
 const defaultConfig = {
   tasa1: 50.00,
   tasa2: 0,
+  precioLitroUSD: 0.50,
   stationName: 'Mi Estacion de Servicio',
   stationRif: 'J-00000000-0',
   stationAddress: 'Venezuela',
@@ -90,6 +91,7 @@ const useConfigStore = create(
                     islandsCount: firestoreData.islandsCount ?? get().config.islandsCount,
                     pumpsPerIsland: firestoreData.pumpsPerIsland ?? get().config.pumpsPerIsland,
                     maxCortes: firestoreData.maxCortes ?? get().config.maxCortes,
+                    precioLitroUSD: firestoreData.precioLitroUSD ?? 0.50,
                     previousTasa2: firestoreData.previousTasa2 ?? null,
                     fechaValor: firestoreData.fechaValor ?? null,
                     lastRateUpdate: firestoreData.lastRateUpdate ?? null,
@@ -101,10 +103,12 @@ const useConfigStore = create(
                   setDoc(configRef, {
                     tasa1: get().config.tasa1,
                     tasa2: get().config.tasa2,
+                    precioLitroUSD: get().config.precioLitroUSD,
                     stationName: get().config.stationName,
                     stationRif: get().config.stationRif,
                     stationAddress: get().config.stationAddress,
                     stationPhone: get().config.stationPhone,
+                    stationLogo: get().config.stationLogo,
                     stationColorPrimary: get().config.stationColorPrimary,
                     stationColorSecondary: get().config.stationColorSecondary,
                     stationColorAccent: get().config.stationColorAccent,
@@ -159,6 +163,7 @@ const useConfigStore = create(
             setDoc(configRef, {
               tasa1: defaultConfig.tasa1,
               tasa2: defaultConfig.tasa2,
+              precioLitroUSD: defaultConfig.precioLitroUSD,
               stationName: defaultConfig.stationName,
               stationRif: defaultConfig.stationRif,
               stationAddress: defaultConfig.stationAddress,

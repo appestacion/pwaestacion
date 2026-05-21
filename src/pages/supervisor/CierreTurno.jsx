@@ -50,7 +50,9 @@ export default function CierreTurno() {
     removeProductSold,
   } = useCierreStore();
   const { products, loadProducts } = useProductStore();
-  const maxCortes = useConfigStore((s) => s.config.maxCortes) || 12;
+  const config = useConfigStore((s) => s.config) || {};
+  const maxCortes = config.maxCortes || 12;
+  const precioLitroUSD = config.precioLitroUSD || 0.50;
   const [activeTab, setActiveTab] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
@@ -90,13 +92,13 @@ export default function CierreTurno() {
   // Calcular biblia para obtener las propinas por isla
   const bibliaData = useMemo(() => {
     if (!currentShift) return {};
-    const biblia = calculateBiblia(currentShift);
+    const biblia = calculateBiblia(currentShift, precioLitroUSD);
     const map = {};
     biblia.forEach((b) => {
       map[b.islandId] = b;
     });
     return map;
-  }, [currentShift]);
+  }, [currentShift, precioLitroUSD]);
 
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;

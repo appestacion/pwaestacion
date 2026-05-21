@@ -257,7 +257,7 @@ export default function Configuracion() {
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.main' }}>
-              Tasa de Cambio BCV
+              Tasa de Cambio BCV y Precio de Combustible
             </Typography>
             {firestoreActive ? (
               <Chip
@@ -291,7 +291,7 @@ export default function Configuracion() {
           )}
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label="Tasa 1 (Bs. por $)"
@@ -304,7 +304,7 @@ export default function Configuracion() {
                 inputProps={{ step: '0.01', min: 0 }}
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label="Tasa 2 (Bs. por $)"
@@ -317,7 +317,20 @@ export default function Configuracion() {
                 inputProps={{ step: '0.01', min: 0 }}
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                fullWidth
+                label="Precio Litro (USD)"
+                type="number"
+                value={config.precioLitroUSD != null ? parseFloat(config.precioLitroUSD).toFixed(2) : '0.50'}
+                onChange={(e) => updateConfig({ precioLitroUSD: parseFloat(e.target.value) || 0.50 })}
+                InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>$</span> }}
+                helperText="Precio por litro en USD"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step: '0.01', min: 0.01 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
               {firestoreActive && (
                 <Box sx={{ mt: 1 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>

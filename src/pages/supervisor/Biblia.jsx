@@ -34,10 +34,12 @@ export default function Biblia() {
 
   useEffect(() => { loadCurrentShift(); }, [loadCurrentShift]);
 
+  const precioLitroUSD = config.precioLitroUSD || 0.50;
+
   const biblia = useMemo(() => {
     if (!currentShift) return [];
-    return calculateBiblia(currentShift);
-  }, [currentShift]);
+    return calculateBiblia(currentShift, precioLitroUSD);
+  }, [currentShift, precioLitroUSD]);
 
   const totals = useMemo(() => {
     if (biblia.length === 0) return null;
@@ -85,10 +87,16 @@ export default function Biblia() {
   const totalCajaChicaBs = usdToBs(totalCajaChicaUSD, tasa1);
 
   // ── Cálculos para Comprobación ──
-  const totalLitersSold = totals.totalLitersRef * 2;
+  // totalLitersRef = totalLitersSold * precioLitroUSD (es el valor USD de los litros)
+  // Para volver a litros: totalLitersRef / precioLitroUSD = totalLitersSold
+  const totalLitersSold = totals.totalLitersRef / (precioLitroUSD || 0.50);
   const ajustadoUSD = haySobregiro ? (totalResumenUSD - totalCajaChicaUSD) : totalResumenUSD;
-  const ajustadoLitros = ajustadoUSD * 2;
-  const comprobacionOk = Math.abs(totalLitersSold - ajustadoLitros) <= 1;
+  // CORREGIDO: ajustadoUSD está en USD, para convertir a litros se divide por precioLitroUSD
+  const ajustadoLiters = (precioLitroUSD || 0.50) > 0 ? ajustadoUSD / (precioLitroUSD || 0.50) : 0;
+  const comprobacionOk = Math.abs(totalLitersSold - ajustadoLiters) <= 1;
+
+  // ── Factor de conversión para mostrar en la etiqueta (ej: "÷ $0.50") ──
+  const factorLabel = `÷ $${formatNumber(precioLitroUSD || 0.50, 2)}`;
 
   // ── Estilos de celda ──
   const lbl = { ...c, fontWeight: 600, whiteSpace: 'nowrap' };
@@ -389,9 +397,9 @@ export default function Biblia() {
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {haySobregiro ? 'Resumen − Caja Chica × 2' : 'Total Resumen × 2'}
+              {haySobregiro ? `Resumen − Caja Chica ${factorLabel}` : `Total Resumen ${factorLabel}`}
             </Typography>
-            <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatNumber(ajustadoLitros, 2)} L</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatNumber(ajustadoLiters, 2)} L</Typography>
           </Box>
         </Box>
 

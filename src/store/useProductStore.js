@@ -40,6 +40,7 @@ const useProductStore = create((set, get) => ({
   firestoreActive: false,
 
   loadProducts: () => {
+    if (unsubscribeProducts) return; // Guard: evitar listener duplicado (StrictMode)
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -61,6 +62,11 @@ const useProductStore = create((set, get) => ({
             set({ products, firestoreActive: true });
           },
           (error) => {
+            // HMR / StrictMode: el listener anterior sigue vivo tras reload del módulo.
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[ProductStore] Listener ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (products):', error);
             set({ firestoreActive: false });
           }
@@ -117,8 +123,8 @@ const useProductStore = create((set, get) => ({
     if (!isFirebaseConfigured()) return;
 
     const { products } = get();
-    const updated = products.map((p) => (p.id === id ? { ...p, active: false } : p));
-    set({ products: updated });
+    const filtered = products.filter((p) => p.id !== id);
+    set({ products: filtered });
 
     try {
       const db = getDb();
@@ -127,14 +133,6 @@ const useProductStore = create((set, get) => ({
       console.error('Error desactivando producto en Firestore:', error);
       set({ products });
     }
-  },
-
-  getProductByName: (name) => {
-    return get().products.find((p) => p.name === name && p.active);
-  },
-
-  getActiveProducts: () => {
-    return get().products.filter((p) => p.active);
   },
 
   cleanup: () => {

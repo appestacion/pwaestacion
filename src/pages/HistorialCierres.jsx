@@ -276,7 +276,8 @@ export default function HistorialCierres() {
     setGeneratingPdf(true);
     try {
       // Cálculos base
-      const biblia = calculateBiblia(selectedShift);
+      const precioLitroUSD = config?.precioLitroUSD || 0.50;
+      const biblia = calculateBiblia(selectedShift, precioLitroUSD);
       const bibliaTotals = biblia.length > 0 ? calculateBibliaTotals(biblia) : null;
       const cuadre = calculateCuadrePV(selectedShift);
       const cuadreTotals = cuadre.length > 0 ? calculateCuadrePVTotals(cuadre, selectedShift.tasa1, selectedShift.tasa2) : null;
@@ -718,7 +719,8 @@ export default function HistorialCierres() {
 // ═══════════════════════════════════════════════════════════════
 function ReporteCompleto({ shift, config, products }) {
   // ── Cálculos ──
-  const biblia = useMemo(() => calculateBiblia(shift), [shift]);
+  const precioLitroUSD = config?.precioLitroUSD || 0.50;
+  const biblia = useMemo(() => calculateBiblia(shift, precioLitroUSD), [shift, precioLitroUSD]);
   const bibliaTotals = useMemo(() => {
     if (biblia.length === 0) return null;
     return calculateBibliaTotals(biblia);

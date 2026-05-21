@@ -23,11 +23,17 @@ export function cmToLiters(cm) {
 }
 
 /**
- * Convert liters to USD using rate (price per liter = tasa/2)
+ * Convert liters to USD using price per liter.
+ * Formula: USD = liters * precioLitroUSD
+ * Example: 2 liters * $0.50 = $1.00 USD
+ *
+ * @param {number} liters
+ * @param {number} tasa - exchange rate (Bs per USD), used for validation
+ * @param {number} precioLitroUSD - price per liter in USD (default 0.50 for backward compat)
  */
-export function litersToUSD(liters, tasa) {
-  if (tasa === 0) return 0;
-  return (liters * tasa) / 2;
+export function litersToUSD(liters, tasa, precioLitroUSD = 0.50) {
+  if (tasa === 0 || precioLitroUSD === 0) return 0;
+  return liters * precioLitroUSD;
 }
 
 /**
@@ -47,10 +53,15 @@ export function bsToUsd(bs, tasa) {
 }
 
 /**
- * Convert USD to Liters using tasa
- * Inverse of litersToUSD: liters = usd * 2 / tasa
+ * Convert USD to Liters using price per liter.
+ * Formula: liters = usd / precioLitroUSD
+ * Example: $1.00 / $0.50 = 2 liters
+ *
+ * @param {number} usd
+ * @param {number} tasa - exchange rate (Bs per USD), used for validation
+ * @param {number} precioLitroUSD - price per liter in USD (default 0.50 for backward compat)
  */
-export function usdToLiters(usd, tasa) {
-  if (tasa === 0) return 0;
-  return (usd * 2) / tasa;
+export function usdToLiters(usd, tasa, precioLitroUSD = 0.50) {
+  if (tasa === 0 || precioLitroUSD === 0) return 0;
+  return usd / precioLitroUSD;
 }

@@ -89,6 +89,10 @@ const useStore = create(
               // Sin perfil o inactivo: cerrar sesión
               await signOut(auth);
             } catch (error) {
+              // React 18 StrictMode dispara onAuthStateChanged 2 veces.
+              // Firestore lanza "Target ID already exists" en la 2da llamada.
+              // No es un error real — ignorar y NO cerrar sesión.
+              if (error.message?.includes('Target ID already exists')) return;
               console.error('Error cargando perfil del usuario:', error);
               try { await signOut(auth); } catch (_) {}
             }

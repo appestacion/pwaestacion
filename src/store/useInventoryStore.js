@@ -74,6 +74,10 @@ const useInventoryStore = create((set, get) => ({
             set({ stock: stockMap, firestoreActive: true });
           },
           (error) => {
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[InventoryStore] Listener ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (inventory):', error);
             set({ firestoreActive: false });
           }
@@ -175,6 +179,10 @@ const useInventoryStore = create((set, get) => ({
             set({ islandStock: islandMap, islandFirestoreActive: true });
           },
           (error) => {
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[InventoryStore] Listener island ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (islandInventory):', error);
             set({ islandFirestoreActive: false });
           }

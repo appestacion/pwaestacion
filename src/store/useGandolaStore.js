@@ -86,6 +86,10 @@ const useGandolaStore = create((set, get) => ({
             }
           },
           (error) => {
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[GandolaStore] Listener recepcion ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (currentReception):', error);
           }
         );
@@ -113,6 +117,10 @@ const useGandolaStore = create((set, get) => ({
             set({ receptionsHistory: history, firestoreActive: true });
           },
           (error) => {
+            if (error.message?.includes('Target ID already exists')) {
+              console.warn('[GandolaStore] Listener historial ya activo (HMR), se reutiliza.');
+              return;
+            }
             console.error('Error Firestore onSnapshot (receptions):', error);
           }
         );
