@@ -111,13 +111,13 @@ const useStore = create(
           return true;
         } catch (error) {
           const messages = {
-            'auth/invalid-email': 'Correo electrónico invalido',
+            'auth/invalid-email': 'Correo electrónico inválido',
             'auth/user-disabled': 'Usuario desactivado',
             'auth/user-not-found': 'Usuario no encontrado',
             'auth/wrong-password': 'contraseña incorrecta',
             'auth/invalid-credential': 'Correo o contraseña incorrectos',
-            'auth/too-many-requests': 'Demasiados intentos. Intente mas tarde.',
-            'auth/network-request-failed': 'Error de conexion. Verifique su internet.',
+            'auth/too-many-requests': 'Demasiados intentos. Intente más tarde.',
+            'auth/network-request-failed': 'Error de conexión. Verifique su internet.',
           };
           throw new Error(messages[error.code] || 'Error al iniciar sesión');
         }
@@ -189,8 +189,8 @@ const useStore = create(
             'auth/invalid-credential': 'La contraseña actual es incorrecta',
             'auth/weak-password': 'La nueva contraseña debe tener al menos 6 caracteres',
             'auth/requires-recent-login': 'Por seguridad, vuelve a iniciar sesión e intenta de nuevo',
-            'auth/network-request-failed': 'Error de conexion. Verifique su internet.',
-            'auth/too-many-requests': 'Demasiados intentos. Intente mas tarde.',
+            'auth/network-request-failed': 'Error de conexión. Verifique su internet.',
+            'auth/too-many-requests': 'Demasiados intentos. Intente más tarde.',
           };
           throw new Error(messages[error.code] || 'Error al cambiar la contraseña');
         }
@@ -206,10 +206,10 @@ const useStore = create(
           return true;
         } catch (error) {
           const messages = {
-            'auth/invalid-email': 'Correo electrónico invalido',
+            'auth/invalid-email': 'Correo electrónico inválido',
             'auth/user-not-found': 'No hay cuenta asociada a este correo',
           };
-          throw new Error(messages[error.code] || 'Error al enviar correo de recuperacion');
+          throw new Error(messages[error.code] || 'Error al enviar correo de recuperación');
         }
       },
 

@@ -58,7 +58,7 @@ function AppInitializer({ children }) {
   const firestoreDataLoaded = useRef(false);
 
   useEffect(() => {
-    if (config.stationName && config.stationName !== 'Mi Estacion de Servicio') {
+    if (config.stationName && config.stationName !== 'Mi Estación de Servicio') {
       updatePWAIdentity(
         config.stationName,
         config.stationColorPrimary,

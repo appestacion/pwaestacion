@@ -1,6 +1,6 @@
 // src/store/useCierreStore.js
 // Store de cierres de turno con Firebase Firestore en tiempo real.
-// Cloud-only — no localStorage fallback.
+// Incluye localStorage como respaldo para herencia de lecturas.
 
 import { create } from 'zustand';
 import { useConfigStore } from './useConfigStore.js';
@@ -14,6 +14,53 @@ import {
 } from 'firebase/firestore';
 import { format, subDays } from 'date-fns';
 
+// ═══════════════════════════════════════════════════════════
+// LOCALSTORAGE — Respaldo offline para herencia de lecturas
+// ═══════════════════════════════════════════════════════════
+const LS_PREFIX = 'lastClosedShift_';
+
+function saveLastClosedShiftToLocal(operatorShiftType, shift) {
+  try {
+    // ★ FIX CADENA ROTA: Si finalReading es 0 pero initialReading > 0,
+    // preservar initialReading como finalReading. Así la cadena de
+    // herencia NUNCA se rompe, incluso si el usuario cierra sin
+    // ingresar lecturas finales.
+    const safePumpReadings = (shift.pumpReadings || []).map(r => ({
+      ...r,
+      finalReading: Math.max(r.finalReading || 0, r.initialReading || 0),
+    }));
+
+    const data = {
+      operatorShiftType,
+      closedAt: shift.closedAt || new Date().toISOString(),
+      pumpReadings: safePumpReadings,
+      tankReadings: shift.tankReadings || [],
+    };
+    localStorage.setItem(LS_PREFIX + operatorShiftType, JSON.stringify(data));
+  } catch (e) {
+    console.warn('[CierreStore] No se pudo guardar en localStorage:', e);
+  }
+}
+
+function getLastClosedShiftFromLocal(operatorShiftType) {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + operatorShiftType);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.pumpReadings || data.pumpReadings.length === 0) return null;
+    // Descartar datos mayores a 48 horas
+    const closedTime = new Date(data.closedAt || 0).getTime();
+    if (Date.now() - closedTime > 48 * 60 * 60 * 1000) return null;
+    return data;
+  } catch (e) {
+    console.warn('[CierreStore] Error leyendo localStorage:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
 function createEmptyIsland(islandId, maxCortes = 12) {
   return {
     islandId,
@@ -147,6 +194,16 @@ let unsubscribeShiftsHistory = null;
 let syncTimeout = null;
 let currentShiftListening = false; // Guard: evitar listener duplicado (StrictMode)
 
+// Protección contra race condition: cuando initNewShift escribe a Firestore,
+// el listener onSnapshot puede sobrescribir el estado local. Este flag evita eso.
+let _initializingShiftId = null;
+const INITIALIZATION_GUARD_MS = 8000; // 8 segundos de protección
+
+// ★ FIX BUG CRÍTICO 2: Flag para proteger contra race condition al CERRAR turno.
+// Evita que onSnapshot reviva un turno que se está cerrando.
+let _closingShiftId = null;
+const CLOSING_GUARD_MS = 10000; // 10 segundos de protección durante cierre
+
 function debounceSyncToFirestore(shift) {
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => {
@@ -173,15 +230,73 @@ function getShiftDate(supervisorShiftType) {
   return getVenezuelaDateString();
 }
 
+// ═══════════════════════════════════════════════════════════
+// Aplica lecturas heredadas a un turno (bombas + tanques)
+// ═══════════════════════════════════════════════════════════
+function applyInheritedReadings(shift, prevReadings) {
+  if (!prevReadings) return shift;
+  let applied = false;
+
+  // Heredar lecturas de bombas
+  if (prevReadings.pumpReadings && prevReadings.pumpReadings.length > 0) {
+    shift.pumpReadings = shift.pumpReadings.map((reading) => {
+      const prev = prevReadings.pumpReadings.find(
+        (p) => p.islandId === reading.islandId && p.pumpNumber === reading.pumpNumber
+      );
+      if (prev && prev.finalReading && prev.finalReading > 0) {
+        applied = true;
+        return {
+          ...reading,
+          initialReading: prev.finalReading,
+          litersSold: calcLitersSold({ ...reading, initialReading: prev.finalReading }),
+        };
+      }
+      return reading;
+    });
+  }
+
+  // Heredar lecturas de tanque (cm y litros finales → iniciales)
+  if (prevReadings.tankReadings && prevReadings.tankReadings.length > 0) {
+    shift.tankReadings = shift.tankReadings.map((tank) => {
+      const prev = prevReadings.tankReadings.find(
+        (t) => t.tankId === tank.tankId
+      );
+      if (prev && prev.cm && prev.cm > 0) {
+        applied = true;
+        return {
+          ...tank,
+          cm: prev.cm,
+          liters: prev.liters || cmToLiters(prev.cm),
+        };
+      }
+      return tank;
+    });
+  }
+
+  return { shift, applied };
+}
+
+// ═══════════════════════════════════════════════════════════
+// Helper: esperar una cantidad de ms
+// ═══════════════════════════════════════════════════════════
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ═══════════════════════════════════════════════════════════
+// STORE
+// ═══════════════════════════════════════════════════════════
 const useCierreStore = create((set, get) => ({
   currentShift: null,
   shiftsHistory: [],
   firestoreActive: false,
   loadingHistory: false,
+  closingShift: false,
 
   initNewShift: async (supervisorShiftType, tasa1, tasa2) => {
     const config = useConfigStore.getState().config || {};
     const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
+    // ★ FIX BUG CRÍTICO 3: Determinar el tipo de turno ANTERIOR para buscar
+    // sus lecturas finales (tanto en localStorage como en Firestore).
+    const prevOperatorType = operatorShiftType === 'DIURNO' ? 'NOCTURNO' : 'DIURNO';
     const shift = createEmptyShift(operatorShiftType, supervisorShiftType, tasa1, tasa2, config);
 
     // Asignar createdBy para que Firestore rules permitan update
@@ -192,30 +307,67 @@ const useCierreStore = create((set, get) => ({
 
     shift.date = getShiftDate(supervisorShiftType);
 
-    // ── Heredar lecturas finales del turno anterior como lecturas iniciales ──
-    try {
-      const prevReadings = await get().getPreviousShiftFinalReadings(operatorShiftType);
-      if (prevReadings && prevReadings.pumpReadings && prevReadings.pumpReadings.length > 0) {
-        shift.pumpReadings = shift.pumpReadings.map((reading) => {
-          const prev = prevReadings.pumpReadings.find(
-            (p) => p.islandId === reading.islandId && p.pumpNumber === reading.pumpNumber
-          );
-          if (prev && prev.finalReading && prev.finalReading > 0) {
-            return {
-              ...reading,
-              initialReading: prev.finalReading,
-              litersSold: calcLitersSold({ ...reading, initialReading: prev.finalReading }),
-            };
-          }
-          return reading;
-        });
+    // ─────────────────────────────────────────────────────
+    // HERENCIA DE LECTURAS — 3 capas de seguridad
+    // ─────────────────────────────────────────────────────
+
+    // CAPA 1: localStorage (instantánea, funciona offline)
+    const localReadings = getLastClosedShiftFromLocal(prevOperatorType);
+    if (localReadings) {
+      const result = applyInheritedReadings(shift, localReadings);
+      if (result.applied) {
+        console.log('[CierreStore] Lecturas heredadas desde localStorage (lecturas de bombas + tanques).');
+      } else {
+        console.warn('[CierreStore] localStorage tenía datos pero no se aplicaron (finalReading = 0).');
       }
-    } catch (error) {
-      console.error('Error heredando lecturas del turno anterior:', error);
     }
+
+    // CAPA 2: Firestore con reintentos y consulta fallback
+    let firestoreReadings = null;
+
+    if (isFirebaseConfigured()) {
+      firestoreReadings = await get().getPreviousShiftFinalReadings(operatorShiftType);
+    }
+
+    // Si Firestore tiene datos, comparar y usar los más recientes
+    if (firestoreReadings) {
+      const firestoreClosedAt = new Date(firestoreReadings.closedAt || 0).getTime();
+      const localClosedAt = new Date(localReadings?.closedAt || 0).getTime();
+
+      if (firestoreClosedAt >= localClosedAt) {
+        const result = applyInheritedReadings(shift, firestoreReadings);
+        if (result.applied) {
+          console.log('[CierreStore] Lecturas heredadas desde Firestore (más recientes que localStorage).');
+        }
+      } else {
+        console.log('[CierreStore] localStorage tiene datos más recientes, se mantiene.');
+      }
+    }
+
+    // CAPA 3: Si ninguna fuente dio lecturas, intentar consulta simplificada (sin compound index)
+    const hasInheritedPumps = shift.pumpReadings.some((r) => r.initialReading > 0);
+    if (!hasInheritedPumps && isFirebaseConfigured()) {
+      console.warn('[CierreStore] No se heredaron lecturas. Intentando consulta de emergencia...');
+      const emergencyReadings = await get().getEmergencyPreviousReadings(operatorShiftType);
+      if (emergencyReadings) {
+        const result = applyInheritedReadings(shift, emergencyReadings);
+        if (result.applied) {
+          console.log('[CierreStore] Lecturas recuperadas con consulta de emergencia.');
+        }
+      }
+    }
+
+    // Log resumen de la herencia
+    const finalInherited = shift.pumpReadings.filter((r) => r.initialReading > 0).length;
+    console.log(`[CierreStore] Herencia completada: ${finalInherited}/${shift.pumpReadings.length} bombas con lectura inicial.`);
+
+    // Marcar que este shift está siendo inicializado (protección contra race condition)
+    _initializingShiftId = shift.id;
+    setTimeout(() => { _initializingShiftId = null; }, INITIALIZATION_GUARD_MS);
 
     set({ currentShift: shift });
 
+    // Guardar a Firestore (con las lecturas ya heredadas incluidas)
     if (isFirebaseConfigured()) {
       try {
         const db = getDb();
@@ -230,7 +382,7 @@ const useCierreStore = create((set, get) => ({
   },
 
   loadCurrentShift: () => {
-    if (currentShiftListening) return; // Guard: evitar listener duplicado (StrictMode)
+    if (currentShiftListening) return;
     if (!isFirebaseConfigured()) return;
 
     currentShiftListening = true;
@@ -248,15 +400,26 @@ const useCierreStore = create((set, get) => ({
       unsubscribeCurrentShift = onSnapshot(
         q,
         (snapshot) => {
+          // ★ FIX BUG CRÍTICO 2: Ignorar snapshots durante el cierre de turno.
+          if (_closingShiftId) {
+            console.log('[CierreStore] onSnapshot ignorado: turno en proceso de cierre.');
+            return;
+          }
+
           if (!snapshot.empty) {
             const shiftData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+
+            if (_initializingShiftId && shiftData.id === _initializingShiftId) {
+              console.log('[CierreStore] onSnapshot ignorado: shift en inicialización protegida.');
+              return;
+            }
+
             const config = useConfigStore.getState().config || {};
             const shift = ensureShiftStructure(shiftData, config);
             set({ currentShift: shift, firestoreActive: true });
           }
         },
         (error) => {
-          // HMR / StrictMode: el listener anterior sigue vivo tras reload del módulo.
           if (error.message?.includes('Target ID already exists')) {
             console.warn('[CierreStore] Listener ya activo (HMR), se reutiliza.');
             return;
@@ -394,7 +557,6 @@ const useCierreStore = create((set, get) => ({
     debounceSyncToFirestore(updated);
   },
 
-
   updateTasa: (field, value) => {
     const { currentShift } = get();
     if (!currentShift) return;
@@ -403,32 +565,88 @@ const useCierreStore = create((set, get) => ({
     debounceSyncToFirestore(updated);
   },
 
-  closeShift: () => {
+  // ★ FIX BUG CRÍTICO 1 + 2 + 4 + 5: closeShift reescrito completamente.
+  closeShift: async () => {
     const { currentShift } = get();
-    if (!currentShift) return;
-    const updated = { ...currentShift };
-    updated.pumpReadings = updated.pumpReadings.map((r) => ({
-      ...r, litersSold: calcLitersSold(r),
-    }));
-    updated.tankReadings = updated.tankReadings.map((r) => ({
-      ...r, liters: cmToLiters(r.cm),
-    }));
-    updated.islands = updated.islands.map((isl) => {
-      const pvTotalBs = (isl.pvMonto1 || 0) + (isl.pvMonto2 || 0) + (isl.pvMonto3 || 0);
-      const pvTotalUSD = updated.tasa1 > 0 ? pvTotalBs / updated.tasa1 : 0;
-      const pv2TotalBs = (isl.pv2Monto1 || 0) + (isl.pv2Monto2 || 0) + (isl.pv2Monto3 || 0);
-      const pv2TotalUSD = updated.tasa2 > 0 ? pv2TotalBs / updated.tasa2 : 0;
-      return { ...isl, pvTotalUSD, pvTotalBs, pv2TotalUSD, pv2TotalBs };
-    });
+    if (!currentShift) return { success: false, error: 'No hay un turno activo para cerrar.' };
 
-    const closedShift = {
-      ...updated,
-      status: 'cerrado',
-      closedAt: new Date().toISOString(),
-    };
+    const shiftId = currentShift.id;
 
-    set({ currentShift: null });
-    saveShiftToFirestore(closedShift);
+    // ★ FIX: Marcar que este turno se está cerrando (protección onSnapshot)
+    _closingShiftId = shiftId;
+
+    // ★ FIX: Cancelar cualquier sync pendiente
+    if (syncTimeout) {
+      clearTimeout(syncTimeout);
+      syncTimeout = null;
+    }
+
+    // ★ FIX BUG 4: Indicar al UI que se está procesando el cierre
+    set({ closingShift: true });
+
+    try {
+      const updated = { ...currentShift };
+      updated.pumpReadings = updated.pumpReadings.map((r) => ({
+        ...r, litersSold: calcLitersSold(r),
+      }));
+      updated.tankReadings = updated.tankReadings.map((r) => ({
+        ...r, liters: cmToLiters(r.cm),
+      }));
+      updated.islands = updated.islands.map((isl) => {
+        const pvTotalBs = (isl.pvMonto1 || 0) + (isl.pvMonto2 || 0) + (isl.pvMonto3 || 0);
+        const pvTotalUSD = updated.tasa1 > 0 ? pvTotalBs / updated.tasa1 : 0;
+        const pv2TotalBs = (isl.pv2Monto1 || 0) + (isl.pv2Monto2 || 0) + (isl.pv2Monto3 || 0);
+        const pv2TotalUSD = updated.tasa2 > 0 ? pv2TotalBs / updated.tasa2 : 0;
+        return { ...isl, pvTotalUSD, pvTotalBs, pv2TotalUSD, pv2TotalBs };
+      });
+
+      const closedShift = {
+        ...updated,
+        status: 'cerrado',
+        closedAt: new Date().toISOString(),
+      };
+
+      // ★ FIX BUG CRÍTICO 1: Guardar en Firestore PRIMERO y ESPERAR confirmación.
+      if (isFirebaseConfigured()) {
+        try {
+          const db = getDb();
+          const cleanShift = JSON.parse(JSON.stringify(closedShift));
+          await setDoc(doc(db, 'shifts', shiftId), cleanShift, { merge: true });
+          console.log('[CierreStore] Turno cerrado y guardado en Firestore exitosamente.');
+        } catch (firestoreError) {
+          console.error('[CierreStore] ERROR al guardar cierre en Firestore:', firestoreError);
+          saveLastClosedShiftToLocal(updated.operatorShiftType, closedShift);
+          _closingShiftId = null;
+          set({ closingShift: false });
+          return {
+            success: false,
+            error: 'Error de conexión al cerrar turno. El turno se guardó localmente como respaldo. Intenta nuevamente cuando tengas internet.',
+          };
+        }
+      }
+
+      // ★ Firestore write exitoso: guardar en localStorage como respaldo
+      // (saveLastClosedShiftToLocal ya usa Math.max(final, initial) para
+      //  preservar la cadena de herencia aunque finalReading sea 0)
+      saveLastClosedShiftToLocal(updated.operatorShiftType, closedShift);
+      console.log('[CierreStore] Lecturas finales guardadas en localStorage para herencia futura.');
+
+      // ★ FIX BUG CRÍTICO 2: Limpiar el estado DESPUÉS de confirmar Firestore.
+      set({ currentShift: null, closingShift: false });
+
+      // Limpiar flag de protección después de un margen de seguridad
+      setTimeout(() => { _closingShiftId = null; }, CLOSING_GUARD_MS);
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('[CierreStore] Error inesperado al cerrar turno:', error);
+      _closingShiftId = null;
+      set({ closingShift: false });
+      return {
+        success: false,
+        error: `Error inesperado al cerrar turno: ${error.message}`,
+      };
+    }
   },
 
   addProductSold: (islandId, product) => {
@@ -536,34 +754,107 @@ const useCierreStore = create((set, get) => ({
   },
 
   getPreviousShiftFinalReadings: async (currentShiftType) => {
-    // Determinar el tipo de turno anterior y la fecha
-    // Secuencia: 2TS(PM) → 1TS(AM) → 2TS(PM) → 1TS(AM)
     const prevOperatorType = currentShiftType === 'DIURNO' ? 'NOCTURNO' : 'DIURNO';
-    const config = useConfigStore.getState().config || {};
-    const supervisorType = config.supervisorShiftType || 'PM';
 
-    // Buscar el turno cerrado más reciente del tipo de operador opuesto
     if (isFirebaseConfigured()) {
-      try {
-        const db = getDb();
-        const q = query(
-          collection(db, 'shifts'),
-          where('status', '==', 'cerrado'),
-          where('operatorShiftType', '==', prevOperatorType),
-          orderBy('closedAt', 'desc'),
-          limit(1)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const prevShift = snapshot.docs[0].data();
-          return {
-            pumpReadings: prevShift.pumpReadings || [],
-            tankReadings: prevShift.tankReadings || [],
-          };
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const db = getDb();
+          const q = query(
+            collection(db, 'shifts'),
+            where('status', '==', 'cerrado'),
+            where('operatorShiftType', '==', prevOperatorType),
+            orderBy('closedAt', 'desc'),
+            limit(1)
+          );
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            const prevShift = snapshot.docs[0].data();
+            return {
+              closedAt: prevShift.closedAt || prevShift.createdAt || '',
+              pumpReadings: prevShift.pumpReadings || [],
+              tankReadings: prevShift.tankReadings || [],
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`[CierreStore] Consulta Firestore intento ${attempt}/2 falló:`, error.message);
+          if (attempt < 2) {
+            await delay(1500);
+          }
         }
-      } catch (error) {
-        console.error('Error consultando turno anterior:', error);
       }
+    }
+    return null;
+  },
+
+  // ── CONSULTA DE EMERGENCIA ──
+  getEmergencyPreviousReadings: async (currentShiftType) => {
+    const prevOperatorType = currentShiftType === 'DIURNO' ? 'NOCTURNO' : 'DIURNO';
+
+    if (!isFirebaseConfigured()) return null;
+
+    try {
+      const db = getDb();
+      const q = query(
+        collection(db, 'shifts'),
+        where('status', '==', 'cerrado'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+      const snapshot = await getDocs(q);
+
+      let bestMatch = null;
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        if (data.operatorShiftType === prevOperatorType) {
+          if (!bestMatch) bestMatch = data;
+          else {
+            const bestTime = new Date(bestMatch.closedAt || 0).getTime();
+            const thisTime = new Date(data.closedAt || 0).getTime();
+            if (thisTime > bestTime) bestMatch = data;
+          }
+        }
+      }
+
+      if (bestMatch) {
+        return {
+          closedAt: bestMatch.closedAt || bestMatch.createdAt || '',
+          pumpReadings: bestMatch.pumpReadings || [],
+          tankReadings: bestMatch.tankReadings || [],
+        };
+      }
+    } catch (error) {
+      console.error('[CierreStore] Consulta de emergencia falló:', error.message);
+    }
+    return null;
+  },
+
+  // ★ FIX: Verificar si ya existe un turno cerrado del mismo tipo en la misma fecha
+  checkForDuplicateShift: async (operatorShiftType) => {
+    if (!isFirebaseConfigured()) return null;
+
+    try {
+      const db = getDb();
+      const today = getVenezuelaDateString();
+      const q = query(
+        collection(db, 'shifts'),
+        where('operatorShiftType', '==', operatorShiftType),
+        where('status', '==', 'cerrado'),
+        orderBy('closedAt', 'desc'),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data();
+        const shiftId = snapshot.docs[0].id;
+        if (data.date === today) {
+          return { id: shiftId, date: data.date, operatorShiftType: data.operatorShiftType };
+        }
+      }
+    } catch (error) {
+      console.warn('[CierreStore] Error verificando turno duplicado:', error.message);
     }
     return null;
   },
@@ -592,7 +883,9 @@ const useCierreStore = create((set, get) => ({
     if (unsubscribeCurrentShift) { unsubscribeCurrentShift(); unsubscribeCurrentShift = null; }
     if (unsubscribeShiftsHistory) { unsubscribeShiftsHistory(); unsubscribeShiftsHistory = null; }
     if (syncTimeout) { clearTimeout(syncTimeout); syncTimeout = null; }
-    currentShiftListening = false; // Reset guard
+    currentShiftListening = false;
+    _initializingShiftId = null;
+    _closingShiftId = null;
   },
 }));
 

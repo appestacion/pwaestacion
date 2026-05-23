@@ -1,3 +1,4 @@
+// src/components/layout/Topbar.jsx
 import React, { useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -14,6 +15,7 @@ import Chip from '@mui/material/Chip';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -25,6 +27,7 @@ import { useNetworkStore } from '../../store/useNetworkStore.js';
 import { formatDate, getVenezuelaDate } from '../../lib/formatters.js';
 import { SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT } from '../../config/constants.js';
 import ChangePasswordDialog from '../ChangePasswordDialog.jsx';
+import UserManual from '../UserManual.jsx';
 
 export default function Topbar() {
   const theme = useTheme();
@@ -38,6 +41,7 @@ export default function Topbar() {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const handleLogout = async () => {
     setAnchorEl(null);
@@ -48,6 +52,11 @@ export default function Topbar() {
   const handleOpenPasswordDialog = () => {
     setAnchorEl(null);
     setPasswordDialogOpen(true);
+  };
+
+  const handleOpenManual = () => {
+    setAnchorEl(null);
+    setManualOpen(true);
   };
 
   const now = getVenezuelaDate();
@@ -85,13 +94,13 @@ export default function Topbar() {
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Indicador de conexion */}
+        {/* Indicador de conexión */}
         {isOnline ? (
           <Tooltip title="Conectado - Sincronizando con Firebase">
             <CloudSyncIcon sx={{ color: '#4CAF50', fontSize: 20 }} />
           </Tooltip>
         ) : (
-          <Tooltip title="Sin conexion - Modo offline (datos locales)">
+          <Tooltip title="Sin conexión - Modo offline (datos locales)">
             <Chip
               icon={<WifiOffIcon sx={{ fontSize: '16px !important' }} />}
               label="Offline"
@@ -148,6 +157,11 @@ export default function Topbar() {
             </Typography>
           </Box>
           <Divider />
+          <MenuItem onClick={handleOpenManual}>
+            <ListItemIcon><MenuBookIcon fontSize="small" /></ListItemIcon>
+            Manual de Usuario
+          </MenuItem>
+          <Divider />
           <MenuItem onClick={handleOpenPasswordDialog}>
             <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
             Cambiar Contraseña
@@ -162,6 +176,11 @@ export default function Topbar() {
         <ChangePasswordDialog
           open={passwordDialogOpen}
           onClose={() => setPasswordDialogOpen(false)}
+        />
+
+        <UserManual
+          open={manualOpen}
+          onClose={() => setManualOpen(false)}
         />
       </Toolbar>
     </AppBar>

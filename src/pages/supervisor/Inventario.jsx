@@ -596,7 +596,7 @@ export default function Inventario() {
           sx={{ mb: 2, borderRadius: 2, '& .MuiAlert-message': { fontSize: '0.85rem' } }}
         >
           No hay un turno activo. Puedes consultar y modificar el inventario general y por isla.
-          Las columnas de ventas se actualizaran cuando inicies un turno.
+          Las columnas de ventas se actualizarán cuando inicies un turno.
         </Alert>
       )}
 

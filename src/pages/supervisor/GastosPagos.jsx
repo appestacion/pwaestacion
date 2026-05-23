@@ -84,7 +84,7 @@ export default function GastosPagos() {
                 <Grid item xs={9} sm={5}>
                   <TextField
                     fullWidth
-                    label="Descripcion"
+                    label="Descripción"
                     size="small"
                     value={item.descripcion || ''}
                     onChange={(e) => onUpdate(idx, 'descripcion', e.target.value)}

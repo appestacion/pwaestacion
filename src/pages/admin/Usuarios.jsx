@@ -146,7 +146,7 @@ export default function Usuarios() {
   const handleResetPassword = async (user) => {
     try {
       await sendPasswordReset(user.email);
-      enqueueSnackbar(`Correo de recuperacion enviado a ${user.email}`, { variant: 'success' });
+      enqueueSnackbar(`Correo de recuperación enviado a ${user.email}`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar(err.message || 'Error al enviar correo', { variant: 'error' });
     }
@@ -156,7 +156,7 @@ export default function Usuarios() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Gestion de Usuarios</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>Gestión de Usuarios</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {users.filter(u => u.active).length} activos de {users.length} totales
           </Typography>
@@ -217,7 +217,7 @@ export default function Usuarios() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Enviar correo de recuperacion de contraseña">
+                      <Tooltip title="Enviar correo de recuperación de contraseña">
                         <IconButton size="small" onClick={() => handleResetPassword(user)} color="warning">
                           <KeyIcon fontSize="small" />
                         </IconButton>
@@ -276,7 +276,7 @@ export default function Usuarios() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="contraseña (minimo 6 caracteres)"
+                  label="contraseña (mínimo 6 caracteres)"
                   type="password"
                   autoComplete="new-password"
                   value={form.password}

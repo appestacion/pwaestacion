@@ -1180,5 +1180,5 @@ export function getPdfBlob(doc) {
 }
 
 export function safeFilename(base) {
-  return (base || 'Estacion').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/ +/g, '_');
+  return (base || 'Estación').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/ +/g, '_');
 }

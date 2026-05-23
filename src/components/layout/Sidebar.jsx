@@ -39,7 +39,7 @@ const DRAWER_WIDTH = 260;
 
 const supervisorMenuItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
-  { path: '/recepcion-gandola', label: 'Recepcion Gandola', icon: <LocalShippingIcon /> },
+  { path: '/recepcion-gandola', label: 'Recepción Gandola', icon: <LocalShippingIcon /> },
   { path: '/gastos', label: 'Gastos', icon: <PaymentsIcon /> },
   { path: '/lecturas', label: 'Lecturas', icon: <SpeedIcon /> },
   { path: '/cierre', label: 'Cierre de Turno', icon: <ReceiptLongIcon /> },
@@ -49,14 +49,14 @@ const supervisorMenuItems = [
   { path: '/inventario', label: 'Inventario', icon: <InventoryIcon /> },
   { path: '/historial-cierres', label: 'Historial Cierres', icon: <HistoryIcon /> },
   { path: '/generar-pdf', label: 'Generar PDF', icon: <PictureAsPdfIcon /> },
-  { path: '/estadisticas', label: 'Estadisticas', icon: <BarChartIcon /> },
+  { path: '/estadisticas', label: 'Estadísticas', icon: <BarChartIcon /> },
 ];
 
 const adminMenuItems = [
   { path: '/admin', label: 'Admin Dashboard', icon: <DashboardIcon /> },
-  { path: '/admin/usuarios', label: 'Gestion Usuarios', icon: <PeopleIcon /> },
-  { path: '/admin/productos', label: 'Gestion Productos', icon: <CategoryIcon /> },
-  { path: '/admin/configuracion', label: 'Configuracion', icon: <SettingsIcon /> },
+  { path: '/admin/usuarios', label: 'Gestión Usuarios', icon: <PeopleIcon /> },
+  { path: '/admin/productos', label: 'Gestión Productos', icon: <CategoryIcon /> },
+  { path: '/admin/configuracion', label: 'Configuración', icon: <SettingsIcon /> },
 ];
 
 export default function Sidebar() {
@@ -157,7 +157,7 @@ export default function Sidebar() {
       <List sx={{ flex: 1, py: 1 }}>
         {user?.role === 'administrador' && (
           <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
-            ADMINISTRACION
+            ADMINISTRACIÓN
           </Typography>
         )}
         {menuItems.map((item) => (

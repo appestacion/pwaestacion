@@ -183,7 +183,9 @@ export default function LoginPage() {
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3, fontSize: '0.8rem' }}>
-            Sistema de Cierre de Turno de Estación de Servicio
+            Sistema de Cierre de Turno
+            <Box component="br" sx={{ display: { xs: 'block', sm: 'none' } }} />
+            de Estación de Servicio
           </Typography>
 
           {/* ========== MODO LOGIN ========== */}

@@ -19,6 +19,12 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import NightlightIcon from '@mui/icons-material/Nightlight';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Snackbar from '@mui/material/Snackbar';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +58,7 @@ const SHIFT_CARDS = {
 };
 
 export default function SupervisorDashboard() {
-  const { currentShift, initNewShift, closeShift } = useCierreStore();
+  const { currentShift, initNewShift, closeShift, closingShift } = useCierreStore();
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
   const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -61,33 +67,107 @@ export default function SupervisorDashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isXs = useMediaQuery(theme.breakpoints.down('xs'));
 
-  const handleStartShift = (supervisorShiftType) => {
+  // Estado para el diálogo de confirmación de cierre
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+  // Estado para el snackbar de error
+  const [snackbarError, setSnackbarError] = useState('');
+  // ★ FIX: Estado para diálogo de advertencia de turno duplicado
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+
+  // ★ FIX DOBLE CLIC: Ref para bloquear inmediatamente clics repetidos
+  // en "Cerrar Turno" sin depender del re-render de React.
+  const closeRequestedRef = React.useRef(false);
+
+  // ★ FIX AUTO-START: Cooldown de 3 segundos después de cerrar turno
+  // para prevenir que un useEffect externo inicie un turno nuevo automáticamente.
+  const closeCooldownRef = React.useRef(false);
+
+  const handleStartShift = async (supervisorShiftType) => {
+    // ★ FIX AUTO-START: Bloquear si estamos dentro del cooldown post-cierre
+    if (closeCooldownRef.current) {
+      console.log('[Dashboard] Inicio de turno bloqueado: cooldown post-cierre activo.');
+      return;
+    }
+
     let tasa1 = config.tasa1;
     let tasa2 = config.tasa2;
 
     // PROMOCIÓN 2TS (PM): tasa2 → tasa1 si hay una tasa más reciente.
-    // El 2TS usa la tasa vigente (la última que dejó la API durante la ventana
-    // de rotación del día anterior). La tasa2 queda disponible para que el
-    // 1TS del día siguiente pueda usar ambas tasas.
     if (supervisorShiftType === 'PM' && tasa2 > 0 && tasa2 !== tasa1) {
       tasa1 = tasa2;
       updateConfig({ tasa1: tasa2 });
     }
 
     // SEGURIDAD (AMBOS TURNOS): Si tasa1 es inválida (≤ 0) pero tasa2 es válida,
-    // promover tasa2 → tasa1. Esto previene que un turno opere con tasa1=0
-    // causado por una rotación con tasa2 vacía (ej: primer día de operación
-    // o después de un reset de configuración).
+    // promover tasa2 → tasa1.
     if (tasa1 <= 0 && tasa2 > 0) {
       tasa1 = tasa2;
       updateConfig({ tasa1: tasa2 });
     }
 
+    // ★ FIX: Verificar si ya existe un turno cerrado del mismo tipo en la misma fecha
+    const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
+    const shiftCard = SHIFT_CARDS[supervisorShiftType];
+    const existingClosed = await useCierreStore.getState().checkForDuplicateShift(operatorShiftType);
+
+    if (existingClosed) {
+      setDuplicateWarning({
+        type: supervisorShiftType,
+        operatorType: operatorShiftType,
+        date: existingClosed.date || 'fecha desconocida',
+        existingShiftId: existingClosed.id,
+      });
+      return;
+    }
+
     initNewShift(supervisorShiftType, tasa1, tasa2);
   };
 
-  const handleCloseShift = () => {
-    closeShift();
+  const handleConfirmDuplicate = () => {
+    if (!duplicateWarning) return;
+    // ★ FIX AUTO-START: También verificar cooldown aquí
+    if (closeCooldownRef.current) {
+      setDuplicateWarning(null);
+      return;
+    }
+
+    const supervisorShiftType = duplicateWarning.type;
+    let tasa1 = config.tasa1;
+    let tasa2 = config.tasa2;
+
+    if (supervisorShiftType === 'PM' && tasa2 > 0 && tasa2 !== tasa1) {
+      tasa1 = tasa2;
+      updateConfig({ tasa1: tasa2 });
+    }
+    if (tasa1 <= 0 && tasa2 > 0) {
+      tasa1 = tasa2;
+      updateConfig({ tasa1: tasa2 });
+    }
+
+    setDuplicateWarning(null);
+    initNewShift(supervisorShiftType, tasa1, tasa2);
+  };
+
+  const handleCloseShift = async () => {
+    console.log('[Dashboard] handleCloseShift ejecutado');
+    setConfirmCloseOpen(false);
+
+    const result = await closeShift();
+    console.log('[Dashboard] closeShift resultado:', result);
+
+    if (result && result.success) {
+      // ★ FIX AUTO-START: Activar cooldown de 3 segundos para prevenir
+      // que useEffects externos inicien un turno automáticamente.
+      closeCooldownRef.current = true;
+      setTimeout(() => {
+        closeCooldownRef.current = false;
+        console.log('[Dashboard] Cooldown post-cierre desactivado.');
+      }, 3000);
+    }
+
+    if (result && !result.success && result.error) {
+      setSnackbarError(result.error);
+    }
   };
 
   const [shiftJustClosed, setShiftJustClosed] = useState(false);
@@ -95,10 +175,8 @@ export default function SupervisorDashboard() {
   const totalLiters = currentShift ? calcTotalLitersSold(currentShift.pumpReadings) : 0;
   const litersByIsland = currentShift ? calcLitersByIsland(currentShift.pumpReadings) : { 1: 0, 2: 0, 3: 0 };
 
-  // Detectar si hay al menos una lectura final registrada (para mostrar guion si no)
   const hasAnyFinal = (currentShift?.pumpReadings || []).some((r) => r.finalReading && r.finalReading > 0);
 
-  // Detectar cuando se acaba de cerrar un turno (currentShift pasa de algo a null)
   const prevShiftRef = React.useRef(!!currentShift);
   React.useEffect(() => {
     if (prevShiftRef.current && !currentShift) {
@@ -107,8 +185,13 @@ export default function SupervisorDashboard() {
     prevShiftRef.current = !!currentShift;
   }, [currentShift]);
 
-  // 1TS (AM) cierra 2TO Nocturno → usa 2 tasas (solo si son diferentes)
-  // 2TS (PM) cierra 1TO Diurno → usa solo tasa1
+  // ★ FIX DOBLE CLIC: Resetear el ref cuando se inicia un nuevo turno
+  React.useEffect(() => {
+    if (currentShift) {
+      closeRequestedRef.current = false;
+    }
+  }, [currentShift]);
+
   const showTasa2 = currentShift?.supervisorShiftType === 'AM'
     && currentShift?.tasa2 > 0
     && currentShift?.tasa2 !== currentShift?.tasa1;
@@ -122,6 +205,12 @@ export default function SupervisorDashboard() {
     { label: 'Recepción Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
     { label: 'Generar PDF', icon: <PictureAsPdfIcon />, path: '/generar-pdf', color: '#666666' },
   ];
+
+  const closingLabel = currentShift
+    ? (isMobile
+        ? `${SUPERVISOR_SHIFT_LABELS_SHORT[currentShift.supervisorShiftType]} - ${SHIFT_LABELS_SHORT[currentShift.operatorShiftType]}`
+        : `${SUPERVISOR_SHIFT_LABELS[currentShift.supervisorShiftType]} - ${SHIFT_LABELS[currentShift.operatorShiftType]}`)
+    : '';
 
   return (
     <Box>
@@ -185,7 +274,7 @@ export default function SupervisorDashboard() {
             No hay un turno activo. Selecciona tu turno de supervisor para comenzar el cierre del turno de operadores correspondiente.
           </Alert>
 
-          {/* Tarjetas de turno - cada una con su info de cierre dentro */}
+          {/* Tarjetas de turno */}
           <Grid container spacing={isMobile ? 2 : 3}>
             {Object.values(SHIFT_CARDS).map((shiftCard) => (
               <Grid item xs={12} sm={6} key={shiftCard.key}>
@@ -223,7 +312,6 @@ export default function SupervisorDashboard() {
                       {shiftCard.fullLabel}
                     </Typography>
 
-                    {/* Info de cierre - DENTRO de la tarjeta */}
                     <Chip
                       label={isMobile ? shiftCard.closesLabelMobile : shiftCard.closesLabel}
                       icon={isMobile ? undefined : shiftCard.icon}
@@ -239,7 +327,6 @@ export default function SupervisorDashboard() {
                       }}
                     />
 
-                    {/* Boton para iniciar */}
                     <Button
                       variant="contained"
                       size={isMobile ? 'medium' : 'large'}
@@ -273,7 +360,6 @@ export default function SupervisorDashboard() {
             borderColor: currentShift.status === 'en_progreso' ? 'success.main' : 'grey.400',
           }}>
             <CardContent sx={{ px: isMobile ? 2 : 3, py: isMobile ? 2 : 3 }}>
-              {/* Encabezado del turno - responsive */}
               <Box sx={{
                 display: 'flex',
                 justifyContent: isMobile ? 'space-between' : 'flex-start',
@@ -331,21 +417,32 @@ export default function SupervisorDashboard() {
                   <Button
                     variant="contained"
                     color="error"
-                    onClick={handleCloseShift}
+                    onClick={() => {
+                      // ★ FIX DOBLE CLIC: Bloquear clics repetidos con ref (sincrónico, sin esperar re-render)
+                      if (closeRequestedRef.current) {
+                        console.log('[Dashboard] Doble clic bloqueado en Cerrar Turno.');
+                        return;
+                      }
+                      closeRequestedRef.current = true;
+                      console.log('[Dashboard] Botón Cerrar Turno presionado');
+                      console.log('[Dashboard] closingShift:', closingShift);
+                      setConfirmCloseOpen(true);
+                    }}
                     size={isMobile ? 'small' : 'medium'}
+                    disabled={closingShift}
                     sx={{
                       minWidth: isMobile ? 'auto' : undefined,
                       px: isMobile ? 2 : undefined,
                     }}
                   >
-                    Cerrar Turno
+                    {closingShift ? 'Cerrando...' : 'Cerrar Turno'}
                   </Button>
                 )}
               </Box>
             </CardContent>
           </Card>
 
-          {/* Tarjetas resumen - 2x2 en movil, 4 en linea en desktop */}
+          {/* Tarjetas resumen */}
           <Grid container spacing={isMobile ? 1.5 : 2} sx={{ mb: isMobile ? 2 : 3 }}>
             <Grid item xs={6} sm={3}>
               <Card sx={{ height: '100%' }}>
@@ -457,6 +554,115 @@ export default function SupervisorDashboard() {
           </Grid>
         </>
       )}
+
+      {/* ═══ DIALOGO: Confirmación para cerrar turno ═══ */}
+      <Dialog
+        open={confirmCloseOpen}
+        onClose={() => {
+          console.log('[Dashboard] Dialog onClose, closingShift:', closingShift);
+          if (!closingShift) {
+            setConfirmCloseOpen(false);
+            // ★ FIX DOBLE CLIC: Resetear ref si el usuario cancela
+            closeRequestedRef.current = false;
+          }
+        }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, p: 1 },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.2rem' }}>
+          ¿Cerrar Turno?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ textAlign: 'center', mb: 1, fontWeight: 600 }}>
+            {closingLabel}
+          </Typography>
+          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
+            Esta acción cerrará el turno actual y no se puede deshacer. Asegúrate de haber registrado todas las lecturas y cortes.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setConfirmCloseOpen(false);
+              closeRequestedRef.current = false;
+            }}
+            disabled={closingShift}
+            sx={{ minWidth: 100, fontWeight: 600 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCloseShift}
+            disabled={closingShift}
+            startIcon={closingShift ? <CircularProgress size={16} color="inherit" /> : undefined}
+            sx={{ minWidth: 100, fontWeight: 600 }}
+          >
+            {closingShift ? 'Cerrando...' : 'Sí, Cerrar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ═══ DIALOGO: Advertencia de turno duplicado ═══ */}
+      <Dialog
+        open={!!duplicateWarning}
+        onClose={() => setDuplicateWarning(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, p: 1 },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.2rem', color: '#E65100' }}>
+          Turno ya registrado
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mb: 2 }}>
+            Ya existe un turno <strong>{duplicateWarning?.operatorType === 'DIURNO' ? 'Diurno' : 'Nocturno'}</strong> cerrado para la fecha <strong>{duplicateWarning?.date}</strong>.
+          </Typography>
+          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
+            ¿Deseas iniciar un nuevo turno de todos modos? Esto creará un turno adicional para la misma fecha.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setDuplicateWarning(null)}
+            sx={{ minWidth: 100, fontWeight: 600 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmDuplicate}
+            sx={{ minWidth: 100, fontWeight: 600, bgcolor: '#E65100', '&:hover': { bgcolor: '#BF360C' } }}
+          >
+            Sí, Iniciar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ═══ SNACKBAR: Error al cerrar turno ═══ */}
+      <Snackbar
+        open={!!snackbarError}
+        autoHideDuration={8000}
+        onClose={() => setSnackbarError('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setSnackbarError('')}
+          sx={{ width: '100%', borderRadius: 2, fontWeight: 600 }}
+        >
+          {snackbarError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
