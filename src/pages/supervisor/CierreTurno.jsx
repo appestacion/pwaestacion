@@ -29,10 +29,19 @@ import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 import { calculateBiblia } from '../../lib/calculations.js';
-import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
+import { formatBs, formatUSD, formatNumber, roundDownTo10 } from '../../lib/formatters.js';
 import { bsToUsd, usdToBs } from '../../lib/conversions.js';
+import { CATEGORY_ORDER } from '../../config/constants.js';
 
 const PAYMENT_METHODS = [
+  { value: 'punto_de_venta', label: 'Punto de Venta' },
+  { value: 'efectivo_bs', label: 'Efectivo Bolivares' },
+  { value: 'efectivo_usd', label: 'Efectivo Dolares' },
+  { value: 'combinado', label: 'Pago Combinado' },
+];
+
+// Sub-opciones para el pago combinado (sin incluir "combinado" para evitar recursión)
+const COMBINED_PAYMENT_OPTIONS = [
   { value: 'punto_de_venta', label: 'Punto de Venta' },
   { value: 'efectivo_bs', label: 'Efectivo Bolivares' },
   { value: 'efectivo_usd', label: 'Efectivo Dolares' },
@@ -57,6 +66,11 @@ export default function CierreTurno() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('punto_de_venta');
+
+  // Estado para pago combinado: lista de { method, amountUSD }
+  const [combinedPayments, setCombinedPayments] = useState([
+    { method: 'punto_de_venta', amountUSD: 0 },
+  ]);
 
   // Ref para debounce del recálculo PV — evita múltiples recalculaciones
   // cuando el usuario teclea rápido en un campo de montos.
@@ -100,25 +114,94 @@ export default function CierreTurno() {
     return map;
   }, [currentShift, precioLitroUSD]);
 
+  // Calcular el total USD del producto seleccionado
+  const selectedProductTotalUSD = useMemo(() => {
+    if (!selectedProduct) return 0;
+    const prod = products.find((p) => p.name === selectedProduct);
+    return (prod?.priceUSD || 0) * productQty;
+  }, [selectedProduct, productQty, products]);
+
+  // Calcular cuánto falta por asignar en el pago combinado
+  const combinedRemainingUSD = useMemo(() => {
+    if (selectedPaymentMethod !== 'combinado') return 0;
+    const assigned = combinedPayments.reduce((s, p) => s + (p.amountUSD || 0), 0);
+    return selectedProductTotalUSD - assigned;
+  }, [selectedPaymentMethod, combinedPayments, selectedProductTotalUSD]);
+
+  // Calcular monto total de pagos combinados (para validación)
+  const combinedAssignedUSD = useMemo(() => {
+    return combinedPayments.reduce((s, p) => s + (p.amountUSD || 0), 0);
+  }, [combinedPayments]);
+
+  // Resetear pagos combinados cuando cambia el método de pago
+  useEffect(() => {
+    if (selectedPaymentMethod === 'combinado') {
+      setCombinedPayments([{ method: 'punto_de_venta', amountUSD: 0 }]);
+    }
+  }, [selectedPaymentMethod]);
+
+  // ── Handlers para pago combinado ──
+  const handleAddCombinedEntry = () => {
+    // Filtrar métodos ya usados para sugerir el siguiente disponible
+    const usedMethods = combinedPayments.map((p) => p.method);
+    const available = COMBINED_PAYMENT_OPTIONS.find((o) => !usedMethods.includes(o.value));
+    setCombinedPayments([
+      ...combinedPayments,
+      { method: available ? available.value : 'efectivo_usd', amountUSD: 0 },
+    ]);
+  };
+
+  const handleRemoveCombinedEntry = (idx) => {
+    if (combinedPayments.length <= 1) return;
+    setCombinedPayments(combinedPayments.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateCombinedEntry = (idx, field, value) => {
+    const updated = [...combinedPayments];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setCombinedPayments(updated);
+  };
+
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
-    const existing = currentShift?.islands.find((i) => i.islandId === islandId);
-    const already = existing?.productsSold.find(
-      (p) => p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
-    );
-    if (already) {
-      const newProducts = (existing?.productsSold ?? []).map((p) =>
-        p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
-          ? { ...p, quantity: p.quantity + productQty }
-          : p
-      );
-      updateIslandField(islandId, 'productsSold', newProducts);
-    } else {
+
+    if (selectedPaymentMethod === 'combinado') {
+      // Validar que el monto total de pagos combinados coincida con el precio del producto
+      if (Math.abs(combinedAssignedUSD - selectedProductTotalUSD) > 0.01) {
+        return; // No agregar si no coincide
+      }
+      // Filtrar entradas con monto > 0
+      const breakdown = combinedPayments
+        .filter((p) => p.amountUSD > 0)
+        .map((p) => ({ method: p.method, amountUSD: p.amountUSD }));
+
+      if (breakdown.length === 0) return;
+
       addProductSold(islandId, {
         productName: selectedProduct,
         quantity: productQty,
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: 'combinado',
+        paymentBreakdown: breakdown,
       });
+    } else {
+      const existing = currentShift?.islands.find((i) => i.islandId === islandId);
+      const already = existing?.productsSold.find(
+        (p) => p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
+      );
+      if (already) {
+        const newProducts = (existing?.productsSold ?? []).map((p) =>
+          p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
+            ? { ...p, quantity: p.quantity + productQty }
+            : p
+        );
+        updateIslandField(islandId, 'productsSold', newProducts);
+      } else {
+        addProductSold(islandId, {
+          productName: selectedProduct,
+          quantity: productQty,
+          paymentMethod: selectedPaymentMethod,
+        });
+      }
     }
     setSelectedProduct('');
     setProductQty(1);
@@ -170,11 +253,33 @@ export default function CierreTurno() {
     return found ? found.label : method;
   };
 
+  const getCombinedPaymentLabel = (method) => {
+    const found = COMBINED_PAYMENT_OPTIONS.find((m) => m.value === method);
+    return found ? found.label : method;
+  };
+
+  const getPaymentChipColor = (method) => {
+    switch (method) {
+      case 'punto_de_venta': return 'secondary';
+      case 'efectivo_bs': return 'primary';
+      case 'efectivo_usd': return 'success';
+      case 'combinado': return 'warning';
+      default: return 'default';
+    }
+  };
+
   if (!currentShift) {
     return <Alert severity="warning">No hay un turno activo. Ve al Dashboard e inicia un turno.</Alert>;
   }
 
-  const activeProducts = products.filter((p) => p.active);
+  const activeProducts = products
+    .filter((p) => p.active)
+    .sort((a, b) => {
+      const idxA = CATEGORY_ORDER.indexOf(a.category);
+      const idxB = CATEGORY_ORDER.indexOf(b.category);
+      if (idxA !== idxB) return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      return a.name.localeCompare(b.name);
+    });
   const tasa1 = currentShift.tasa1 || 1;
   const tasa2 = currentShift.tasa2 || 0;
 
@@ -224,6 +329,9 @@ export default function CierreTurno() {
         const totalTransferencias = (island.transferencias || []).reduce((s, t) => s + (t.monto || 0), 0);
         const propinaUSD = biblia.propinaUSD || 0;
         const propinaBs = biblia.propinaBs || 0;
+
+        // ★ CAMBIO 1: Total combinado de ambos PV en USD (solo para 1TS/NOCTURNO con Tasa 2)
+        const combinedPVTotalUSD = (island.pvTotalUSD || 0) + (island.pv2TotalUSD || 0);
 
         // Verificar si hay lecturas finales registradas PARA ESTA ISLA
         const hasReadings = (currentShift.pumpReadings || []).some((r) => r.islandId === iid && r.finalReading && r.finalReading > 0);
@@ -451,6 +559,15 @@ export default function CierreTurno() {
                         size="small"
                         sx={{ fontWeight: 600 }}
                       />
+                      {/* ★ CAMBIO 1: Chip con total en dólares de ambos PV (solo cuando hay Tasa 1 y Tasa 2) */}
+                      {tasa2 > 0 && (
+                        <Chip
+                          label={`Total PV Ambas Tasas: ${formatUSD(combinedPVTotalUSD)}`}
+                          color="warning"
+                          size="small"
+                          sx={{ fontWeight: 700, ml: 1 }}
+                        />
+                      )}
                     </Box>
                   </CardContent>
                 </Card>
@@ -604,6 +721,15 @@ export default function CierreTurno() {
                     </Paper>
                   </Grid>
                 </Grid>
+                {/* ★ Recaudación 10% — justificado a la derecha */}
+                <Box sx={{ mt: 1, textAlign: 'right' }}>
+                  <Chip
+                    label={`Recaudación 10%: ${hasReadings && propinaBs > 0 ? formatBs(roundDownTo10(propinaBs * 0.10)) : '—'}`}
+                    color="warning"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
               </CardContent>
             </Card>
 
@@ -659,14 +785,18 @@ export default function CierreTurno() {
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={() => handleAddProduct(iid)}
-                    disabled={!selectedProduct}
+                    disabled={!selectedProduct || (
+                      selectedPaymentMethod === 'combinado'
+                        ? Math.abs(combinedAssignedUSD - selectedProductTotalUSD) > 0.01 || combinedAssignedUSD === 0
+                        : false
+                    )}
                   >
                     Agregar
                   </Button>
                 </Box>
 
                 {/* Preview del monto en Bs para Punto de Venta o Efectivo Bolivares */}
-                {selectedProduct && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs') && (() => {
+                {selectedProduct && selectedPaymentMethod !== 'combinado' && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs') && (() => {
                   const prod = activeProducts.find((p) => p.name === selectedProduct);
                   const priceUSD = prod?.priceUSD || 0;
                   const totalUSD = priceUSD * productQty;
@@ -681,6 +811,127 @@ export default function CierreTurno() {
                   );
                 })()}
 
+                {/* Preview del monto en USD para Efectivo Dolares */}
+                {selectedProduct && selectedPaymentMethod === 'efectivo_usd' && (() => {
+                  const prod = activeProducts.find((p) => p.name === selectedProduct);
+                  const priceUSD = prod?.priceUSD || 0;
+                  const totalUSD = priceUSD * productQty;
+                  return (
+                    <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#E8F5E9', borderRadius: 1.5, border: '1px solid #81C784' }}>
+                      <Typography variant="body2" sx={{ color: '#2E7D32', fontWeight: 600 }}>
+                        Efectivo Dolares: {formatUSD(totalUSD)}
+                      </Typography>
+                    </Paper>
+                  );
+                })()}
+
+                {/* ★ CAMBIO 2: Panel de Pago Combinado */}
+                {selectedPaymentMethod === 'combinado' && selectedProduct && (
+                  <Paper
+                    sx={{
+                      p: 2, mb: 2,
+                      bgcolor: combinedAssignedUSD > 0 && Math.abs(combinedRemainingUSD) < 0.01
+                        ? '#E8F5E9' : '#FFF8E1',
+                      borderRadius: 1.5,
+                      border: combinedAssignedUSD > 0 && Math.abs(combinedRemainingUSD) < 0.01
+                        ? '2px solid #81C784'
+                        : '2px solid #FFB74D',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E65100' }}>
+                        Pago Combinado — Total: {formatUSD(selectedProductTotalUSD)}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<AddIcon />}
+                        onClick={handleAddCombinedEntry}
+                        disabled={combinedPayments.length >= COMBINED_PAYMENT_OPTIONS.length}
+                        sx={{ minWidth: 0, px: 1.5 }}
+                      >
+                        <AddIcon fontSize="small" />
+                      </Button>
+                    </Box>
+
+                    {combinedPayments.map((entry, idx) => (
+                      <Box
+                        key={idx}
+                        sx={{
+                          display: 'flex',
+                          gap: 1,
+                          alignItems: 'center',
+                          mb: 1,
+                        }}
+                      >
+                        <TextField
+                          select
+                          size="small"
+                          value={entry.method}
+                          onChange={(e) => handleUpdateCombinedEntry(idx, 'method', e.target.value)}
+                          sx={{ minWidth: 170, flex: '0 0 auto' }}
+                        >
+                          {COMBINED_PAYMENT_OPTIONS.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                              {o.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          size="small"
+                          label="Monto ($)"
+                          type="number"
+                          value={entry.amountUSD || ''}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            handleUpdateCombinedEntry(idx, 'amountUSD', isNaN(v) ? 0 : v);
+                          }}
+                          inputProps={{ min: 0, step: 0.01 }}
+                          sx={{ flex: 1, minWidth: 120 }}
+                        />
+                        {entry.method === 'punto_de_venta' && entry.amountUSD > 0 && (
+                          <Typography variant="caption" sx={{ color: '#E65100', fontWeight: 600, whiteSpace: 'nowrap', flex: '0 0 auto' }}>
+                            = {formatBs(usdToBs(entry.amountUSD, tasa1))}
+                          </Typography>
+                        )}
+                        {entry.method === 'efectivo_bs' && entry.amountUSD > 0 && (
+                          <Typography variant="caption" sx={{ color: '#E65100', fontWeight: 600, whiteSpace: 'nowrap', flex: '0 0 auto' }}>
+                            = {formatBs(usdToBs(entry.amountUSD, tasa1))}
+                          </Typography>
+                        )}
+                        {combinedPayments.length > 1 && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleRemoveCombinedEntry(idx)}
+                            sx={{ flex: '0 0 auto' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    ))}
+
+                    <Divider sx={{ my: 1 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Asignado: {formatUSD(combinedAssignedUSD)} / {formatUSD(selectedProductTotalUSD)}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 700,
+                          color: Math.abs(combinedRemainingUSD) < 0.01 ? '#2E7D32' : '#D32F2F',
+                        }}
+                      >
+                        {Math.abs(combinedRemainingUSD) < 0.01
+                          ? 'Completo'
+                          : `Faltan: ${formatUSD(Math.abs(combinedRemainingUSD))}`}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                )}
+
                 {(island.productsSold || []).length > 0 && (
                   <TableContainer>
                     <Table size="small">
@@ -690,7 +941,7 @@ export default function CierreTurno() {
                           <TableCell align="center" sx={{ fontWeight: 700 }}>Cant.</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 700 }}>Precio Unit.</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 700 }}>Total</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>Forma de Pago</TableCell>
+                          <TableCell align="left" sx={{ fontWeight: 700 }}>Forma de Pago</TableCell>
                           <TableCell align="center"></TableCell>
                         </TableRow>
                       </TableHead>
@@ -700,7 +951,8 @@ export default function CierreTurno() {
                           const price = prod?.priceUSD || 0;
                           const totalUSD = price * ps.quantity;
                           const method = ps.paymentMethod || 'punto_de_venta';
-                          const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                          const isCombined = method === 'combinado';
+                          const showBs = !isCombined && (method === 'punto_de_venta' || method === 'efectivo_bs');
                           const totalBs = showBs ? usdToBs(totalUSD, tasa1) : 0;
 
                           return (
@@ -716,18 +968,39 @@ export default function CierreTurno() {
                                   </Typography>
                                 )}
                               </TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={getPaymentLabel(method)}
-                                  size="small"
-                                  variant="outlined"
-                                  color={
-                                    method === 'punto_de_venta' ? 'secondary' :
-                                    method === 'efectivo_bs' ? 'primary' :
-                                    'success'
-                                  }
-                                  sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                                />
+                              {/* ★ CAMBIO 3: Chips de forma de pago alineados a la izquierda */}
+                              <TableCell align="left">
+                                {isCombined && ps.paymentBreakdown && ps.paymentBreakdown.length > 0 ? (
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                                    {ps.paymentBreakdown.map((bd, bdIdx) => (
+                                      <Box key={bdIdx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Chip
+                                          label={getCombinedPaymentLabel(bd.method)}
+                                          size="small"
+                                          variant="outlined"
+                                          color={getPaymentChipColor(bd.method)}
+                                          sx={{ fontSize: '0.65rem', fontWeight: 600, height: 22 }}
+                                        />
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                          {formatUSD(bd.amountUSD)}
+                                          {(bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs') && bd.amountUSD > 0 && (
+                                            <Typography component="span" variant="caption" sx={{ color: '#E65100', ml: 0.5 }}>
+                                              ({formatBs(usdToBs(bd.amountUSD, tasa1))})
+                                            </Typography>
+                                          )}
+                                        </Typography>
+                                      </Box>
+                                    ))}
+                                  </Box>
+                                ) : (
+                                  <Chip
+                                    label={getPaymentLabel(method)}
+                                    size="small"
+                                    variant="outlined"
+                                    color={getPaymentChipColor(method)}
+                                    sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                                  />
+                                )}
                               </TableCell>
                               <TableCell align="center">
                                 <IconButton

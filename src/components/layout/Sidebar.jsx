@@ -46,6 +46,7 @@ const supervisorMenuItems = [
   { path: '/reporte', label: 'Reporte', icon: <DescriptionIcon /> },
   { path: '/biblia', label: 'Biblia', icon: <BookIcon /> },
   { path: '/cuadre-pv', label: 'Cuadre PV', icon: <PointOfSaleIcon /> },
+  { path: '/productos', label: 'Gestión Productos', icon: <CategoryIcon /> },
   { path: '/inventario', label: 'Inventario', icon: <InventoryIcon /> },
   { path: '/historial-cierres', label: 'Historial Cierres', icon: <HistoryIcon /> },
   { path: '/generar-pdf', label: 'Generar PDF', icon: <PictureAsPdfIcon /> },
@@ -55,7 +56,6 @@ const supervisorMenuItems = [
 const adminMenuItems = [
   { path: '/admin', label: 'Admin Dashboard', icon: <DashboardIcon /> },
   { path: '/admin/usuarios', label: 'Gestión Usuarios', icon: <PeopleIcon /> },
-  { path: '/admin/productos', label: 'Gestión Productos', icon: <CategoryIcon /> },
   { path: '/admin/configuracion', label: 'Configuración', icon: <SettingsIcon /> },
 ];
 

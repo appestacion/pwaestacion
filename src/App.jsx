@@ -82,9 +82,6 @@ function AppInitializer({ children }) {
     if (!authLoading && !firestoreDataLoaded.current) {
       firestoreDataLoaded.current = true;
 
-      // Rehabilitar la red de Firestore (puede estar deshabilitada por el logout)
-      // y luego cargar los datos. Esto se hace en secuencia para asegurar que
-      // los listeners se crean con credenciales válidas.
       const loadFirestoreData = async () => {
         try {
           const { enableNetwork, isFirebaseConfigured, getDb } = await import('./config/firebase.js');
@@ -92,13 +89,10 @@ function AppInitializer({ children }) {
             try {
               const db = getDb();
               await enableNetwork(db);
-            } catch (_) {
-              // Si la red ya está habilitada, no es error
-            }
+            } catch (_) {}
           }
         } catch (_) {}
 
-        // Ahora crear todos los listeners con credenciales válidas
         loadConfig();
         loadProducts();
         loadStock();
@@ -143,7 +137,6 @@ export default function App() {
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="usuarios" element={<Usuarios />} />
-                  <Route path="productos" element={<Productos />} />
                   <Route path="configuracion" element={<Configuracion />} />
                 </Route>
                 <Route element={<SupervisorLayout />}>
@@ -153,6 +146,7 @@ export default function App() {
                   <Route path="reporte" element={<ReporteLecturaRecepcion />} />
                   <Route path="biblia" element={<Biblia />} />
                   <Route path="cuadre-pv" element={<CuadrePV />} />
+                  <Route path="productos" element={<Productos />} />
                   <Route path="inventario" element={<Inventario />} />
                   <Route path="recepcion-gandola" element={<RecepcionGandola />} />
                   <Route path="generar-pdf" element={<GenerarPDF />} />
