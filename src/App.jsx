@@ -49,6 +49,7 @@ function AppInitializer({ children }) {
   const loadProducts = useProductStore((state) => state.loadProducts);
   const loadConfig = useConfigStore((state) => state.loadConfig);
   const configLoading = useConfigStore((state) => state.loading);
+  const configFirestoreActive = useConfigStore((state) => state.firestoreActive);
   const loadStock = useInventoryStore((state) => state.loadStock);
   const loadIslandStock = useInventoryStore((state) => state.loadIslandStock);
   const loadCurrentReception = useGandolaStore((state) => state.loadCurrentReception);
@@ -69,12 +70,20 @@ function AppInitializer({ children }) {
   }, [config.stationName, config.stationColorPrimary, config.stationLogo]);
 
   // Fase 1: Inicializaciones que NO requieren autenticacion
-  // FIX: loadConfig() se llama SIEMPRE, sin importar si hay sesion o no.
   useEffect(() => {
     initNetwork();
     initAuth();
     loadConfig();
   }, [initNetwork, initAuth, loadConfig]);
+
+  // FIX: Reintentar conexion a Firestore despues del login
+  // Si loadConfig() fallo por permisos antes de login, ahora reintentara
+  // porque unsubscribeSnapshot se limpio en el error handler de useConfigStore
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && !configFirestoreActive) {
+      loadConfig();
+    }
+  }, [isAuthenticated, authLoading, configFirestoreActive, loadConfig]);
 
   // Fase 2: Cargar datos de Firestore que requieren autenticacion
   useEffect(() => {

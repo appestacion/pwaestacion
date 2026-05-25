@@ -14,32 +14,47 @@ let _lastStationName = null;
 let _manifestBlobUrl = null;
 
 /**
- * Genera un short_name de maximo 12 caracteres a partir del nombre de la estacion.
- * Reglas:
- *  - Si el nombre cabe en 12 chars, usarlo tal cual
- *  - Si no, tomar las primeras letras significativas
- *  - Minimo 3 caracteres
+ * Genera un short_name optimizado para mostrar bajo el icono del movil.
+ * Prioridad: intentar mostrar "E/S" + primera palabra del nombre.
+ * Limite: 12 caracteres para compatibilidad con la mayoria de launchers.
  */
 function generateShortName(stationName) {
   if (!stationName) return 'Cierre';
   const trimmed = stationName.trim();
 
-  // Si cabe completo, usarlo
+  // Si ya empieza con "E/S" o "ES", usarlo como base
+  const esMatch = trimmed.match(/^(E\/S|ES)\s+(.+)/i);
+  if (esMatch) {
+    const prefix = 'E/S ';
+    const rest = esMatch[2].trim();
+    // Tomar la mayor parte del resto que quepa despues de "E/S "
+    const maxRest = 12 - prefix.length; // 12 - 4 = 8
+    if (rest.length <= maxRest) {
+      return prefix + rest; // "E/S Montaña" = 12 chars
+    }
+    // Cortar la segunda palabra con punto
+    const words = rest.split(/\s+/);
+    if (words.length >= 2) {
+      const candidate = prefix + words[0]; // "E/S Montaña"
+      if (candidate.length <= 12) return candidate;
+      // Si ni siquiera la primera palabra cabe, abreviar
+      const abbr = prefix + words[0].substring(0, maxRest - 1) + '.';
+      return abbr.length <= 12 ? abbr : candidate.substring(0, 12);
+    }
+    // Una sola palabra despues de E/S
+    return (prefix + rest.substring(0, maxRest)).substring(0, 12);
+  }
+
+  // No tiene prefijo E/S - usar logica normal
   if (trimmed.length <= 12) return trimmed;
 
-  // Intentar usar la parte despues de "E/S " o similar prefijos
-  const withoutPrefix = trimmed.replace(/^(E\/S|ES)\s*/i, '').trim();
-  if (withoutPrefix.length > 3 && withoutPrefix.length <= 12) return withoutPrefix;
-
-  // Tomar primeras palabras significativas hasta llegar a <= 12
-  const words = withoutPrefix.split(/\s+/).filter(Boolean);
+  const words = trimmed.split(/\s+/).filter(Boolean);
   let result = '';
   for (const word of words) {
     const candidate = result ? `${result} ${word}` : word;
     if (candidate.length <= 12) {
       result = candidate;
     } else {
-      // Agregar primera letra de esta palabra si alcanza
       if ((result + ' ' + word.charAt(0)).length <= 12) {
         result += ' ' + word.charAt(0);
       }
@@ -47,7 +62,6 @@ function generateShortName(stationName) {
     }
   }
 
-  // Fallback: primeras 12 caracteres sin cortar palabras a medias si es posible
   if (!result || result.length < 3) {
     result = trimmed.substring(0, 12).trim();
   }
@@ -84,7 +98,7 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
       return;
     }
 
-    // Generar short_name de maximo 12 caracteres
+    // Generar short_name optimizado
     const shortName = generateShortName(stationName);
 
     // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
@@ -101,8 +115,6 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
         ];
 
     // FIX: start_url DEBE ser absoluto porque el manifest se sirve como blob URL
-    // Los navegadores no pueden resolver URLs relativas desde un blob:
-    //   "Manifest: property 'start_url' ignored, URL is invalid"
     const origin = window.location.origin;
 
     const dynamicManifest = {
@@ -110,8 +122,6 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
       short_name: shortName,
       description: `Sistema de Cierre - ${stationName.trim()}`,
       start_url: `${origin}/`,
-      // FIX: NO incluir scope para evitar conflictos con el manifest original
-      // El navegador usara el scope por defecto (directorio del manifest = /)
       display: 'standalone',
       background_color: '#F5F5F5',
       theme_color: colorPrimary || '#CE1126',

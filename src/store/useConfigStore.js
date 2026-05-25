@@ -146,6 +146,14 @@ const useConfigStore = create(
                   clearTimeout(loadingTimeoutId);
                   loadingTimeoutId = null;
                 }
+                // FIX: Si falla por permisos (sin auth), limpiar la suscripcion
+                // para que loadConfig() pueda reintentar despues del login
+                if (error.code === 'permission-denied') {
+                  unsubscribeSnapshot = null;
+                  console.log('[ConfigStore] Se reintentara la conexion a Firestore despues del login.');
+                } else {
+                  unsubscribeSnapshot = null;
+                }
                 // Sin Firestore pero con cache local: seguir funcionando
                 set({ firestoreActive: false, loading: false });
               }
@@ -156,6 +164,7 @@ const useConfigStore = create(
               clearTimeout(loadingTimeoutId);
               loadingTimeoutId = null;
             }
+            unsubscribeSnapshot = null;
             set({ firestoreActive: false, loading: false });
           }
         } else {
