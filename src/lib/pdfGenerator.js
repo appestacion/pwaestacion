@@ -513,10 +513,19 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
     ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD)
     : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
 
-  // Valores para tarjetas de sobregiro — idénticos a Biblia.jsx
+  // Valores para tarjetas dinámicas — idénticos a Biblia.jsx
   const totalGastosUSD = (totals?.resumenItems || [])
     .filter(item => item.tipo === 'Gasto')
     .reduce((s, item) => s + item.montoUSD, 0);
+
+  // Neto sin gastos = Total Resumen - gastos
+  const netoSinGastosUSD = totalResumenUSD - totalGastosUSD;
+
+  // Sin sobregiro: excedente = neto sin gastos - valor litros vendidos
+  const excedenteUSD = !haySobregiro ? Math.max(0, netoSinGastosUSD - (totals?.totalLitersRef || 0)) : 0;
+  const excedenteBs = tasa1 > 0 ? excedenteUSD * tasa1 : 0;
+
+  // Con sobregiro: caja chica = sobregiro + gastos
   const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
 
@@ -630,13 +639,13 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
       margin: { left: startX, right: pw - startX - columnWidth },
     });
 
-    // ── Si hay sobregiro: 3 bloques debajo del Resumen ──
-    if (haySobregiro) {
-      let sy = doc.lastAutoTable.finalY + 5;
+    // ── Tarjetas dinámicas debajo del Resumen ──
+    let cardY = doc.lastAutoTable.finalY + 5;
 
-      // 1. SOBREGIRO
+    // SOBREGIRO
+    if (haySobregiro) {
       autoTable(doc, {
-        startY: sy,
+        startY: cardY,
         body: [
           [
             { content: 'SOBREGIRO', colSpan: 2, styles: { fillColor: [230, 81, 0], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
@@ -649,11 +658,13 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
         styles: { halign: 'center', cellPadding: 2 },
         margin: { left: startX, right: pw - startX - columnWidth },
       });
-      sy = doc.lastAutoTable.finalY + 3;
+      cardY = doc.lastAutoTable.finalY + 3;
+    }
 
-      // 2. TOTAL GASTOS
+    // TOTAL GASTOS — solo si hay gastos
+    if (totalGastosUSD > 0) {
       autoTable(doc, {
-        startY: sy,
+        startY: cardY,
         body: [
           [
             { content: 'TOTAL GASTOS', colSpan: 2, styles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
@@ -666,11 +677,33 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
         styles: { halign: 'center', cellPadding: 2 },
         margin: { left: startX, right: pw - startX - columnWidth },
       });
-      sy = doc.lastAutoTable.finalY + 3;
+      cardY = doc.lastAutoTable.finalY + 3;
+    }
 
-      // 3. TOTAL A TOMAR DE CAJA CHICA
+    // CAJA CHICA
+    if (!haySobregiro && excedenteUSD > 0) {
+      // TOTAL A COLOCAR EN CAJA CHICA — solo si hay excedente
       autoTable(doc, {
-        startY: sy,
+        startY: cardY,
+        body: [
+          [
+            { content: 'TOTAL A COLOCAR EN CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+          ],
+          [
+            { content: formatUSD(excedenteUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
+          ],
+          [
+            { content: formatBs(excedenteBs), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [46, 125, 50], fontStyle: 'bold', fontSize: 8, halign: 'center' } },
+          ],
+        ],
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 2 },
+        margin: { left: startX, right: pw - startX - columnWidth },
+      });
+    } else if (haySobregiro) {
+      // TOTAL A TOMAR DE CAJA CHICA — solo con sobregiro
+      autoTable(doc, {
+        startY: cardY,
         body: [
           [
             { content: 'TOTAL A TOMAR DE CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
@@ -696,11 +729,18 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
   let maxYThisRow = y;
 
   rows.forEach((row) => {
-    const hasSobregiroBlock = row.left.type === 'resumen' || row.right?.type === 'resumen';
-    const resumenItemCount = hasSobregiroBlock ? (totals?.resumenItems?.length || 0) : 0;
-    const sobregiroExtra = hasSobregiroBlock ? 45 : 0;
+    const hasResumenBlock = row.left.type === 'resumen' || row.right?.type === 'resumen';
+    const resumenItemCount = hasResumenBlock ? (totals?.resumenItems?.length || 0) : 0;
     const itemsExtra = resumenItemCount * 5; // ~5mm por cada item adicional
-    y = ensureSpace(doc, 50 + itemsExtra + sobregiroExtra, maxYThisRow);
+
+    // Calcular espacio de tarjetas dinámicas
+    let cardsExtra = 0;
+    if (hasResumenBlock) {
+      const numCards = (haySobregiro ? 1 : 0) + (totalGastosUSD > 0 ? 1 : 0) + (haySobregiro ? 1 : (excedenteUSD > 0 ? 1 : 0));
+      cardsExtra = numCards > 0 ? numCards * 20 + 5 : 0;
+    }
+
+    y = ensureSpace(doc, 50 + itemsExtra + cardsExtra, maxYThisRow);
 
     if (row.left.type === 'isla') {
       renderIslaBlock(row.left.data, xLeft, y, colW);

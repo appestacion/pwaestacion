@@ -231,13 +231,14 @@ function getShiftDate(supervisorShiftType) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Aplica lecturas heredadas a un turno (bombas + tanques)
+// Aplica lecturas heredadas a un turno (SOLO surtidores/bombas)
+// Los tanques NO se heredan: se miden fisicamente en cada turno.
 // ═══════════════════════════════════════════════════════════
 function applyInheritedReadings(shift, prevReadings) {
   if (!prevReadings) return shift;
   let applied = false;
 
-  // Heredar lecturas de bombas
+  // Heredar SOLO lecturas de surtidores (bombas)
   if (prevReadings.pumpReadings && prevReadings.pumpReadings.length > 0) {
     shift.pumpReadings = shift.pumpReadings.map((reading) => {
       const prev = prevReadings.pumpReadings.find(
@@ -255,23 +256,7 @@ function applyInheritedReadings(shift, prevReadings) {
     });
   }
 
-  // Heredar lecturas de tanque (cm y litros finales → iniciales)
-  if (prevReadings.tankReadings && prevReadings.tankReadings.length > 0) {
-    shift.tankReadings = shift.tankReadings.map((tank) => {
-      const prev = prevReadings.tankReadings.find(
-        (t) => t.tankId === tank.tankId
-      );
-      if (prev && prev.cm && prev.cm > 0) {
-        applied = true;
-        return {
-          ...tank,
-          cm: prev.cm,
-          liters: prev.liters || cmToLiters(prev.cm),
-        };
-      }
-      return tank;
-    });
-  }
+  // Los tanques NO se heredan — empiezan en 0 para medicion fisica
 
   return { shift, applied };
 }
@@ -316,7 +301,7 @@ const useCierreStore = create((set, get) => ({
     if (localReadings) {
       const result = applyInheritedReadings(shift, localReadings);
       if (result.applied) {
-        console.log('[CierreStore] Lecturas heredadas desde localStorage (lecturas de bombas + tanques).');
+        console.log('[CierreStore] Lecturas de surtidores heredadas desde localStorage.');
       } else {
         console.warn('[CierreStore] localStorage tenía datos pero no se aplicaron (finalReading = 0).');
       }

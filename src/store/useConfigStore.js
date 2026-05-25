@@ -140,7 +140,19 @@ const useConfigStore = create(
                 }
               },
               (error) => {
-                console.error('[ConfigStore] Error Firestore onSnapshot:', error);
+                // FIX: React 18 StrictMode dispara onAuthStateChanged 2 veces.
+                // Firestore lanza "Target ID already exists" en la 2da llamada.
+                // No es un error real — ignorar y NO cerrar sesión.
+                if (error.message?.includes('Target ID already exists')) {
+                  console.warn('[ConfigStore] Listener ya activo (HMR/StrictMode), se reutiliza.');
+                  // Limpiar timeout cuando Firestore responde (aunque sea con este "error")
+                  if (loadingTimeoutId) {
+                    clearTimeout(loadingTimeoutId);
+                    loadingTimeoutId = null;
+                  }
+                  return;
+                }
+
                 // Limpiar timeout cuando hay error
                 if (loadingTimeoutId) {
                   clearTimeout(loadingTimeoutId);
@@ -148,12 +160,16 @@ const useConfigStore = create(
                 }
                 // FIX: Si falla por permisos (sin auth), limpiar la suscripcion
                 // para que loadConfig() pueda reintentar despues del login
+                // Esto es COMPORTAMIENTO ESPERADO en cada carga antes del login
                 if (error.code === 'permission-denied') {
                   unsubscribeSnapshot = null;
-                  console.log('[ConfigStore] Se reintentara la conexion a Firestore despues del login.');
-                } else {
-                  unsubscribeSnapshot = null;
+                  console.warn('[ConfigStore] Firestore requiere auth. Se reintentara despues del login.');
+                  return;
                 }
+
+                // Solo loguear como ERROR los errores que NO son esperados
+                console.error('[ConfigStore] Error Firestore onSnapshot:', error);
+                unsubscribeSnapshot = null;
                 // Sin Firestore pero con cache local: seguir funcionando
                 set({ firestoreActive: false, loading: false });
               }

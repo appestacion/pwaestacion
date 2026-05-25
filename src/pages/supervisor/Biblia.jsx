@@ -79,19 +79,30 @@ export default function Biblia() {
     ? (totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD)
     : (bsResumenUSD + totals.totalUsdSinUE + totals.totalPunto + totals.totalUeUSD + itemsTotalUSD);
 
-  // ── Cálculos para tarjetas de sobregiro ──
+  // ── Cálculos para tarjetas dinámicas ──
   const totalGastosUSD = (totals.resumenItems || [])
     .filter(i => i.tipo === 'Gasto')
     .reduce((s, i) => s + i.montoUSD, 0);
+
+  // Neto sin gastos = Total Resumen - gastos
+  const netoSinGastosUSD = totalResumenUSD - totalGastosUSD;
+
+  // Sin sobregiro: excedente = neto sin gastos - valor litros vendidos
+  // Con sobregiro: no aplica (se usa caja chica)
+  const excedenteUSD = !haySobregiro ? Math.max(0, netoSinGastosUSD - (totals.totalLitersRef || 0)) : 0;
+  const excedenteBs = usdToBs(excedenteUSD, tasa1);
+
+  // Con sobregiro: caja chica = sobregiro + gastos
   const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = usdToBs(totalCajaChicaUSD, tasa1);
 
   // ── Cálculos para Comprobación ──
-  // totalLitersRef = totalLitersSold * precioLitroUSD (es el valor USD de los litros)
-  // Para volver a litros: totalLitersRef / precioLitroUSD = totalLitersSold
+  // Sin sobregiro: (Resumen - Gastos) / precio
+  // Con sobregiro: (Resumen - Caja Chica) / precio
   const totalLitersSold = totals.totalLitersRef / (precioLitroUSD || 0.50);
-  const ajustadoUSD = haySobregiro ? (totalResumenUSD - totalCajaChicaUSD) : totalResumenUSD;
-  // CORREGIDO: ajustadoUSD está en USD, para convertir a litros se divide por precioLitroUSD
+  const ajustadoUSD = haySobregiro
+    ? (totalResumenUSD - totalCajaChicaUSD)
+    : netoSinGastosUSD;
   const ajustadoLiters = (precioLitroUSD || 0.50) > 0 ? ajustadoUSD / (precioLitroUSD || 0.50) : 0;
   const comprobacionOk = Math.abs(totalLitersSold - ajustadoLiters) <= 1;
 
@@ -302,17 +313,17 @@ export default function Biblia() {
         ))}
       </Box>
 
-      {/* ═══ Tarjetas de Sobregiro (3 en línea, mismo tamaño) ═══ */}
-      {haySobregiro && (
-        <Box sx={{
-          display: 'flex',
-          gap: 2,
-          mt: 3,
-          mx: 'auto',
-          maxWidth: 900,
-          flexWrap: 'wrap',
-        }}>
-          {/* 1. SOBREGIRO */}
+      {/* ═══ Tarjetas dinámicas (según escenario) ═══ */}
+      <Box sx={{
+        display: 'flex',
+        gap: 2,
+        mt: 3,
+        mx: 'auto',
+        maxWidth: 900,
+        flexWrap: 'wrap',
+      }}>
+        {/* SOBREGIRO — solo si hay sobregiro */}
+        {haySobregiro && (
           <Paper sx={{
             flex: '1 1 0',
             minWidth: 200,
@@ -329,8 +340,10 @@ export default function Biblia() {
               {formatUSD(sobregiroUSD)}
             </Typography>
           </Paper>
+        )}
 
-          {/* 2. TOTAL GASTOS */}
+        {/* TOTAL GASTOS — solo si hay gastos */}
+        {totalGastosUSD > 0 && (
           <Paper sx={{
             flex: '1 1 0',
             minWidth: 200,
@@ -347,8 +360,33 @@ export default function Biblia() {
               {formatUSD(totalGastosUSD)}
             </Typography>
           </Paper>
+        )}
 
-          {/* 3. TOTAL A TOMAR DE CAJA CHICA */}
+        {/* TOTAL A COLOCAR EN CAJA CHICA — sin sobregiro, solo si hay excedente */}
+        {!haySobregiro && excedenteUSD > 0 && (
+          <Paper sx={{
+            flex: '1 1 0',
+            minWidth: 200,
+            p: 2,
+            bgcolor: '#E8F5E9',
+            border: '2px solid #2E7D32',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#2E7D32', letterSpacing: 1 }}>
+              TOTAL A COLOCAR EN CAJA CHICA
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: '#1B5E20', mt: 1 }}>
+              {formatUSD(excedenteUSD)}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#2E7D32', fontWeight: 600, mt: 0.5 }}>
+              {formatBs(excedenteBs)}
+            </Typography>
+          </Paper>
+        )}
+
+        {/* TOTAL A TOMAR DE CAJA CHICA — con sobregiro */}
+        {haySobregiro && (
           <Paper sx={{
             flex: '1 1 0',
             minWidth: 200,
@@ -372,8 +410,8 @@ export default function Biblia() {
               <Typography variant="caption" sx={{ color: '#1565C0' }}>Gastos: {formatUSD(totalGastosUSD)}</Typography>
             </Box>
           </Paper>
-        </Box>
-      )}
+        )}
+      </Box>
 
       {/* ═══ Tarjeta Comprobación (siempre visible, NO aparece en PDF) ═══ */}
       <Paper sx={{
@@ -397,7 +435,13 @@ export default function Biblia() {
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {haySobregiro ? `Resumen − Caja Chica ${factorLabel}` : `Total Resumen ${factorLabel}`}
+              {haySobregiro
+                ? `Resumen − Caja Chica ${factorLabel}`
+                : (totalGastosUSD > 0
+                  ? `Resumen − Gastos ${factorLabel}`
+                  : `Total Resumen ${factorLabel}`
+                )
+              }
             </Typography>
             <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatNumber(ajustadoLiters, 2)} L</Typography>
           </Box>
