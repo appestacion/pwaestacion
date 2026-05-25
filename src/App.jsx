@@ -57,6 +57,7 @@ function AppInitializer({ children }) {
   const config = useConfigStore((state) => state.config);
   const firestoreDataLoaded = useRef(false);
 
+  // Actualizar identidad PWA cuando cambia la config de la estacion
   useEffect(() => {
     if (config.stationName && config.stationName !== 'Mi Estación de Servicio') {
       updatePWAIdentity(
@@ -67,13 +68,15 @@ function AppInitializer({ children }) {
     }
   }, [config.stationName, config.stationColorPrimary, config.stationLogo]);
 
-  // Fase 1: Solo inicializacion que NO requiere auth
+  // Fase 1: Inicializaciones que NO requieren autenticacion
+  // FIX: loadConfig() se llama SIEMPRE, sin importar si hay sesion o no.
   useEffect(() => {
     initNetwork();
     initAuth();
-  }, [initNetwork, initAuth]);
+    loadConfig();
+  }, [initNetwork, initAuth, loadConfig]);
 
-  // Fase 2: Rehabilitar red + cargar datos de Firestore despues de auth
+  // Fase 2: Cargar datos de Firestore que requieren autenticacion
   useEffect(() => {
     if (!isAuthenticated) {
       firestoreDataLoaded.current = false;
@@ -93,7 +96,6 @@ function AppInitializer({ children }) {
           }
         } catch (_) {}
 
-        loadConfig();
         loadProducts();
         loadStock();
         loadIslandStock();
@@ -103,8 +105,9 @@ function AppInitializer({ children }) {
 
       loadFirestoreData();
     }
-  }, [authLoading, isAuthenticated, loadConfig, loadProducts, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
+  }, [authLoading, isAuthenticated, loadProducts, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
 
+  // Solo mostrar spinner si la config no ha terminado de cargar
   if (configLoading) {
     return (
       <Box

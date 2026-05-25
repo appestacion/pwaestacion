@@ -51,6 +51,8 @@ function getPersistedConfig() {
 const _cachedConfig = getPersistedConfig();
 
 let unsubscribeSnapshot = null;
+// FIX: Timeout de seguridad para garantizar que loading pase a false
+let loadingTimeoutId = null;
 
 const useConfigStore = create(
   persist(
@@ -65,6 +67,16 @@ const useConfigStore = create(
         // Evitar suscribirse multiples veces
         if (unsubscribeSnapshot) return;
 
+        // FIX: Timeout de seguridad - si Firestore no responde en 8 segundos,
+        // pasar loading a false para que la app renderice con la config por defecto
+        if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+        loadingTimeoutId = setTimeout(() => {
+          if (get().loading) {
+            console.warn('[ConfigStore] Timeout de seguridad: Firestore no respondio a tiempo. Usando config local.');
+            set({ loading: false });
+          }
+        }, 8000);
+
         if (isFirebaseConfigured()) {
           try {
             const db = getDb();
@@ -73,6 +85,12 @@ const useConfigStore = create(
             unsubscribeSnapshot = onSnapshot(
               configRef,
               (docSnap) => {
+                // Limpiar timeout cuando Firestore responde
+                if (loadingTimeoutId) {
+                  clearTimeout(loadingTimeoutId);
+                  loadingTimeoutId = null;
+                }
+
                 if (docSnap.exists()) {
                   const firestoreData = docSnap.data();
                   const newConfig = {
@@ -123,15 +141,28 @@ const useConfigStore = create(
               },
               (error) => {
                 console.error('[ConfigStore] Error Firestore onSnapshot:', error);
+                // Limpiar timeout cuando hay error
+                if (loadingTimeoutId) {
+                  clearTimeout(loadingTimeoutId);
+                  loadingTimeoutId = null;
+                }
                 // Sin Firestore pero con cache local: seguir funcionando
                 set({ firestoreActive: false, loading: false });
               }
             );
           } catch (error) {
             console.error('[ConfigStore] Error inicializando Firestore:', error);
+            if (loadingTimeoutId) {
+              clearTimeout(loadingTimeoutId);
+              loadingTimeoutId = null;
+            }
             set({ firestoreActive: false, loading: false });
           }
         } else {
+          if (loadingTimeoutId) {
+            clearTimeout(loadingTimeoutId);
+            loadingTimeoutId = null;
+          }
           set({ firestoreActive: false, loading: false });
         }
       },

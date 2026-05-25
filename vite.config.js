@@ -9,24 +9,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icons/*.png', 'logo.svg'],
-      manifest: {
-        name: 'Sistema de Cierre',
-        short_name: 'Cierre',
-        description: 'Sistema de Cierre de Estacion de Servicio PDV Venezuela',
-        start_url: '/',
-        display: 'standalone',
-        background_color: '#F5F5F5',
-        theme_color: '#CE1126',
-        orientation: 'any',
-        icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
+      includeAssets: ['favicon.ico', 'icons/*.png', 'logo.svg', 'PDVSA.png', 'manifest.json'],
+      // FIX: Eliminado el manifest duplicado de aqui.
+      // Ahora solo se usa public/manifest.json como estatico,
+      // y pwaIdentity.js lo sobreescribe dinamicamente desde Firestore.
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
           {

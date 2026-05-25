@@ -14,6 +14,48 @@ let _lastStationName = null;
 let _manifestBlobUrl = null;
 
 /**
+ * Genera un short_name de maximo 12 caracteres a partir del nombre de la estacion.
+ * Reglas:
+ *  - Si el nombre cabe en 12 chars, usarlo tal cual
+ *  - Si no, tomar las primeras letras significativas
+ *  - Minimo 3 caracteres
+ */
+function generateShortName(stationName) {
+  if (!stationName) return 'Cierre';
+  const trimmed = stationName.trim();
+
+  // Si cabe completo, usarlo
+  if (trimmed.length <= 12) return trimmed;
+
+  // Intentar usar la parte despues de "E/S " o similar prefijos
+  const withoutPrefix = trimmed.replace(/^(E\/S|ES)\s*/i, '').trim();
+  if (withoutPrefix.length > 3 && withoutPrefix.length <= 12) return withoutPrefix;
+
+  // Tomar primeras palabras significativas hasta llegar a <= 12
+  const words = withoutPrefix.split(/\s+/).filter(Boolean);
+  let result = '';
+  for (const word of words) {
+    const candidate = result ? `${result} ${word}` : word;
+    if (candidate.length <= 12) {
+      result = candidate;
+    } else {
+      // Agregar primera letra de esta palabra si alcanza
+      if ((result + ' ' + word.charAt(0)).length <= 12) {
+        result += ' ' + word.charAt(0);
+      }
+      break;
+    }
+  }
+
+  // Fallback: primeras 12 caracteres sin cortar palabras a medias si es posible
+  if (!result || result.length < 3) {
+    result = trimmed.substring(0, 12).trim();
+  }
+
+  return result;
+}
+
+/**
  * Actualiza el manifest PWA, el titulo del documento y el favicon
  * con el nombre, color y logo de la estacion.
  *
@@ -26,7 +68,7 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
   _lastStationName = stationName;
 
   // 1. Actualizar el titulo de la pestana del navegador
-  document.title = stationName;
+  document.title = stationName.trim();
 
   // 2. Actualizar el favicon con el logo si existe
   updateFavicon(logoUrl, colorPrimary);
@@ -42,8 +84,8 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
       return;
     }
 
-    // Usar el nombre completo — los móviles modernos muestran hasta ~30 caracteres
-    const shortName = stationName.trim();
+    // Generar short_name de maximo 12 caracteres
+    const shortName = generateShortName(stationName);
 
     // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
     const icons = logoUrl
@@ -58,16 +100,18 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ];
 
-    // start_url debe ser absoluta porque el manifest se sirve como blob URL,
-    // y los navegadores no pueden resolver URLs relativas desde un blob.
+    // FIX: start_url DEBE ser absoluto porque el manifest se sirve como blob URL
+    // Los navegadores no pueden resolver URLs relativas desde un blob:
+    //   "Manifest: property 'start_url' ignored, URL is invalid"
     const origin = window.location.origin;
 
     const dynamicManifest = {
-      name: stationName,
+      name: stationName.trim(),
       short_name: shortName,
-      description: `Sistema de Cierre - ${stationName}`,
+      description: `Sistema de Cierre - ${stationName.trim()}`,
       start_url: `${origin}/`,
-      scope: `${origin}/`,
+      // FIX: NO incluir scope para evitar conflictos con el manifest original
+      // El navegador usara el scope por defecto (directorio del manifest = /)
       display: 'standalone',
       background_color: '#F5F5F5',
       theme_color: colorPrimary || '#CE1126',
@@ -84,7 +128,7 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
     _manifestBlobUrl = URL.createObjectURL(manifestBlob);
     manifestLink.href = _manifestBlobUrl;
 
-    console.log(`[PWA Identity] Manifest actualizado: "${stationName}"${logoUrl ? ' (con logo imgbb)' : ''}`);
+    console.log(`[PWA Identity] Manifest actualizado: "${stationName.trim()}" (short: "${shortName}")${logoUrl ? ' (con logo imgbb)' : ''}`);
   } catch (error) {
     console.error('[PWA Identity] Error actualizando manifest:', error);
   }
@@ -114,7 +158,7 @@ function updateFavicon(logoUrl, colorPrimary) {
     } else {
       // Generar favicon con la inicial del nombre
       const stationName = _lastStationName || 'C';
-      const initial = stationName.charAt(0).toUpperCase();
+      const initial = stationName.trim().charAt(0).toUpperCase();
       const color = colorPrimary || '#CE1126';
       const canvas = document.createElement('canvas');
       canvas.width = 64;

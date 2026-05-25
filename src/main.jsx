@@ -66,6 +66,20 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// ── PWA: Capturar prompt de instalacion para uso futuro ──
+// FIX: NO interceptamos preventDefault() ni llamamos prompt() automaticamente.
+// El prompt() SOLO funciona con un gesto del usuario (clic/tap).
+// Guardamos el evento para que un componente de UI pueda llamarlo
+// cuando el usuario haga clic en un boton "Instalar App".
+window.__deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Guardar el evento SIN llamar preventDefault()
+  // El navegador puede seguir mostrando su banner nativo si lo desea
+  window.__deferredInstallPrompt = e;
+  console.log('[PWA] Prompt de instalacion disponible para usar via boton');
+});
+
 // ── Capturar errores globales que no llegan a React ──
 window.addEventListener('error', (event) => {
   console.error('Error global:', event.error);
