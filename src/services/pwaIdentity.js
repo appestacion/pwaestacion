@@ -44,6 +44,10 @@ export function updatePWAIdentity() {
 
     const origin = window.location.origin;
 
+    // FIX: Usar URLs absolutas (origin + path) para los íconos.
+    // Cuando el manifest se crea como Blob URL, las rutas relativas
+    // como "/LogoMF.jpg" no resuelven correctamente desde blob: origin.
+    // Chrome muestra "Manifest: property 'src' ignored, URL is invalid".
     const dynamicManifest = {
       name: STATION_NAME,
       short_name: STATION_SHORT_NAME,
@@ -54,9 +58,11 @@ export function updatePWAIdentity() {
       theme_color: COLOR_PRIMARY,
       orientation: 'any',
       icons: [
-        { src: DEFAULT_LOGO, sizes: '192x192', type: 'image/jpeg' },
-        { src: DEFAULT_LOGO, sizes: '512x512', type: 'image/jpeg' },
-        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: `${origin}/LogoMF.jpg`, sizes: '192x192', type: 'image/jpeg' },
+        { src: `${origin}/LogoMF.jpg`, sizes: '512x512', type: 'image/jpeg' },
+        { src: `${origin}/icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+        { src: `${origin}/icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
+        { src: `${origin}/icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     };
 

@@ -153,6 +153,10 @@ const useConfigStore = create(
                 if (error.code === 'permission-denied') {
                   unsubscribeSnapshot = null;
                   console.warn('[ConfigStore] Firestore requiere auth. Se reintentara despues del login.');
+                  // FIX CRÍTICO: Poner loading: false para que el spinner se quite.
+                  // Sin esto, la app queda en spinner infinito porque el usuario
+                  // no está autenticado y Firestore rechaza la lectura.
+                  set({ loading: false });
                   return;
                 }
 
