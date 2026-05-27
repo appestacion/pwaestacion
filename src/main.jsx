@@ -23,6 +23,14 @@ class ErrorBoundary extends React.Component {
     window.location.reload();
   };
 
+  handleClearCache = () => {
+    if (window.forceReload) {
+      window.forceReload();
+    } else {
+      window.location.reload();
+    }
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -36,28 +44,45 @@ class ErrorBoundary extends React.Component {
           fontFamily: 'Inter, system-ui, sans-serif',
           backgroundColor: '#F5F5F5',
         }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>⚠️</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>&#9888;&#65039;</div>
           <h2 style={{ color: '#CE1126', marginBottom: 8, fontSize: 20 }}>Error en la aplicación</h2>
           <p style={{ color: '#666', textAlign: 'center', marginBottom: 24, fontSize: 14, maxWidth: 320 }}>
-            Ocurrió un error inesperado. Esto puede deberse a una conexión interrumpida.
+            Ocurrió un error inesperado. Esto puede deberse a una conexión interrumpida o a una versión antigua en caché.
           </p>
-          <button
-            onClick={this.handleReload}
-            style={{
-              padding: '12px 32px',
-              backgroundColor: '#CE1126',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Recargar
-          </button>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              onClick={this.handleClearCache}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#CE1126',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Borrar caché y recargar
+            </button>
+            <button
+              onClick={this.handleReload}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#666',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Recargar
+            </button>
+          </div>
           <p style={{ color: '#999', marginTop: 16, fontSize: 11 }}>
-            Si el problema persiste, borra los datos del sitio en la configuración del navegador.
+            Si el problema persiste, borre los datos del sitio en la configuración del navegador.
           </p>
         </div>
       );
@@ -89,6 +114,21 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('Promise rechazada sin manejar:', event.reason);
 });
 
+// ── Ocultar el loader inicial de index.html cuando React monte ──
+// Esto garantiza que el spinner inline desaparezca una vez que la app carga correctamente
+function hideInitialLoader() {
+  const loader = document.getElementById('initial-loader');
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => {
+      loader.remove();
+    }, 300);
+  }
+  // FIX: Señal para el timeout de index.html de que la app montó correctamente
+  window.__APP_MOUNTED = true;
+}
+
+// ── Montar la aplicación ──
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <React.StrictMode>
@@ -96,3 +136,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </React.StrictMode>
   </ErrorBoundary>
 );
+
+// Ocultar el loader inmediatamente después de montar React
+// Usamos requestAnimationFrame para asegurar que el DOM ya fue pintado
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    hideInitialLoader();
+  });
+});

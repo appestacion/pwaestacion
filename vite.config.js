@@ -16,6 +16,19 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         navigateFallback: '/index.html',
+        // FIX: Activar inmediatamente el nuevo Service Worker sin esperar a que se cierren todas las pestañas.
+        // Sin esto, el SW viejo sigue sirviendo index.html con hashes de JS antiguos,
+        // lo que produce el error MIME type "text/html" cuando el navegador pide un JS que ya no existe.
+        skipWaiting: true,
+        // FIX: El nuevo SW toma control de todos los clientes inmediatamente.
+        // Sin esto, las pestañas abiertas siguen usando el SW viejo hasta recargar.
+        clientsClaim: true,
+        // FIX: Eliminar caches de versiones anteriores del Service Worker.
+        // Sin esto, los precache viejos acumulan y pueden causar conflictos.
+        cleanupOutdatedCaches: true,
+        // FIX: Limitar el numero de caches para evitar llenar el almacenamiento del navegador
+        // y que el navegador evicte caches de forma impredecible (lo que causa el MIME error).
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB max por archivo
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -43,6 +56,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
   },
 });

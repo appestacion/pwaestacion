@@ -7,14 +7,156 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- FIX: Prevenir cache del HTML en el navegador (belt-and-suspenders con netlify.toml) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>Sistema de Cierre</title>
+    <!-- FIX: Fallback inline spinner que se muestra ANTES de que React monte.
+         Si el JS falla por error MIME, el usuario verá este mensaje en vez de
+         una pantalla blanca o un spinner infinito del navegador. -->
+    <style>
+      #initial-loader {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #F5F5F5;
+        z-index: 9999;
+        font-family: 'Inter', system-ui, sans-serif;
+        transition: opacity 0.3s ease;
+      }
+      #initial-loader .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #E0E0E0;
+        border-top-color: #CE1126;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 16px;
+      }
+      #initial-loader p {
+        color: #666;
+        font-size: 14px;
+      }
+      #initial-loader .error-msg {
+        display: none;
+        color: #CE1126;
+        font-size: 14px;
+        text-align: center;
+        max-width: 300px;
+        line-height: 1.5;
+      }
+      #initial-loader .error-msg button {
+        margin-top: 16px;
+        padding: 10px 24px;
+        background-color: #CE1126;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
+    <!-- Loader inicial: visible hasta que React monte y lo oculte -->
+    <div id="initial-loader">
+      <div class="spinner"></div>
+      <p>Cargando...</p>
+      <div class="error-msg" id="js-load-error">
+        <strong>Error al cargar la aplicación</strong><br>
+        Es posible que tenga una versión antigua en caché.<br>
+        <button onclick="forceReload()">Borrar caché y recargar</button>
+      </div>
+    </div>
     <div id="root"></div>
+
+    <!-- FIX: Detección de error de carga de módulos JS (MIME type error).
+         Si el script type="module" falla, mostramos el mensaje de error inline
+         y ofrecemos borrar el caché del service worker. -->
+    <script>
+      (function() {
+        var errorShown = false;
+        var timer = setTimeout(function() {
+          if (!errorShown && !window.__APP_MOUNTED) {
+            // Si despues de 15 segundos la app no ha montado, asumimos error
+            showLoadError();
+          }
+        }, 15000);
+
+        function showLoadError() {
+          if (errorShown) return;
+          errorShown = true;
+          clearTimeout(timer);
+          var spinner = document.querySelector('#initial-loader .spinner');
+          var loadingText = document.querySelector('#initial-loader p');
+          var errorMsg = document.getElementById('js-load-error');
+          if (spinner) spinner.style.display = 'none';
+          if (loadingText) loadingText.style.display = 'none';
+          if (errorMsg) errorMsg.style.display = 'block';
+        }
+
+        // Detectar errores de carga de scripts (incluye MIME type errors)
+        window.addEventListener('error', function(e) {
+          if (e.target && e.target.tagName === 'SCRIPT') {
+            console.error('[PWA] Error cargando script:', e.target.src, e.message);
+            showLoadError();
+          }
+        }, true); // true = capture phase para atrapar errores de script
+
+        window.__forceReloadApp = function() {
+          forceReload();
+        };
+
+        window.forceReload = function() {
+          // 1. Desregistrar el service worker viejo
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              registrations.forEach(function(reg) {
+                reg.unregister();
+              });
+              // 2. Borrar caches
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  names.forEach(function(name) {
+                    caches.delete(name);
+                  });
+                  // 3. Recargar limpio
+                  window.location.reload();
+                });
+              } else {
+                window.location.reload();
+              }
+            }).catch(function() {
+              window.location.reload();
+            });
+          } else {
+            window.location.reload();
+          }
+        };
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
+
+    <noscript>
+      <div style="text-align:center;padding:3rem;font-family:sans-serif;background:#F5F5F5;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+        <div>
+          <h2 style="color:#CE1126;margin-bottom:8px;">JavaScript Requerido</h2>
+          <p style="color:#666;">Esta aplicación requiere JavaScript para funcionar. Por favor active JavaScript en su navegador.</p>
+        </div>
+      </div>
+    </noscript>
   </body>
 </html>
