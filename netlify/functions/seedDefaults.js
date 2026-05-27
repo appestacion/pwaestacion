@@ -1,15 +1,14 @@
 // netlify/functions/seedDefaults.js
-// Siembra datos iniciales en Firestore: usuarios, configuración y productos.
+// Siembra datos iniciales en Firestore: configuración y productos.
 // Solo se ejecuta si los datos no existen (idempotente).
 //
+// IDENTIDAD HARDCODEADA para E/S Montaña Fresca.
+// NOTA: Ya NO se crean usuarios aquí. Los usuarios se gestionan
+//       directamente desde Firebase Console por el administrador.
+//
 // SEGURIDAD v2:
-//   - Contraseñas cargadas desde variables de entorno (NO hardcodeadas)
 //   - CORS dinámico
 //   - Errores sanitizados (no expone detalles internos)
-//   - Variables de entorno requeridas:
-//       SEED_ADMIN_PASSWORD  (contraseña del admin)
-//       SEED_SUPERVISOR_PASSWORD (contraseña del supervisor)
-//       Si no están configuradas, NO se crean usuarios.
 
 import admin from 'firebase-admin';
 import { getCorsHeaders, handlePreflight, errorResponse } from '../lib/cors.js';
@@ -44,7 +43,7 @@ export const handler = async (event) => {
     const admin = getApp();
     const adminAuth = admin.auth();
     const adminDb = admin.firestore();
-    const results = { users: [], config: false, products: 0 };
+    const results = { config: false, products: 0, messages: [] };
 
     // ── Verificar autenticación de administrador ──
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
@@ -91,83 +90,24 @@ export const handler = async (event) => {
       { name: 'EXTINTOR PELOTA', category: 'extintor', priceUSD: 15.00 },
     ];
 
-    // ── Seed admin (solo si SEED_ADMIN_PASSWORD está configurada) ──
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-    if (adminPassword) {
-      try {
-        const adminUser = await adminAuth.getUserByEmail('admin@pdv-smf.com');
-        if (!adminUser) throw new Error('not found');
-        results.users.push('Admin ya existe');
-      } catch {
-        const adminRecord = await adminAuth.createUser({
-          email: 'admin@pdv-smf.com',
-          password: adminPassword,
-          displayName: 'Administrador',
-        });
-        await adminDb.collection('users').doc(adminRecord.uid).set({
-          name: 'Administrador',
-          email: 'admin@pdv-smf.com',
-          role: 'administrador',
-          active: true,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        results.users.push('Admin creado (admin@pdv-smf.com)');
-      }
-    } else {
-      results.users.push('Admin NO creado: SEED_ADMIN_PASSWORD no configurada en Netlify');
-    }
-
-    // ── Seed supervisor (solo si SEED_SUPERVISOR_PASSWORD está configurada) ──
-    const supervisorPassword = process.env.SEED_SUPERVISOR_PASSWORD;
-    if (supervisorPassword) {
-      try {
-        const supUser = await adminAuth.getUserByEmail('supervisor@pdv-smf.com');
-        if (!supUser) throw new Error('not found');
-        results.users.push('Supervisor ya existe');
-      } catch {
-        const supRecord = await adminAuth.createUser({
-          email: 'supervisor@pdv-smf.com',
-          password: supervisorPassword,
-          displayName: 'Supervisor Turno',
-        });
-        await adminDb.collection('users').doc(supRecord.uid).set({
-          name: 'Supervisor Turno',
-          email: 'supervisor@pdv-smf.com',
-          role: 'supervisor',
-          active: true,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        results.users.push('Supervisor creado (supervisor@pdv-smf.com)');
-      }
-    } else {
-      results.users.push('Supervisor NO creado: SEED_SUPERVISOR_PASSWORD no configurada en Netlify');
-    }
-
-    // ── Seed config ──
+    // ── Seed config — HARDCODEADO para E/S Montaña Fresca ──
+    // Solo campos operativos (tasas, dimensiones de estación).
+    // Los campos de identidad (nombre, RIF, dirección, teléfono) ya están
+    // hardcodeados en el frontend como constantes.
     const configDoc = await adminDb.collection('settings').doc('app_config').get();
     if (!configDoc.exists) {
       await adminDb.collection('settings').doc('app_config').set({
         tasa1: 50.00,
         tasa2: 0,
-        stationName: 'Mi Estacion de Servicio',
-        stationRif: 'J-00000000-0',
-        stationAddress: 'Venezuela',
-        stationPhone: '',
-        stationLogo: '',
-        stationColorPrimary: '#CE1126',
-        stationColorSecondary: '#003399',
-        stationColorAccent: '#FFD100',
         tanksCount: 3,
         islandsCount: 3,
         pumpsPerIsland: 2,
         maxCortes: 12,
       });
       results.config = true;
-      results.users.push('Configuracion creada');
+      results.messages.push('Configuracion operativa creada');
     } else {
-      results.users.push('Configuracion ya existe');
+      results.messages.push('Configuracion ya existe');
     }
 
     // ── Seed products ──
@@ -184,9 +124,9 @@ export const handler = async (event) => {
       }
       await batch.commit();
       results.products = PRODUCTS_LIST.length;
-      results.users.push(PRODUCTS_LIST.length + ' productos creados');
+      results.messages.push(PRODUCTS_LIST.length + ' productos creados');
     } else {
-      results.users.push(productsSnapshot.size + ' productos ya existen');
+      results.messages.push(productsSnapshot.size + ' productos ya existen');
     }
 
     return {

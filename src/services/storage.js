@@ -1,23 +1,25 @@
 // src/services/storage.js
-// Claves de localStorage y datos iniciales por defecto (sin usuarios)
+// Claves de localStorage y datos iniciales por defecto.
+// E/S Montaña Fresca — Identidad exclusiva.
 
 import { PRODUCTS_LIST, DEFAULT_PRODUCT_PRICES } from '../config/constants.js';
 
 export const STORAGE_KEYS = {
-  USERS: 'pdv_users',
-  PRODUCTS: 'pdv_products',
-  SHIFTS: 'pdv_shifts',
-  CURRENT_SHIFT: 'pdv_current_shift',
-  INVENTORY: 'pdv_inventory_stock',
-  CONFIG: 'pdv_config',
-  AUTH: 'pdv_auth',
-  GANDOLA_CURRENT: 'pdv_gandola_current',
-  GANDOLA_HISTORY: 'pdv_gandola_history',
+  USERS: 'mf_users',
+  PRODUCTS: 'mf_products',
+  SHIFTS: 'mf_shifts',
+  CURRENT_SHIFT: 'mf_current_shift',
+  INVENTORY: 'mf_inventory_stock',
+  CONFIG: 'mf_config',
+  AUTH: 'mf_auth',
+  GANDOLA_CURRENT: 'mf_gandola_current',
+  GANDOLA_HISTORY: 'mf_gandola_history',
 };
 
 /**
  * Inicializar datos por defecto en localStorage si no existen.
  * NO incluye usuarios: esos se gestionan exclusivamente via Firebase Authentication.
+ * NO incluye campos de identidad: están hardcodeados como constantes en STATION_IDENTITY.
  *
  * IMPORTANTE: Tambien verifica que los datos no sean arrays/objetos vacios,
  * ya que el listener de Firestore puede haber sobrescrito con datos vacios.
@@ -98,19 +100,12 @@ export function initDefaultData() {
     }
   }
 
-  // Inicializar configuracion por defecto
+  // Inicializar config operativa (solo campos dinámicos — sin campos de identidad)
   if (!localStorage.getItem(STORAGE_KEYS.CONFIG)) {
     const config = {
       tasa1: 50.00,
       tasa2: 0,
-      stationName: 'Mi Estación de Servicio',
-      stationRif: 'J-00000000-0',
-      stationAddress: 'Venezuela',
-      stationPhone: '',
-      stationLogo: '',
-      stationColorPrimary: '#CE1126',
-      stationColorSecondary: '#003399',
-      stationColorAccent: '#FFD100',
+      precioLitroUSD: 0.50,
       tanksCount: 3,
       islandsCount: 3,
       pumpsPerIsland: 2,

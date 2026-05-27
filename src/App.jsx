@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -58,16 +59,10 @@ function AppInitializer({ children }) {
   const config = useConfigStore((state) => state.config);
   const firestoreDataLoaded = useRef(false);
 
-  // Actualizar identidad PWA cuando cambia la config de la estacion
+  // Actualizar identidad PWA siempre (identidad hardcodeada para Montaña Fresca)
   useEffect(() => {
-    if (config.stationName && config.stationName !== 'Mi Estación de Servicio') {
-      updatePWAIdentity(
-        config.stationName,
-        config.stationColorPrimary,
-        config.stationLogo
-      );
-    }
-  }, [config.stationName, config.stationColorPrimary, config.stationLogo]);
+    updatePWAIdentity();
+  }, [config.stationLogo]);
 
   // Fase 1: Inicializaciones que NO requieren autenticacion
   useEffect(() => {
@@ -77,8 +72,6 @@ function AppInitializer({ children }) {
   }, [initNetwork, initAuth, loadConfig]);
 
   // FIX: Reintentar conexion a Firestore despues del login
-  // Si loadConfig() fallo por permisos antes de login, ahora reintentara
-  // porque unsubscribeSnapshot se limpio en el error handler de useConfigStore
   useEffect(() => {
     if (isAuthenticated && !authLoading && !configFirestoreActive) {
       loadConfig();

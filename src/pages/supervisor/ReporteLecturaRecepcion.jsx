@@ -12,7 +12,6 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useGandolaStore } from '../../store/useGandolaStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
@@ -333,24 +332,18 @@ export default function ReporteLecturaRecepcion() {
       {/* ── Encabezado con Logo ── */}
       <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {config.stationLogo ? (
-            <Avatar
-              src={config.stationLogo}
-              alt={config.stationName}
-              sx={{ width: 64, height: 64, borderRadius: 1.5 }}
-              variant="rounded"
-            />
-          ) : (
-            <Box sx={{ width: 64, height: 64, borderRadius: 1.5, bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.500' }} />
-            </Box>
-          )}
+          <Avatar
+            src={config.stationLogo || '/LogoMF.jpg'}
+            alt={config.stationName || 'E/S Montaña Fresca'}
+            sx={{ width: 64, height: 64, borderRadius: 1.5 }}
+            variant="rounded"
+          />
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>
               Reporte Lectura y Recepción
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {config.stationName}{config.stationRif !== 'J-00000000-0' ? ` — ${config.stationRif}` : ''}
+              E/S Montaña Fresca — RIF: J-30894985-2
             </Typography>
           </Box>
         </Box>

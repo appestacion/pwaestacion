@@ -561,7 +561,7 @@ export default function Inventario() {
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>Inventario</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {config.stationName}{config.stationRif !== 'J-00000000-0' ? ` — ${config.stationRif}` : ''}
+              {config.stationName} — {config.stationRif}
             </Typography>
           </Box>
         </Box>

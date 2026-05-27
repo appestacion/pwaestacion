@@ -1,4 +1,7 @@
 // src/pages/admin/Configuracion.jsx
+// Panel de configuración exclusivo para E/S Montaña Fresca.
+// Solo campos operativos: tasas, dimensiones de estación.
+// La identidad está hardcodeada y no se muestra como configurable.
 import React, { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -7,41 +10,21 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
-import Divider from '@mui/material/Divider';
-import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import Switch from '@mui/material/Switch';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import DeleteIcon from '@mui/icons-material/Delete';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import SyncIcon from '@mui/icons-material/Sync';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
-import CircularProgress from '@mui/material/CircularProgress';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useConfigStore } from '../../store/useConfigStore.js';
-import { uploadImageToImgbb } from '../../lib/imgbbUpload.js';
 import { enqueueSnackbar } from 'notistack';
 
 export default function Configuracion() {
   const { config, firestoreActive, loadConfig, updateConfig, resetConfig } = useConfigStore();
-  const fileInputRef = useRef(null);
-  const [preview, setPreview] = useState('');
-  const [uploading, setUploading] = useState(false);
   const [showResetButton, setShowResetButton] = useState(false);
 
   useEffect(() => {
     loadConfig();
-    // NO hacer cleanup del listener aqui — el listener global vive en AppInitializer
-    // para toda la sesion de la app. Hacer cleanup aqui mataba la conexion a Firestore
-    // cuando el usuario navegaba fuera de esta pagina.
   }, [loadConfig]);
-
-  useEffect(() => {
-    if (config.stationLogo) {
-      setPreview(config.stationLogo);
-    }
-  }, [config.stationLogo]);
 
   const formatLastUpdate = () => {
     if (!config.lastRateUpdate) return null;
@@ -57,55 +40,9 @@ export default function Configuracion() {
 
   const lastUpdateStr = formatLastUpdate();
 
-  const handleLogoUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      enqueueSnackbar({ message: 'Solo se permiten archivos de imagen', variant: 'error' });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      enqueueSnackbar({ message: 'La imagen no debe superar 5MB', variant: 'error' });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const localPreview = URL.createObjectURL(file);
-      setPreview(localPreview);
-
-      const result = await uploadImageToImgbb(file);
-
-      updateConfig({ stationLogo: result.url });
-
-      enqueueSnackbar({
-        message: 'Logo subido a imgbb correctamente',
-        variant: 'success',
-      });
-    } catch (error) {
-      console.error('Error subiendo logo:', error);
-      setPreview(config.stationLogo || '');
-      enqueueSnackbar({
-        message: `Error al subir imagen: ${error.message}`,
-        variant: 'error',
-      });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleRemoveLogo = () => {
-    setPreview('');
-    updateConfig({ stationLogo: '' });
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    enqueueSnackbar({ message: 'Logo eliminado', variant: 'info' });
-  };
-
   const handleReset = () => {
     if (window.confirm('¿Estás seguro de restaurar la configuración por defecto? Se perderán todos los cambios.')) {
       resetConfig();
-      setPreview('');
       enqueueSnackbar({ message: 'Configuración restaurada por defecto', variant: 'info' });
     }
   };
@@ -123,134 +60,9 @@ export default function Configuracion() {
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Configuración</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Personaliza el sistema con los datos de tu estación de servicio
+          Parámetros operativos de E/S Montaña Fresca
         </Typography>
       </Box>
-
-      {/* Station Identity */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'primary.main' }}>
-            Identidad de la Estación
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nombre de la Estación"
-                value={config.stationName}
-                onChange={(e) => updateConfig({ stationName: e.target.value })}
-                placeholder="Ej: Estación de Servicio Los Andes"
-                helperText="Este nombre aparecerá en toda la aplicación y en los PDFs generados"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="RIF"
-                value={config.stationRif}
-                onChange={(e) => updateConfig({ stationRif: e.target.value })}
-                placeholder="Ej: J-12345678-9"
-                helperText="Registro de Información Fiscal"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Dirección"
-                value={config.stationAddress}
-                onChange={(e) => updateConfig({ stationAddress: e.target.value })}
-                placeholder="Ej: Av. Principal, Caracas, Venezuela"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Teléfono"
-                value={config.stationPhone}
-                onChange={(e) => updateConfig({ stationPhone: e.target.value })}
-                placeholder="Ej: +58 212-1234567"
-              />
-            </Grid>
-          </Grid>
-
-          {/* Logo */}
-          <Divider sx={{ my: 3 }} />
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700 }}>
-            Logo de la Estación
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-            <Box sx={{ position: 'relative' }}>
-              {preview ? (
-                <Avatar
-                  src={preview}
-                  alt={config.stationName}
-                  sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100' }}
-                  variant="rounded"
-                />
-              ) : (
-                <Box
-                  sx={{
-                    width: 80, height: 80, borderRadius: 2, bgcolor: 'grey.100',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.400' }} />
-                </Box>
-              )}
-              {uploading && (
-                <Box
-                  sx={{
-                    position: 'absolute', inset: 0, borderRadius: 2,
-                    bgcolor: 'rgba(0,0,0,0.4)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <CircularProgress size={28} sx={{ color: 'white' }} />
-                </Box>
-              )}
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleLogoUpload}
-                disabled={uploading}
-              />
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={uploading ? <CircularProgress size={16} /> : <CloudUploadIcon />}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? 'Subiendo a imgbb...' : 'Subir Logo'}
-              </Button>
-              {preview && !uploading && (
-                <Button
-                  variant="text"
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleRemoveLogo}
-                >
-                  Eliminar Logo
-                </Button>
-              )}
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Imagen PNG o JPG, máximo 5MB. Se guarda en imgbb (nube).
-              </Typography>
-              {preview && !preview.startsWith('blob:') && (
-                <Typography variant="caption" sx={{ color: 'success.main' }}>
-                  Imagen hospedada en imgbb
-                </Typography>
-              )}
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
 
       {/* Exchange Rate */}
       <Card sx={{ mb: 3 }}>
@@ -279,15 +91,9 @@ export default function Configuracion() {
           </Box>
 
           {firestoreActive && (
-            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Rotación automática de tasas
-              </Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                Cada vez que la API actualiza: tasa2 actual pasa a tasa1, y la nueva tasa se guarda como tasa2.
-                Horario: Todos los días a las 11:45 PM.
-              </Typography>
-            </Alert>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              Rotación automática de tasas: cada vez que la API actualiza, tasa2 actual pasa a tasa1 y la nueva tasa se guarda como tasa2. Horario: Todos los días a las 11:45 PM.
+            </Typography>
           )}
 
           <Grid container spacing={2}>
@@ -435,10 +241,13 @@ export default function Configuracion() {
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                <strong>Sistema de Cierre de Estación de Servicio</strong> v1.0.0
+                <strong>E/S Montaña Fresca</strong> — Sistema de Gestión v1.0.0
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Aplicación PWA para gestión de cierres de turno, lecturas de surtidores y tanques, control financiero (Biblia, Cuadre PV), inventario de productos, recepción de gandolas y generación de reportes en PDF.
+                Aplicación PWA exclusiva para E/S Montaña Fresca (RIF: J-30894985-2). Gestión de cierres de turno, lecturas de surtidores y tanques, control financiero (Biblia, Cuadre PV), inventario de productos, recepción de gandolas y generación de reportes en PDF.
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Ubicación: AV. CASANOVA GODOY ZONA INDUSTRIAL, Aragua - Venezuela
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Configuración de turnos: Supervisor (6:00 AM - 2:00 PM / 2:00 PM - 10:00 PM), Operadores (7:00 AM - 7:00 PM / 7:00 PM - 7:00 AM).

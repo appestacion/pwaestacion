@@ -1,12 +1,13 @@
 // netlify/functions/deleteUser.js
 // Elimina un usuario de Firebase Auth y su perfil de Firestore.
 // Requiere autenticación de administrador.
-// Protege al administrador principal de ser eliminado.
+// Protege a TODOS los administradores de ser eliminados (por rol, no por email).
 //
 // SEGURIDAD v2:
 //   - CORS dinámico (origen solicitado)
 //   - Errores sanitizados (no expone detalles internos)
 //   - Protección contra auto-eliminación
+//   - Protección de administradores por rol
 
 import admin from 'firebase-admin';
 import { getCorsHeaders, handlePreflight, errorResponse } from '../lib/cors.js';
@@ -73,10 +74,10 @@ export const handler = async (event) => {
       return errorResponse(400, 'No puedes eliminar tu propia cuenta', event);
     }
 
-    // ── Proteger al administrador principal ──
+    // ── Proteger a TODOS los administradores (por rol, no por email) ──
     const userDoc = await adminDb.collection('users').doc(uid).get();
-    if (userDoc.exists && userDoc.data().email === 'admin@pdv-smf.com') {
-      return errorResponse(403, 'No se puede eliminar el administrador principal', event);
+    if (userDoc.exists && userDoc.data().role === 'administrador') {
+      return errorResponse(403, 'No se puede eliminar un usuario con rol de administrador', event);
     }
 
     // ── Borrado seguro: Auth primero (impide login), luego Firestore ──

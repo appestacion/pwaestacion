@@ -1,4 +1,5 @@
 // src/components/layout/Sidebar.jsx
+// Sidebar exclusivo para E/S Montaña Fresca.
 import React from 'react';
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -28,7 +29,6 @@ import CategoryIcon from '@mui/icons-material/Category';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CloseIcon from '@mui/icons-material/Close';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import HistoryIcon from '@mui/icons-material/History';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -69,6 +69,9 @@ export default function Sidebar() {
   const user = useStore((state) => state.user);
   const config = useConfigStore((state) => state.config);
 
+  // Logo: prioridad imgbb > LogoMF.jpg local
+  const logoSrc = config.stationLogo || '/LogoMF.jpg';
+
   const handleNavigate = (path) => {
     navigate(path);
     if (isMobile) {
@@ -97,28 +100,12 @@ export default function Sidebar() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {config.stationLogo ? (
-            <Avatar
-              src={config.stationLogo}
-              alt={config.stationName}
-              sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: 'grey.100' }}
-              variant="rounded"
-            />
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 40,
-                height: 40,
-                borderRadius: '10px',
-                bgcolor: 'primary.main',
-              }}
-            >
-              <LocalGasStationIcon sx={{ color: 'white', fontSize: 24 }} />
-            </Box>
-          )}
+          <Avatar
+            src={logoSrc}
+            alt="E/S Montaña Fresca"
+            sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: 'grey.100' }}
+            variant="rounded"
+          />
           <Box>
             <Typography
               variant="subtitle1"
@@ -133,10 +120,10 @@ export default function Sidebar() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {config.stationName}
+              E/S Montaña Fresca
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-              Sistema de Cierre de Turno
+              RIF: J-30894985-2
             </Typography>
           </Box>
         </Box>

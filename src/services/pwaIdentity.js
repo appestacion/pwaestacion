@@ -1,132 +1,63 @@
 /**
  * pwaIdentity.js
  *
- * Actualiza dinamicamente la identidad de la PWA:
- * - Nombre de la app (manifest + titulo)
- * - Iconos (si hay logo subido a imgbb)
- * - Favicon del navegador
- * - Splash screen (via manifest)
- *
- * Se ejecuta despues de que loadConfig() carga la config desde Firestore.
+ * Identidad PWA exclusiva para E/S Montaña Fresca.
+ * Todos los valores son constantes fijas.
+ * Se ejecuta una sola vez al cargar la app.
  */
 
-let _lastStationName = null;
+const STATION_NAME = 'E/S Montaña Fresca';
+const STATION_SHORT_NAME = 'Montaña Fresca';
+const STATION_RIF = 'J-30894985-2';
+const STATION_ADDRESS = 'AV. CASANOVA GODOY ZONA INDUSTRIAL, Aragua - Venezuela';
+const STATION_PHONE = '0424 3036024';
+const DEFAULT_LOGO = '/LogoMF.jpg';
+const COLOR_PRIMARY = '#CE1126';
+
+let _initialized = false;
 let _manifestBlobUrl = null;
 
 /**
- * Genera un short_name optimizado para mostrar bajo el icono del movil.
- * Prioridad: intentar mostrar "E/S" + primera palabra del nombre.
- * Limite: 12 caracteres para compatibilidad con la mayoria de launchers.
+ * Inicializa la identidad PWA con los valores fijos de E/S Montaña Fresca.
+ * Solo se ejecuta una vez (idempotente).
  */
-function generateShortName(stationName) {
-  if (!stationName) return 'Cierre';
-  const trimmed = stationName.trim();
+export function updatePWAIdentity() {
+  if (_initialized) return;
+  _initialized = true;
 
-  // Si ya empieza con "E/S" o "ES", usarlo como base
-  const esMatch = trimmed.match(/^(E\/S|ES)\s+(.+)/i);
-  if (esMatch) {
-    const prefix = 'E/S ';
-    const rest = esMatch[2].trim();
-    // Tomar la mayor parte del resto que quepa despues de "E/S "
-    const maxRest = 12 - prefix.length; // 12 - 4 = 8
-    if (rest.length <= maxRest) {
-      return prefix + rest; // "E/S Montaña" = 12 chars
-    }
-    // Cortar la segunda palabra con punto
-    const words = rest.split(/\s+/);
-    if (words.length >= 2) {
-      const candidate = prefix + words[0]; // "E/S Montaña"
-      if (candidate.length <= 12) return candidate;
-      // Si ni siquiera la primera palabra cabe, abreviar
-      const abbr = prefix + words[0].substring(0, maxRest - 1) + '.';
-      return abbr.length <= 12 ? abbr : candidate.substring(0, 12);
-    }
-    // Una sola palabra despues de E/S
-    return (prefix + rest.substring(0, maxRest)).substring(0, 12);
-  }
+  // 1. Actualizar el título de la pestaña del navegador
+  document.title = STATION_NAME;
 
-  // No tiene prefijo E/S - usar logica normal
-  if (trimmed.length <= 12) return trimmed;
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  let result = '';
-  for (const word of words) {
-    const candidate = result ? `${result} ${word}` : word;
-    if (candidate.length <= 12) {
-      result = candidate;
-    } else {
-      if ((result + ' ' + word.charAt(0)).length <= 12) {
-        result += ' ' + word.charAt(0);
-      }
-      break;
-    }
-  }
-
-  if (!result || result.length < 3) {
-    result = trimmed.substring(0, 12).trim();
-  }
-
-  return result;
-}
-
-/**
- * Actualiza el manifest PWA, el titulo del documento y el favicon
- * con el nombre, color y logo de la estacion.
- *
- * @param {string} stationName - Nombre de la estacion
- * @param {string} [colorPrimary] - Color primario para theme_color
- * @param {string} [logoUrl] - URL del logo (imgbb) para usar como icono
- */
-export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
-  if (!stationName || stationName === _lastStationName) return;
-  _lastStationName = stationName;
-
-  // 1. Actualizar el titulo de la pestana del navegador
-  document.title = stationName.trim();
-
-  // 2. Actualizar el favicon con el logo si existe
-  updateFavicon(logoUrl, colorPrimary);
+  // 2. Actualizar el favicon
+  updateFavicon(DEFAULT_LOGO);
 
   // 3. Actualizar apple-touch-icon
-  updateAppleTouchIcon(logoUrl);
+  updateAppleTouchIcon(DEFAULT_LOGO);
 
-  // 4. Crear un manifest dinamico con el nombre y logo de la estacion
+  // 4. Crear manifest dinámico con la identidad fija
   try {
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (!manifestLink) {
-      console.warn('[PWA Identity] No se encontro <link rel="manifest">');
+      console.warn('[PWA Identity] No se encontró <link rel="manifest">');
       return;
     }
 
-    // Generar short_name optimizado
-    const shortName = generateShortName(stationName);
-
-    // Iconos: si hay logo de imgbb, usarlo; si no, usar los iconos por defecto
-    const icons = logoUrl
-      ? [
-          { src: logoUrl, sizes: '192x192', type: 'image/png' },
-          { src: logoUrl, sizes: '512x512', type: 'image/png' },
-          { src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ]
-      : [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ];
-
-    // FIX: start_url DEBE ser absoluto porque el manifest se sirve como blob URL
     const origin = window.location.origin;
 
     const dynamicManifest = {
-      name: stationName.trim(),
-      short_name: shortName,
-      description: `Sistema de Cierre - ${stationName.trim()}`,
+      name: STATION_NAME,
+      short_name: STATION_SHORT_NAME,
+      description: `E/S Montaña Fresca — ${STATION_RIF} — Sistema de Cierre de Turno`,
       start_url: `${origin}/`,
       display: 'standalone',
       background_color: '#F5F5F5',
-      theme_color: colorPrimary || '#CE1126',
+      theme_color: COLOR_PRIMARY,
       orientation: 'any',
-      icons,
+      icons: [
+        { src: DEFAULT_LOGO, sizes: '192x192', type: 'image/jpeg' },
+        { src: DEFAULT_LOGO, sizes: '512x512', type: 'image/jpeg' },
+        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
     };
 
     const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
@@ -138,7 +69,7 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
     _manifestBlobUrl = URL.createObjectURL(manifestBlob);
     manifestLink.href = _manifestBlobUrl;
 
-    console.log(`[PWA Identity] Manifest actualizado: "${stationName.trim()}" (short: "${shortName}")${logoUrl ? ' (con logo imgbb)' : ''}`);
+    console.log(`[PWA Identity] Inicializada: "${STATION_NAME}" (short: "${STATION_SHORT_NAME}")`);
   } catch (error) {
     console.error('[PWA Identity] Error actualizando manifest:', error);
   }
@@ -146,10 +77,9 @@ export function updatePWAIdentity(stationName, colorPrimary, logoUrl) {
 
 /**
  * Actualiza el favicon del navegador.
- * Si hay logo de imgbb, lo usa. Si no, genera un favicon con la inicial
- * del nombre de la estacion y el color primario.
+ * Usa el logo de E/S Montaña Fresca.
  */
-function updateFavicon(logoUrl, colorPrimary) {
+function updateFavicon(logoUrl) {
   try {
     let faviconLink = document.querySelector('link[rel="icon"][type="image/x-icon"]') ||
                       document.querySelector('link[rel="icon"]') ||
@@ -162,29 +92,23 @@ function updateFavicon(logoUrl, colorPrimary) {
     }
 
     if (logoUrl) {
-      // Usar el logo de imgbb como favicon
-      faviconLink.type = 'image/png';
+      faviconLink.type = 'image/jpeg';
       faviconLink.href = logoUrl;
     } else {
-      // Generar favicon con la inicial del nombre
-      const stationName = _lastStationName || 'C';
-      const initial = stationName.trim().charAt(0).toUpperCase();
-      const color = colorPrimary || '#CE1126';
+      // Generar favicon con la "M" de Montaña
       const canvas = document.createElement('canvas');
       canvas.width = 64;
       canvas.height = 64;
       const ctx = canvas.getContext('2d');
 
-      // Fondo circular con el color primario
-      ctx.fillStyle = color;
+      ctx.fillStyle = COLOR_PRIMARY;
       ctx.fillRect(0, 0, 64, 64);
 
-      // Letra blanca centrada
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 40px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(initial, 32, 34);
+      ctx.fillText('M', 32, 34);
 
       faviconLink.type = 'image/png';
       faviconLink.href = canvas.toDataURL('image/png');

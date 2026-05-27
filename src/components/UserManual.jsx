@@ -190,7 +190,7 @@ export default function UserManual({ open, onClose }) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const config = useConfigStore((state) => state.config);
-  const stationName = config.stationName || 'Estación de Servicio';
+  const stationName = config.stationName || 'E/S Montaña Fresca';
 
   const handleDownloadPDF = () => {
     generateManualPDF(stationName);
@@ -255,7 +255,7 @@ export default function UserManual({ open, onClose }) {
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
             Manual de Usuario - Supervisor
           </Typography>
-          <Chip label="Sistema de Cierre de Turno v1.0" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+          <Chip label="E/S Montaña Fresca v1.0" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
             Documento de referencia para el uso completo del sistema de gestion de estación de servicio.
             Contiene instrucciones detalladas paso a paso para todas las funciones disponibles para el rol de Supervisor.
@@ -853,7 +853,7 @@ function generateManualPDF(stationName) {
 
   doc.setFontSize(10);
   doc.setTextColor(...GRAY);
-  doc.text('Sistema de Cierre de Turno v1.0', pw / 2, 135, { align: 'center' });
+  doc.text('E/S Montaña Fresca v1.0', pw / 2, 135, { align: 'center' });
   doc.text(`Generado: ${new Date().toLocaleDateString('es-VE')}`, pw / 2, 145, { align: 'center' });
 
   // ── SECCIONES ──

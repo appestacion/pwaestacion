@@ -1,4 +1,5 @@
 // src/pages/Login.jsx
+// Login exclusivo para E/S Montaña Fresca.
 import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -10,7 +11,6 @@ import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -44,6 +44,9 @@ export default function LoginPage() {
   const primaryDark = config.stationColorPrimary
     ? darkenColor(config.stationColorPrimary, 25)
     : '#8B0000';
+
+  // Logo: prioridad imgbb > LogoMF.jpg local
+  const logoSrc = config.stationLogo || '/LogoMF.jpg';
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -150,7 +153,7 @@ export default function LoginPage() {
       >
         <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-          {/* Logo DENTRO de la tarjeta - grande */}
+          {/* Logo DENTRO de la tarjeta - siempre LogoMF */}
           <Box
             sx={{
               width: 96,
@@ -166,26 +169,20 @@ export default function LoginPage() {
               overflow: 'hidden',
             }}
           >
-            {config.stationLogo ? (
-              <Avatar
-                src={config.stationLogo}
-                alt={config.stationName}
-                sx={{ width: 76, height: 76, borderRadius: 3 }}
-                variant="rounded"
-              />
-            ) : (
-              <LocalGasStationIcon sx={{ fontSize: 52, color: primaryColor }} />
-            )}
+            <Avatar
+              src={logoSrc}
+              alt="E/S Montaña Fresca"
+              sx={{ width: 76, height: 76, borderRadius: 3 }}
+              variant="rounded"
+            />
           </Box>
 
           <Typography variant="h5" sx={{ fontWeight: 800, color: primaryColor, textAlign: 'center', mb: 0.5 }}>
-            {config.stationName}
+            E/S Montaña Fresca
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3, fontSize: '0.8rem' }}>
-            Sistema de Cierre de Turno{' '}
-            <Box component="br" sx={{ display: { xs: 'block', sm: 'none' } }} />
-            de Estación de Servicio
+            Sistema de Cierre de Turno
           </Typography>
 
           {/* ========== MODO LOGIN ========== */}

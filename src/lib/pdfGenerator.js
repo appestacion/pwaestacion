@@ -5,7 +5,18 @@ import { formatBs, formatUSD, formatNumber } from './formatters.js';
 import { ISLAND_LABELS } from '../config/constants.js';
 
 // ═══════════════════════════════════════════════════════════════════
-// PALETA DE COLORES
+// IDENTIDAD FIJA — siempre estos valores, sin depender de Firestore
+// ═══════════════════════════════════════════════════════════════════
+const ST = {
+  name:  'E/S Montaña Fresca',
+  rif:   'J-30894985-2',
+  addr:  'AV. CASANOVA GODOY ZONA INDUSTRIAL, Aragua - Venezuela',
+  phone: '0424 3036024',
+};
+
+function stName(cfg)  { return cfg?.stationName === 'Estación' ? ST.name : (cfg?.stationName || ST.name); }
+function stRif(cfg)   { return cfg?.stationRif  || ST.rif; }
+function stAddr(cfg)  { return cfg?.stationAddress === '' || !cfg?.stationAddress ? ST.addr : (cfg?.stationAddress || ST.addr); }
 // ═══════════════════════════════════════════════════════════════════
 const RED       = [206, 17, 38];
 const BLUE      = [0, 51, 153];
@@ -31,19 +42,19 @@ const PAGE = {
 // HELPERS: HEADER, FOOTER, SPACE
 // ═══════════════════════════════════════════════════════════════════
 function addPageHeader(doc, title, info, stationConfig, pw, ph) {
-  const name  = stationConfig?.stationName || 'Estación de Servicio';
-  const rif   = stationConfig?.stationRif || '';
+  const name  = stName(stationConfig);
+  const rif   = stRif(stationConfig);
   const rightEdge = pw - 14;
 
   doc.setFontSize(14); doc.setTextColor(...RED);
   doc.text(name, 14, 18);
 
-  if (rif && rif !== 'J-00000000-0') {
+  if (rif) {
     doc.setFontSize(8); doc.setTextColor(...GRAY);
     doc.text(`RIF: ${rif}`, 14, 23);
   }
 
-  const ty = (rif && rif !== 'J-00000000-0') ? 29 : 24;
+  const ty = rif ? 29 : 24;
   doc.setFontSize(11); doc.setTextColor(...BLUE);
   doc.text(title, 14, ty);
 
@@ -97,8 +108,8 @@ export function generateCierreCortesPDF(shift, stationConfig, sharedDoc = null) 
   const ownDoc = !sharedDoc;
   const orientation = 'p';
   const doc  = sharedDoc || new jsPDF(orientation, 'mm', 'letter');
-  const name = stationConfig?.stationName || 'Estación';
-  const addr = stationConfig?.stationAddress || '';
+  const name = stName(stationConfig);
+  const addr = stAddr(stationConfig);
   const pw = PAGE.letterP.w;
   const ph = PAGE.letterP.h;
 
@@ -230,9 +241,9 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   const ownDoc = !sharedDoc;
   const orientation = 'l';
   const doc  = sharedDoc || new jsPDF(orientation, 'mm', 'letter');
-  const name = stationConfig?.stationName || 'Estación';
-  const addr = stationConfig?.stationAddress || '';
-  const rif  = stationConfig?.stationRif || '';
+  const name = stName(stationConfig);
+  const addr = stAddr(stationConfig);
+  const rif  = stRif(stationConfig);
   const pw = PAGE.letterL.w;
   const ph = PAGE.letterL.h;
 
@@ -249,11 +260,11 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
 
   doc.setFontSize(14); doc.setTextColor(...RED);
   doc.text(name, margin, 16);
-  if (rif && rif !== 'J-00000000-0') {
+  if (rif) {
     doc.setFontSize(8); doc.setTextColor(...GRAY);
     doc.text(`RIF: ${rif}`, margin, 21);
   }
-  const ty = (rif && rif !== 'J-00000000-0') ? 27 : 22;
+  const ty = rif ? 27 : 22;
   doc.setFontSize(11); doc.setTextColor(...BLUE);
   doc.text('REPORTE LECTURA Y RECEPCIÓN', margin, ty);
 
@@ -297,18 +308,18 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     autoTable(doc, {
       startY: currentY,
       head: [[
-        { content: `ISLA ${isl.islandId}`, colSpan: 4, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+        { content: `ISLA ${isl.islandId}`, colSpan: 4, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
       ], [
-        { content: 'Surt.', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6 } },
-        { content: 'Lect. Inicial', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6 } },
-        { content: 'Lect. Final', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6 } },
-        { content: 'Litros', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6 } },
+        { content: 'Surt.', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7 } },
+        { content: 'Lect. Inicial', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7 } },
+        { content: 'Lect. Final', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7 } },
+        { content: 'Litros', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7 } },
       ]],
       body: [
-        ...rows.map(r => r.map(v => ({ content: v, styles: { fontSize: 6, textColor: 0 } }))),
+        ...rows.map(r => r.map(v => ({ content: v, styles: { fontSize: 7, textColor: 0 } }))),
         [
-          { content: 'Total Litros:', styles: { fontStyle: 'bold', fontSize: 6, halign: 'right', textColor: 0 }, colSpan: 3 },
-          { content: filled ? formatNumber(totalL, 0) : DASH, styles: { fontStyle: 'bold', fontSize: 6, textColor: 0 } },
+          { content: 'Total Litros:', styles: { fontStyle: 'bold', fontSize: 7, halign: 'right', textColor: 0 }, colSpan: 3 },
+          { content: filled ? formatNumber(totalL, 0) : DASH, styles: { fontStyle: 'bold', fontSize: 7, textColor: 0 } },
         ],
       ],
       theme: 'grid',
@@ -323,35 +334,35 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   const renderTankTable = (data, label, totalVal, filled, startY, startX, colWidth) => {
     const tanksCount = data.length;
     const headerRow = [
-      { content: '', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6, textColor: 0 } },
+      { content: '', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7, textColor: 0 } },
       ...data.map(tk => ({
         content: `TQ ${tk.tankId}`,
-        styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6, textColor: 0 },
+        styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7, textColor: 0 },
       })),
     ];
     const cmRow = [
-      { content: 'CM', styles: { fontStyle: 'bold', fontSize: 6, textColor: 0 } },
+      { content: 'CM', styles: { fontStyle: 'bold', fontSize: 7, textColor: 0 } },
       ...data.map(tk => ({
         content: filled ? (tk.cm > 0 ? formatNumber(tk.cm, 1) : DASH) : DASH,
-        styles: { fontSize: 6, textColor: 0 },
+        styles: { fontSize: 7, textColor: 0 },
       })),
     ];
     const litRow = [
-      { content: 'Litros', styles: { fontStyle: 'bold', fontSize: 6, textColor: 0 } },
+      { content: 'Litros', styles: { fontStyle: 'bold', fontSize: 7, textColor: 0 } },
       ...data.map(tk => ({
         content: filled ? (tk.liters > 0 ? formatNumber(tk.liters, 0) : DASH) : DASH,
-        styles: { fontSize: 6, textColor: 0 },
+        styles: { fontSize: 7, textColor: 0 },
       })),
     ];
     const totalRow = [
-      { content: 'Total:', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6, halign: 'right', textColor: 0 }, colSpan: tanksCount },
-      { content: filled ? formatNumber(totalVal, 0) : DASH, styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 6, textColor: 0 } },
+      { content: 'Total:', styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7, halign: 'right', textColor: 0 }, colSpan: tanksCount },
+      { content: filled ? formatNumber(totalVal, 0) : DASH, styles: { fillColor: TOT_BG, fontStyle: 'bold', fontSize: 7, textColor: 0 } },
     ];
 
     autoTable(doc, {
       startY,
       head: [[
-        { content: label, colSpan: tanksCount + 1, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+        { content: label, colSpan: tanksCount + 1, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
       ]],
       body: [headerRow, cmRow, litRow, totalRow],
       theme: 'grid',
@@ -372,8 +383,8 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   autoTable(doc, {
     startY: col1Y,
     body: [[
-      { content: 'Total 1:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-      { content: rd.diurnoShift ? formatNumber(rd.diurnoTotal, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+      { content: 'Total 1:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7, halign: 'right' } },
+      { content: rd.diurnoShift ? formatNumber(rd.diurnoTotal, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
     ]],
     theme: 'grid',
     styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
@@ -390,8 +401,8 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   autoTable(doc, {
     startY: col2Y,
     body: [[
-      { content: 'Gandola:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-      { content: rd.gandola ? formatNumber(rd.totalCompartment || 0, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+      { content: 'Gandola:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7, halign: 'right' } },
+      { content: rd.gandola ? formatNumber(rd.totalCompartment || 0, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
     ]],
     theme: 'grid',
     styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
@@ -412,8 +423,8 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
     autoTable(doc, {
       startY: col2Y,
       body: [[
-        { content: 'Total General:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-        { content: `${formatNumber((rd.diurnoTotal || 0) + (rd.displayNocturnoTotal || 0), 0)} L`, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+        { content: 'Total General:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7, halign: 'right' } },
+        { content: `${formatNumber((rd.diurnoTotal || 0) + (rd.displayNocturnoTotal || 0), 0)} L`, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
       ]],
       theme: 'grid',
       styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
@@ -431,8 +442,8 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
   autoTable(doc, {
     startY: col3Y,
     body: [[
-      { content: 'Total 2:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6, halign: 'right' } },
-      { content: rd.nocturnoShiftForDisplay ? formatNumber(rd.displayNocturnoTotal, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
+      { content: 'Total 2:', styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7, halign: 'right' } },
+      { content: rd.nocturnoShiftForDisplay ? formatNumber(rd.displayNocturnoTotal, 0) : DASH, styles: { fillColor: TOT_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
     ]],
     theme: 'grid',
     styles: { halign: 'center', cellPadding: 1.5, textColor: 0 },
@@ -452,14 +463,15 @@ export function generateReportePDF(rd, stationConfig, sharedDoc = null) {
 export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDoc = null) {
   const ownDoc = !sharedDoc;
   const doc  = sharedDoc || new jsPDF('p', 'mm', 'letter');
-  const name = stationConfig?.stationName || 'Estación';
-  const addr = stationConfig?.stationAddress || '';
+  const name = stName(stationConfig);
+  const addr = stAddr(stationConfig);
   const pw = PAGE.letterP.w;
 
   const isNoc = shift.operatorShiftType === 'NOCTURNO';
   const turnoLabel = isNoc ? '2TO' : '1TO';
   const tasa1 = shift.tasa1 || 0;
   const tasa2 = shift.tasa2 || 0;
+  const precio = stationConfig?.precioLitroUSD || shift.precioLitroUSD || 0.50;
   const hasTasa2 = isNoc && tasa2 > 0 && tasa2 !== tasa1;
 
   const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -535,12 +547,18 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
   //    SIN Gastos (esos van en Resumen via resumenItems)
   // ═══════════════════════════════════════════════════════════════
   const renderIslaBlock = (b, startX, startY, columnWidth) => {
+    const litrosVendidos = precio > 0 ? b.litersRef / precio : 0;
     autoTable(doc, {
       startY,
       head: [[
         { content: `ISLA ${b.islandId}  |  Operador: ${b.operatorName || DASH}`, colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 6 } },
       ]],
       body: [
+        [
+          { content: 'Litros:', styles: { fontStyle: 'bold', fontSize: 6 } },
+          { content: litrosVendidos > 0 ? formatNumber(litrosVendidos, 0) + ' L' : '', styles: { fontSize: 6, textColor: [102, 102, 102], fontStyle: 'italic' } },
+          { content: b.litersRef > 0 ? formatUSD(b.litersRef) : '', styles: { fontSize: 6, textColor: [102, 102, 102], fontStyle: 'italic' } },
+        ],
         [
           { content: 'Bs.:', styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: b.bsTotal > 0 ? formatBs(b.bsTotal) : '', styles: { fontSize: 6 } },
@@ -680,9 +698,8 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
       cardY = doc.lastAutoTable.finalY + 3;
     }
 
-    // CAJA CHICA
-    if (!haySobregiro && excedenteUSD > 0) {
-      // TOTAL A COLOCAR EN CAJA CHICA — solo si hay excedente
+    // CAJA CHICA — muestra el Bs. del Resumen (restoBs), idéntico a Biblia.jsx
+    if (!haySobregiro && bsResumenUSD > 0) {
       autoTable(doc, {
         startY: cardY,
         body: [
@@ -690,10 +707,10 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
             { content: 'TOTAL A COLOCAR EN CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
           ],
           [
-            { content: formatUSD(excedenteUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
+            { content: formatUSD(bsResumenUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
           ],
           [
-            { content: formatBs(excedenteBs), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [46, 125, 50], fontStyle: 'bold', fontSize: 8, halign: 'center' } },
+            { content: formatBs(restoBs), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [46, 125, 50], fontStyle: 'bold', fontSize: 8, halign: 'center' } },
           ],
         ],
         theme: 'grid',
@@ -769,8 +786,8 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
 export function generateCuadrePVPDF(shift, cuadre, cuadreTotals, stationConfig, products, sharedDoc = null) {
   const ownDoc = !sharedDoc;
   const doc  = sharedDoc || new jsPDF('p', 'mm', 'letter');
-  const name = stationConfig?.stationName || 'Estación';
-  const addr = stationConfig?.stationAddress || '';
+  const name = stName(stationConfig);
+  const addr = stAddr(stationConfig);
   const pw = PAGE.letterP.w;
 
   const isNoc = shift.operatorShiftType === 'NOCTURNO';
@@ -1000,8 +1017,8 @@ export function generateCuadrePVPDF(shift, cuadre, cuadreTotals, stationConfig, 
 export function generateInventarioIslasPDF(shift, islandInventoryData, islandIds, stationConfig, sharedDoc = null) {
   const ownDoc = !sharedDoc;
   const doc  = sharedDoc || new jsPDF('p', 'mm', 'letter');
-  const name = stationConfig?.stationName || 'Estación';
-  const addr = stationConfig?.stationAddress || '';
+  const name = stName(stationConfig);
+  const addr = stAddr(stationConfig);
   const pw = PAGE.letterP.w;
   const hasActiveShift = !!shift;
 
@@ -1122,15 +1139,15 @@ export function generateInventarioIslasPDF(shift, islandInventoryData, islandIds
 // ═══════════════════════════════════════════════════════════════════
 export function generateAllInOnePDF({ shift, reporteData, biblia, bibliaTotals, cuadre, cuadreTotals, islandInventoryData, islandIds, config, products }) {
   const doc = new jsPDF('p', 'mm', 'letter');
-  const name = config?.stationName || 'Estación';
-  const addr = config?.stationAddress || '';
-  const rif  = config?.stationRif || '';
+  const name = stName(config);
+  const addr = stAddr(config);
+  const rif  = stRif(config);
   const pw = PAGE.letterP.w;
 
   doc.setFontSize(18); doc.setTextColor(...RED);
   doc.text(name, pw / 2, 60, { align: 'center' });
 
-  if (rif && rif !== 'J-00000000-0') {
+  if (rif) {
     doc.setFontSize(9); doc.setTextColor(...GRAY);
     doc.text(`RIF: ${rif}`, pw / 2, 68, { align: 'center' });
   }
@@ -1220,5 +1237,5 @@ export function getPdfBlob(doc) {
 }
 
 export function safeFilename(base) {
-  return (base || 'Estación').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/ +/g, '_');
+  return (base || 'E/S Montaña Fresca').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/ +/g, '_');
 }

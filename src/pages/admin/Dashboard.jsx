@@ -311,7 +311,7 @@ export default function DashboardAdmin() {
         doc.setPage(i);
         doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text(`Página ${i} de ${pageCount}  |  PDV Estación de Servicio`, 148.5, 200, { align: 'center' });
+        doc.text(`Página ${i} de ${pageCount}  |  E/S Montaña Fresca`, 148.5, 200, { align: 'center' });
       }
 
       doc.save(`reporte_estacion_${fecha.replace(/\//g, '-')}.pdf`);

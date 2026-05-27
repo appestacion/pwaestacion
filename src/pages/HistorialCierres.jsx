@@ -897,12 +897,10 @@ function ReporteCompleto({ shift, config, products }) {
               <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>
                 {config.stationName}
               </Typography>
-              {config.stationRif !== 'J-00000000-0' && (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  RIF: {config.stationRif}
-                </Typography>
-              )}
-              {config.stationAddress && config.stationAddress !== 'Venezuela' && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                RIF: {config.stationRif}
+              </Typography>
+              {config.stationAddress && (
                 <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                   {config.stationAddress}
                 </Typography>

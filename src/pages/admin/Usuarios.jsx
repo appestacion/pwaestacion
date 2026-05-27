@@ -130,8 +130,9 @@ export default function Usuarios() {
   };
 
   const handleDelete = async (user) => {
-    if (user.email === 'admin@pdv-smf.com') {
-      enqueueSnackbar('No se puede eliminar el administrador principal', { variant: 'error' });
+    // Proteger TODOS los administradores por rol (no por email hardcodeado)
+    if (user.role === 'administrador') {
+      enqueueSnackbar('No se puede eliminar un usuario con rol de administrador', { variant: 'error' });
       return;
     }
     try {
@@ -225,7 +226,7 @@ export default function Usuarios() {
                       <IconButton size="small" onClick={() => handleOpenEdit(user)} color="primary">
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(user)} color="error">
+                      <IconButton size="small" onClick={() => handleDelete(user)} color="error" disabled={user.role === 'administrador'}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </TableCell>

@@ -12,7 +12,6 @@ import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import { useCierreStore } from '../../store/useCierreStore.js';
@@ -87,18 +86,11 @@ export default function Biblia() {
   // Neto sin gastos = Total Resumen - gastos
   const netoSinGastosUSD = totalResumenUSD - totalGastosUSD;
 
-  // Sin sobregiro: excedente = neto sin gastos - valor litros vendidos
-  // Con sobregiro: no aplica (se usa caja chica)
-  const excedenteUSD = !haySobregiro ? Math.max(0, netoSinGastosUSD - (totals.totalLitersRef || 0)) : 0;
-  const excedenteBs = usdToBs(excedenteUSD, tasa1);
-
   // Con sobregiro: caja chica = sobregiro + gastos
   const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = usdToBs(totalCajaChicaUSD, tasa1);
 
   // ── Cálculos para Comprobación ──
-  // Sin sobregiro: (Resumen - Gastos) / precio
-  // Con sobregiro: (Resumen - Caja Chica) / precio
   const totalLitersSold = totals.totalLitersRef / (precioLitroUSD || 0.50);
   const ajustadoUSD = haySobregiro
     ? (totalResumenUSD - totalCajaChicaUSD)
@@ -113,64 +105,75 @@ export default function Biblia() {
   const lbl = { ...c, fontWeight: 600, whiteSpace: 'nowrap' };
   const dataCell = { ...c, textAlign: 'center' };
   const descCell = { ...c, fontStyle: 'italic', fontSize: '0.65rem', color: '#555' };
+  const infoCell = { ...c, textAlign: 'center', fontStyle: 'italic', color: '#666' };
   const totalValue = { ...tot, bgcolor: '#888', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: '0.8rem' };
 
   // ── Render: Tabla de una Isla ──
-  const renderIslaTable = (data) => (
-    <TableContainer>
-      <Table size="small" sx={{ '& td': { border: b } }}>
-        <TableBody>
-          <TableRow>
-            <TableCell sx={sec} colSpan={3}>
-              ISLA {data.islandId} &nbsp;|&nbsp; Operador: {data.operatorName || '—'}
-            </TableCell>
-          </TableRow>
-          {/* Bs: valor en Bs izquierda, equivalente USD derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>Bs.:</TableCell>
-            <TableCell sx={dataCell}>{data.bsTotal > 0 ? formatBs(data.bsTotal) : ''}</TableCell>
-            <TableCell sx={dataCell}>{data.bsInUSD > 0 ? formatUSD(data.bsInUSD) : ''}</TableCell>
-          </TableRow>
-          {/* $: celda izquierda vacía, valor USD derecha (cortes sin UE$) */}
-          <TableRow>
-            <TableCell sx={lbl}>$:</TableCell>
-            <TableCell sx={dataCell}></TableCell>
-            <TableCell sx={dataCell}>{data.usdSinUE > 0 ? formatUSD(data.usdSinUE) : ''}</TableCell>
-          </TableRow>
-          {/* Punto: valor en celda derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>Punto:</TableCell>
-            <TableCell sx={dataCell}></TableCell>
-            <TableCell sx={dataCell}>{data.puntoTotal > 0 ? formatUSD(data.puntoTotal) : ''}</TableCell>
-          </TableRow>
-          {/* UE$: valor de UE$ en celda derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>UE$:</TableCell>
-            <TableCell sx={dataCell}></TableCell>
-            <TableCell sx={dataCell}>{data.ueUSD > 0 ? formatUSD(data.ueUSD) : ''}</TableCell>
-          </TableRow>
-          {/* Vale(s): descripción izquierda, valor derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>Vale(s):</TableCell>
-            <TableCell sx={descCell}>{data.valesDescripcion || ''}</TableCell>
-            <TableCell sx={dataCell}>{data.valesMonto > 0 ? formatUSD(data.valesMonto) : ''}</TableCell>
-          </TableRow>
-          {/* Transferencia(s): descripción izquierda, valor derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>Transferencia(s):</TableCell>
-            <TableCell sx={descCell}>{data.transferenciaDescripcion || ''}</TableCell>
-            <TableCell sx={dataCell}>{data.transferenciaMonto > 0 ? formatUSD(data.transferenciaMonto) : ''}</TableCell>
-          </TableRow>
-          {/* Propina: Bs izquierda, USD derecha */}
-          <TableRow>
-            <TableCell sx={lbl}>Propina:</TableCell>
-            <TableCell sx={dataCell}>{data.propinaBs > 0 ? formatBs(data.propinaBs) : ''}</TableCell>
-            <TableCell sx={dataCell}>{data.propinaUSD > 0 ? formatUSD(data.propinaUSD) : ''}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
+  const renderIslaTable = (data) => {
+    const litrosVendidos = precioLitroUSD > 0 ? data.litersRef / precioLitroUSD : 0;
+
+    return (
+      <TableContainer>
+        <Table size="small" sx={{ '& td': { border: b } }}>
+          <TableBody>
+            <TableRow>
+              <TableCell sx={sec} colSpan={3}>
+                ISLA {data.islandId} &nbsp;|&nbsp; Operador: {data.operatorName || '—'}
+              </TableCell>
+            </TableRow>
+            {/* Litros Vendidos: informativo, litros y su valor USD */}
+            <TableRow>
+              <TableCell sx={lbl}>Litros:</TableCell>
+              <TableCell sx={infoCell}>{litrosVendidos > 0 ? formatNumber(litrosVendidos, 0) + ' L' : ''}</TableCell>
+              <TableCell sx={infoCell}>{data.litersRef > 0 ? formatUSD(data.litersRef) : ''}</TableCell>
+            </TableRow>
+            {/* Bs: valor en Bs izquierda, equivalente USD derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>Bs.:</TableCell>
+              <TableCell sx={dataCell}>{data.bsTotal > 0 ? formatBs(data.bsTotal) : ''}</TableCell>
+              <TableCell sx={dataCell}>{data.bsInUSD > 0 ? formatUSD(data.bsInUSD) : ''}</TableCell>
+            </TableRow>
+            {/* $: celda izquierda vacía, valor USD derecha (cortes sin UE$) */}
+            <TableRow>
+              <TableCell sx={lbl}>$:</TableCell>
+              <TableCell sx={dataCell}></TableCell>
+              <TableCell sx={dataCell}>{data.usdSinUE > 0 ? formatUSD(data.usdSinUE) : ''}</TableCell>
+            </TableRow>
+            {/* Punto: valor en celda derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>Punto:</TableCell>
+              <TableCell sx={dataCell}></TableCell>
+              <TableCell sx={dataCell}>{data.puntoTotal > 0 ? formatUSD(data.puntoTotal) : ''}</TableCell>
+            </TableRow>
+            {/* UE$: valor de UE$ en celda derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>UE$:</TableCell>
+              <TableCell sx={dataCell}></TableCell>
+              <TableCell sx={dataCell}>{data.ueUSD > 0 ? formatUSD(data.ueUSD) : ''}</TableCell>
+            </TableRow>
+            {/* Vale(s): descripción izquierda, valor derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>Vale(s):</TableCell>
+              <TableCell sx={descCell}>{data.valesDescripcion || ''}</TableCell>
+              <TableCell sx={dataCell}>{data.valesMonto > 0 ? formatUSD(data.valesMonto) : ''}</TableCell>
+            </TableRow>
+            {/* Transferencia(s): descripción izquierda, valor derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>Transferencia(s):</TableCell>
+              <TableCell sx={descCell}>{data.transferenciaDescripcion || ''}</TableCell>
+              <TableCell sx={dataCell}>{data.transferenciaMonto > 0 ? formatUSD(data.transferenciaMonto) : ''}</TableCell>
+            </TableRow>
+            {/* Propina: Bs izquierda, USD derecha */}
+            <TableRow>
+              <TableCell sx={lbl}>Propina:</TableCell>
+              <TableCell sx={dataCell}>{data.propinaBs > 0 ? formatBs(data.propinaBs) : ''}</TableCell>
+              <TableCell sx={dataCell}>{data.propinaUSD > 0 ? formatUSD(data.propinaUSD) : ''}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
   // ── Render: Tabla RESUMEN (2 columnas) con líneas individuales ──
   const renderResumenTable = () => {
@@ -232,27 +235,21 @@ export default function Biblia() {
 
   return (
     <Box>
-      {/* ═══ Encabezado (estilo consistente con ReporteLecturaRecepcion) ═══ */}
+      {/* ═══ Encabezado (estilo consistente con CuadrePV) ═══ */}
       <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {config.stationLogo ? (
-            <Avatar
-              src={config.stationLogo}
-              alt={config.stationName}
-              sx={{ width: 64, height: 64, borderRadius: 1.5 }}
-              variant="rounded"
-            />
-          ) : (
-            <Box sx={{ width: 64, height: 64, borderRadius: 1.5, bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LocalGasStationIcon sx={{ fontSize: 40, color: 'grey.500' }} />
-            </Box>
-          )}
+          <Avatar
+            src={config.stationLogo || '/LogoMF.jpg'}
+            alt={config.stationName || 'E/S Montaña Fresca'}
+            sx={{ width: 64, height: 64, borderRadius: 1.5 }}
+            variant="rounded"
+          />
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>
               Biblia
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {config.stationName}{config.stationRif !== 'J-00000000-0' ? ` — ${config.stationRif}` : ''}
+              {config.stationName || 'E/S Montaña Fresca'} — RIF: {config.stationRif || 'J-30894985-2'}
             </Typography>
           </Box>
         </Box>
@@ -362,8 +359,8 @@ export default function Biblia() {
           </Paper>
         )}
 
-        {/* TOTAL A COLOCAR EN CAJA CHICA — sin sobregiro, solo si hay excedente */}
-        {!haySobregiro && excedenteUSD > 0 && (
+        {/* TOTAL A COLOCAR EN CAJA CHICA — muestra el Bs. del Resumen (restoBs) */}
+        {!haySobregiro && bsResumenUSD > 0 && (
           <Paper sx={{
             flex: '1 1 0',
             minWidth: 200,
@@ -377,10 +374,10 @@ export default function Biblia() {
               TOTAL A COLOCAR EN CAJA CHICA
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 900, color: '#1B5E20', mt: 1 }}>
-              {formatUSD(excedenteUSD)}
+              {formatUSD(bsResumenUSD)}
             </Typography>
             <Typography variant="body2" sx={{ color: '#2E7D32', fontWeight: 600, mt: 0.5 }}>
-              {formatBs(excedenteBs)}
+              {formatBs(restoBs)}
             </Typography>
           </Paper>
         )}
