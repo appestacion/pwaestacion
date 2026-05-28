@@ -348,8 +348,29 @@ export default function UserManual({ open, onClose }) {
 
           <Sub>Acciones Rápidas</Sub>
           <P>
-            Cuando hay un turno activo, el Dashboard muestra tarjetas con el resumen de litros vendidos por isla y botónes de acceso rápido a: Lecturas, Cierre de Turno, Gastos, Biblia, Cuadre PV y Generar PDF. Estas tarjetas permiten navegar directamente a la función deseada sin usar el menú lateral.
+            Cuando hay un turno activo, el Dashboard muestra tarjetas con el resumen de litros vendidos por isla y botones de acceso rápido a las 9 funciones principales. Estas tarjetas permiten navegar directamente a la función deseada sin usar el menú lateral:
           </P>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Acción</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Descripción</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Lecturas</TableCell><TableCell>Registrar lecturas de bombas, tanques y tasas de cambio</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Cierre de Turno</TableCell><TableCell>Registrar cortes, PV, vales, transferencias y productos por isla</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Gastos</TableCell><TableCell>Registrar gastos del turno en Bolivares (agua potable, pago técnico, etc.)</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Biblia</TableCell><TableCell>Resumen financiero: propina, sobregiro y balance por isla</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Cuadre PV</TableCell><TableCell>Conciliación de pagos con punto de venta</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Inventario</TableCell><TableCell>Gestión de stock general y por isla</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Recepción Gandola</TableCell><TableCell>Registro de descarga de combustible</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Historiales</TableCell><TableCell>Consulta de turnos cerrados y recaudaciones anteriores</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Generar PDF</TableCell><TableCell>Descarga e impresión de reportes del turno</TableCell></TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
 
           <Warning>No puede tener dos turnos activos simultáneamente. Debe cerrar el turno actual antes de crear uno nuevo. Si por error queda un turno abierto de un día anterior, puede cerrarlo desde la seccion de Cierre de Turno.</Warning>
         </ManualSection>
@@ -391,10 +412,13 @@ export default function UserManual({ open, onClose }) {
           <P>
             Esta seccion permite registrar todos los gastos incurridos durante el turno en Bolivares (Bs.). Los gastos se incluyen en la Biblia (resumen financiero) y se útilizan para calcular la propina real del operador. Los gastos se ingresan en Bs. y el sistema los convierte automáticamente a USD usando la tasa del día.
           </P>
+          <P bold>
+            Ejemplos de gastos frecuentes: pago de agua potable, pago técnico (servicios de mantenimiento), pago eléctrico, reparaciones, compra de materiales menores, entre otros. Cada gasto debe registrarse con su monto y una descripción clara.
+          </P>
 
           <Sub>Registrar un Gasto</Sub>
           <Step num={1}>Ingrese el monto del gasto en Bolivares en el campo de texto. Use el formato numérico con decimales (por ejemplo: 150,50).</Step>
-          <Step num={2}>Escriba una descripción breve del gasto (por ejemplo: "Compra de aceite para bomba", "Pago electrico", "Reparación surtidor").</Step>
+          <Step num={2}>Escriba una descripción breve del gasto (por ejemplo: "Pago agua potable", "Pago técnico electrico", "Reparación surtidor").</Step>
           <Step num={3}>El gasto se guarda automáticamente. El sistema muestra la conversión a USD al lado del monto en Bs.</Step>
 
           <Sub>Eliminar un Gasto</Sub>
@@ -453,8 +477,9 @@ export default function UserManual({ open, onClose }) {
           <P>Los cortes son los pagos en efectivo que recibe el operador. Se dividen en dos secciones:</P>
           <Step num={1}><strong>Cortes en Bolivares (Bs.):</strong> Ingrese cada corte en el campo correspondiente. El número maximo de cortes se configura en la seccion de Configuracion (por defecto 12). Solo ingrese los cortes que realmente se hicieron; deje en 0 los campos vacios.</Step>
           <Step num={2}><strong>Cortes en Dólares (USD):</strong> Igualmente, ingrese cada corte en dólares recibido.</Step>
-          <Step num={3}><strong>UE (Unidades Extra):</strong> Si el operador recibió efectivo adicional que no corresponde a un corte (por ejemplo, un cliente pagó con un billete grande y dejó sobrante), registre el monto en UE Bs. o UE USD segun la moneda.</Step>
-          <Step num={4}>El sistema muestra automáticamente el total de Bs. y USD para cada isla.</Step>
+          <Step num={3}><strong>UEBs (Ultima Entrega en Bs.):</strong> Si el operador recibió efectivo adicional en Bolivares que no corresponde a un corte estandar (por ejemplo, un cliente pagó con un billete grande y dejó sobrante), registre el monto en UEBs.</Step>
+          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Si el operador recibió efectivo adicional en dólares, registre el monto en UE$.</Step>
+          <Step num={5}>El sistema muestra automáticamente el total de Bs. y USD para cada isla.</Step>
 
           <Sub>Punto de Venta (PV)</Sub>
           <P>Los pagos con punto de venta (tarjeta de debito/credito) se registran por isla:</P>
@@ -464,16 +489,16 @@ export default function UserManual({ open, onClose }) {
 
           <Tip>El PV se calcula como: Monto Bs. / Tasa = Monto USD. Los litros equivalentes se calculan como: USD / Precio por Litro. Por ejemplo, si el precio es $0.50/litro, entonces $2.00 / $0.50 = 4 litros. El precio por litro se configura desde la seccion de Configuracion (admin).</Tip>
 
-          <Sub>Vales</Sub>
-          <P>Los vales son comprobantes de pagó que otorgan terceros (por ejemplo, empresas, flotas corporativas):</P>
+          <Sub>Vales (Apoyo Institucional)</Sub>
+          <P>Los vales son comprobantes de <strong>Apoyo Institucional</strong> otorgados por terceros (por ejemplo, empresas del Estado, flotas corporativas, organismos gubernamentales como Corpoelec, Movilnet, entre otros):</P>
           <Step num={1}>Haga clic en "Agregar Vale" para crear un nuevo registro.</Step>
           <Step num={2}>Ingrese el monto del vale en USD y una descripción (por ejemplo: "Vale Corpoelec", "Vale Movilnet").</Step>
           <Step num={3}>Puede agregar múltiples vales por isla. Para eliminar un vale, haga clic en el botón de eliminar.</Step>
 
-          <Sub>Transferencias</Sub>
-          <P>Las transferencias son depositos o pagos electrónicos recibidos:</P>
+          <Sub>Transferencias (Pago de Gasolina)</Sub>
+          <P>Las transferencias son <strong>pagos de gasolina mediante transferencias bancarias</strong> recibidos de clientes que realizan el pago de forma electrónica (transferencia, pago móvil) en lugar de efectivo o punto de venta:</P>
           <Step num={1}>Haga clic en "Agregar Transferencia" para crear un nuevo registro.</Step>
-          <Step num={2}>Ingrese el monto en USD y la descripción (por ejemplo: "Transferencia Banco de Venezuela", "Pago Movil").</Step>
+          <Step num={2}>Ingrese el monto en USD y la descripción (por ejemplo: "Transferencia Banco de Venezuela", "Pago Movil Mercantil", "Transferencia BNC").</Step>
           <Step num={3}>Puede agregar múltiples transferencias por isla.</Step>
 
           <Sub>Productos Vendidos</Sub>
@@ -515,9 +540,9 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}><strong>Bs.:</strong> Total de bolivares en efectivo (suma de cortes + UE en Bs.). Se convierte a USD para el cálculo.</Step>
           <Step num={2}><strong>$ (USD):</strong> Total de dólares en efectivo (cortes + UE en USD), excluyendo la UE.</Step>
           <Step num={3}><strong>Punto:</strong> Total de pagos con punto de venta en USD (de la seccion PV).</Step>
-          <Step num={4}><strong>UE$:</strong> Unidades extra en dólares (si las hay).</Step>
-          <Step num={5}><strong>Vale(s):</strong> Total de vales en USD con su descripción.</Step>
-          <Step num={6}><strong>Transferencia(s):</strong> Total de transferencias en USD con su descripción.</Step>
+          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Efectivo adicional en dólares recibido por el operador que no corresponde a un corte estandar (si las hay).</Step>
+          <Step num={5}><strong>Vale(s) - Apoyo Institucional:</strong> Total de vales en USD con su descripción. Corresponden a comprobantes de apoyo institucional otorgados por terceros.</Step>
+          <Step num={6}><strong>Transferencia(s) - Pago de Gasolina:</strong> Total de pagos de gasolina mediante transferencias bancarias en USD con su descripción.</Step>
           <Step num={7}><strong>Propina:</strong> Es la diferencia entre los ingresos totales y el valor de referencia de los litros vendidos (litros vendidos / precio por litro = valor de referencia en USD). Se muestra en Bs. y en USD. El precio por litro se configura en la seccion de Configuracion.</Step>
 
           <Sub>Resumen General</Sub>

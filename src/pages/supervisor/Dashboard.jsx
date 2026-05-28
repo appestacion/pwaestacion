@@ -1,4 +1,3 @@
-// src/pages/supervisor/Dashboard.jsx
 import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -17,6 +16,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import PaymentsIcon from '@mui/icons-material/Payments';
+import HistoryIcon from '@mui/icons-material/History';
 import NightlightIcon from '@mui/icons-material/Nightlight';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Dialog from '@mui/material/Dialog';
@@ -35,7 +36,6 @@ import { formatBs, formatNumber } from '../../lib/formatters.js';
 import { calcTotalLitersSold, calcLitersByIsland } from '../../lib/calculations.js';
 import { SHIFT_LABELS, SHIFT_LABELS_SHORT, SUPERVISOR_SHIFT_LABELS, SUPERVISOR_SHIFT_LABELS_SHORT, ISLAND_LABELS } from '../../config/constants.js';
 
-// Datos de cada tarjeta de turno supervisor
 const SHIFT_CARDS = {
   AM: {
     key: 'AM',
@@ -67,23 +67,14 @@ export default function SupervisorDashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isXs = useMediaQuery(theme.breakpoints.down('xs'));
 
-  // Estado para el diálogo de confirmación de cierre
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
-  // Estado para el snackbar de error
   const [snackbarError, setSnackbarError] = useState('');
-  // ★ FIX: Estado para diálogo de advertencia de turno duplicado
   const [duplicateWarning, setDuplicateWarning] = useState(null);
 
-  // ★ FIX DOBLE CLIC: Ref para bloquear inmediatamente clics repetidos
-  // en "Cerrar Turno" sin depender del re-render de React.
   const closeRequestedRef = React.useRef(false);
-
-  // ★ FIX AUTO-START: Cooldown de 3 segundos después de cerrar turno
-  // para prevenir que un useEffect externo inicie un turno nuevo automáticamente.
   const closeCooldownRef = React.useRef(false);
 
   const handleStartShift = async (supervisorShiftType) => {
-    // ★ FIX AUTO-START: Bloquear si estamos dentro del cooldown post-cierre
     if (closeCooldownRef.current) {
       console.log('[Dashboard] Inicio de turno bloqueado: cooldown post-cierre activo.');
       return;
@@ -92,20 +83,16 @@ export default function SupervisorDashboard() {
     let tasa1 = config.tasa1;
     let tasa2 = config.tasa2;
 
-    // PROMOCIÓN 2TS (PM): tasa2 → tasa1 si hay una tasa más reciente.
     if (supervisorShiftType === 'PM' && tasa2 > 0 && tasa2 !== tasa1) {
       tasa1 = tasa2;
       updateConfig({ tasa1: tasa2 });
     }
 
-    // SEGURIDAD (AMBOS TURNOS): Si tasa1 es inválida (≤ 0) pero tasa2 es válida,
-    // promover tasa2 → tasa1.
     if (tasa1 <= 0 && tasa2 > 0) {
       tasa1 = tasa2;
       updateConfig({ tasa1: tasa2 });
     }
 
-    // ★ FIX: Verificar si ya existe un turno cerrado del mismo tipo en la misma fecha
     const operatorShiftType = supervisorShiftType === 'AM' ? 'NOCTURNO' : 'DIURNO';
     const shiftCard = SHIFT_CARDS[supervisorShiftType];
     const existingClosed = await useCierreStore.getState().checkForDuplicateShift(operatorShiftType);
@@ -125,7 +112,6 @@ export default function SupervisorDashboard() {
 
   const handleConfirmDuplicate = () => {
     if (!duplicateWarning) return;
-    // ★ FIX AUTO-START: También verificar cooldown aquí
     if (closeCooldownRef.current) {
       setDuplicateWarning(null);
       return;
@@ -156,8 +142,6 @@ export default function SupervisorDashboard() {
     console.log('[Dashboard] closeShift resultado:', result);
 
     if (result && result.success) {
-      // ★ FIX AUTO-START: Activar cooldown de 3 segundos para prevenir
-      // que useEffects externos inicien un turno automáticamente.
       closeCooldownRef.current = true;
       setTimeout(() => {
         closeCooldownRef.current = false;
@@ -185,7 +169,6 @@ export default function SupervisorDashboard() {
     prevShiftRef.current = !!currentShift;
   }, [currentShift]);
 
-  // ★ FIX DOBLE CLIC: Resetear el ref cuando se inicia un nuevo turno
   React.useEffect(() => {
     if (currentShift) {
       closeRequestedRef.current = false;
@@ -199,10 +182,12 @@ export default function SupervisorDashboard() {
   const quickActions = [
     { label: 'Lecturas', icon: <SpeedIcon />, path: '/lecturas', color: '#CE1126' },
     { label: 'Cierre de Turno', icon: <ReceiptLongIcon />, path: '/cierre', color: '#003399' },
+    { label: 'Gastos', icon: <PaymentsIcon />, path: '/gastos', color: '#D32F2F' },
     { label: 'Biblia', icon: <BookIcon />, path: '/biblia', color: '#FFD100' },
     { label: 'Cuadre PV', icon: <PointOfSaleIcon />, path: '/cuadre-pv', color: '#00A651' },
     { label: 'Inventario', icon: <InventoryIcon />, path: '/inventario', color: '#FF6600' },
     { label: 'Recepción Gandola', icon: <LocalShippingIcon />, path: '/recepcion-gandola', color: '#9C27B0' },
+    { label: 'Historiales', icon: <HistoryIcon />, path: '/historial-cierres', color: '#607D8B' },
     { label: 'Generar PDF', icon: <PictureAsPdfIcon />, path: '/generar-pdf', color: '#666666' },
   ];
 
@@ -214,7 +199,6 @@ export default function SupervisorDashboard() {
 
   return (
     <Box>
-      {/* Header */}
       <Box sx={{ mb: isMobile ? 2 : 3 }}>
         <Typography
           variant={isMobile ? 'h6' : 'h5'}
@@ -231,7 +215,6 @@ export default function SupervisorDashboard() {
       </Box>
 
       {!currentShift ? (
-        /* ========== SIN TURNO ACTIVO ========== */
         shiftJustClosed ? (
           <Box
             sx={{
@@ -274,7 +257,6 @@ export default function SupervisorDashboard() {
             No hay un turno activo. Selecciona tu turno de supervisor para comenzar el cierre del turno de operadores correspondiente.
           </Alert>
 
-          {/* Tarjetas de turno */}
           <Grid container spacing={isMobile ? 2 : 3}>
             {Object.values(SHIFT_CARDS).map((shiftCard) => (
               <Grid item xs={12} sm={6} key={shiftCard.key}>
@@ -351,9 +333,7 @@ export default function SupervisorDashboard() {
         </>
         )
       ) : (
-        /* ========== TURNO ACTIVO ========== */
         <>
-          {/* Tarjeta de turno activo */}
           <Card sx={{
             mb: isMobile ? 2 : 3,
             borderLeft: '4px solid',
@@ -418,7 +398,6 @@ export default function SupervisorDashboard() {
                     variant="contained"
                     color="error"
                     onClick={() => {
-                      // ★ FIX DOBLE CLIC: Bloquear clics repetidos con ref (sincrónico, sin esperar re-render)
                       if (closeRequestedRef.current) {
                         console.log('[Dashboard] Doble clic bloqueado en Cerrar Turno.');
                         return;
@@ -442,7 +421,6 @@ export default function SupervisorDashboard() {
             </CardContent>
           </Card>
 
-          {/* Tarjetas resumen */}
           <Grid container spacing={isMobile ? 1.5 : 2} sx={{ mb: isMobile ? 2 : 3 }}>
             <Grid item xs={6} sm={3}>
               <Card sx={{ height: '100%' }}>
@@ -463,7 +441,7 @@ export default function SupervisorDashboard() {
                     variant={isMobile ? 'h6' : 'h5'}
                     sx={{ fontWeight: 700, color: hasAnyFinal ? 'primary.main' : 'text.disabled', mt: 0.5 }}
                   >
-                    {hasAnyFinal ? formatNumber(totalLiters, 0) : '—'}
+                    {hasAnyFinal ? formatNumber(totalLiters, 0) : '-'}
                   </Typography>
                 </CardContent>
               </Card>
@@ -486,7 +464,7 @@ export default function SupervisorDashboard() {
                       variant={isMobile ? 'h6' : 'h5'}
                       sx={{ fontWeight: 700, color: hasAnyFinal ? 'text.primary' : 'text.disabled', mt: 0.5 }}
                     >
-                      {hasAnyFinal ? formatNumber(litersByIsland[id], 0) : '—'}
+                      {hasAnyFinal ? formatNumber(litersByIsland[id], 0) : '-'}
                       {hasAnyFinal && <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>L</Typography>}
                     </Typography>
                   </CardContent>
@@ -495,13 +473,12 @@ export default function SupervisorDashboard() {
             ))}
           </Grid>
 
-          {/* Acciones Rápidas */}
           <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ mb: isMobile ? 1.5 : 2 }}>
-            Acciones Rápidas
+            Acciones Rapidas
           </Typography>
           <Grid container spacing={isMobile ? 1.5 : 2}>
             {quickActions.map((action) => (
-              <Grid item xs={6} sm={4} key={action.path}>
+              <Grid item xs={6} sm={4} md={3} key={action.path}>
                 <Card
                   sx={{
                     cursor: 'pointer',
@@ -555,14 +532,12 @@ export default function SupervisorDashboard() {
         </>
       )}
 
-      {/* ═══ DIALOGO: Confirmación para cerrar turno ═══ */}
       <Dialog
         open={confirmCloseOpen}
         onClose={() => {
           console.log('[Dashboard] Dialog onClose, closingShift:', closingShift);
           if (!closingShift) {
             setConfirmCloseOpen(false);
-            // ★ FIX DOBLE CLIC: Resetear ref si el usuario cancela
             closeRequestedRef.current = false;
           }
         }}
@@ -573,14 +548,14 @@ export default function SupervisorDashboard() {
         }}
       >
         <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.2rem' }}>
-          ¿Cerrar Turno?
+          Cerrar Turno?
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ textAlign: 'center', mb: 1, fontWeight: 600 }}>
             {closingLabel}
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-            Esta acción cerrará el turno actual y no se puede deshacer. Asegúrate de haber registrado todas las lecturas y cortes.
+            Esta accion cerrara el turno actual y no se puede deshacer. Asegurate de haber registrado todas las lecturas y cortes.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
@@ -603,12 +578,11 @@ export default function SupervisorDashboard() {
             startIcon={closingShift ? <CircularProgress size={16} color="inherit" /> : undefined}
             sx={{ minWidth: 100, fontWeight: 600 }}
           >
-            {closingShift ? 'Cerrando...' : 'Sí, Cerrar'}
+            {closingShift ? 'Cerrando...' : 'Si, Cerrar'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ═══ DIALOGO: Advertencia de turno duplicado ═══ */}
       <Dialog
         open={!!duplicateWarning}
         onClose={() => setDuplicateWarning(null)}
@@ -626,7 +600,7 @@ export default function SupervisorDashboard() {
             Ya existe un turno <strong>{duplicateWarning?.operatorType === 'DIURNO' ? 'Diurno' : 'Nocturno'}</strong> cerrado para la fecha <strong>{duplicateWarning?.date}</strong>.
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-            ¿Deseas iniciar un nuevo turno de todos modos? Esto creará un turno adicional para la misma fecha.
+            Deseas iniciar un nuevo turno de todos modos? Esto creara un turno adicional para la misma fecha.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
@@ -642,12 +616,11 @@ export default function SupervisorDashboard() {
             onClick={handleConfirmDuplicate}
             sx={{ minWidth: 100, fontWeight: 600, bgcolor: '#E65100', '&:hover': { bgcolor: '#BF360C' } }}
           >
-            Sí, Iniciar
+            Si, Iniciar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ═══ SNACKBAR: Error al cerrar turno ═══ */}
       <Snackbar
         open={!!snackbarError}
         autoHideDuration={8000}
