@@ -627,9 +627,10 @@ const useCierreStore = create((set, get) => ({
       console.error('[CierreStore] Error inesperado al cerrar turno:', error);
       _closingShiftId = null;
       set({ closingShift: false });
+      // FIX M6: No exponer detalles internos al usuario
       return {
         success: false,
-        error: `Error inesperado al cerrar turno: ${error.message}`,
+        error: 'Error inesperado al cerrar turno. Verifica tu conexión e intenta de nuevo.',
       };
     }
   },

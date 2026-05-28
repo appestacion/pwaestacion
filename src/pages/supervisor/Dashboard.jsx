@@ -1,3 +1,4 @@
+// src/pages/supervisor/Dashboard.jsx
 import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -76,7 +77,6 @@ export default function SupervisorDashboard() {
 
   const handleStartShift = async (supervisorShiftType) => {
     if (closeCooldownRef.current) {
-      console.log('[Dashboard] Inicio de turno bloqueado: cooldown post-cierre activo.');
       return;
     }
 
@@ -135,17 +135,14 @@ export default function SupervisorDashboard() {
   };
 
   const handleCloseShift = async () => {
-    console.log('[Dashboard] handleCloseShift ejecutado');
     setConfirmCloseOpen(false);
 
     const result = await closeShift();
-    console.log('[Dashboard] closeShift resultado:', result);
 
     if (result && result.success) {
       closeCooldownRef.current = true;
       setTimeout(() => {
         closeCooldownRef.current = false;
-        console.log('[Dashboard] Cooldown post-cierre desactivado.');
       }, 3000);
     }
 
@@ -399,12 +396,9 @@ export default function SupervisorDashboard() {
                     color="error"
                     onClick={() => {
                       if (closeRequestedRef.current) {
-                        console.log('[Dashboard] Doble clic bloqueado en Cerrar Turno.');
                         return;
                       }
                       closeRequestedRef.current = true;
-                      console.log('[Dashboard] Botón Cerrar Turno presionado');
-                      console.log('[Dashboard] closingShift:', closingShift);
                       setConfirmCloseOpen(true);
                     }}
                     size={isMobile ? 'small' : 'medium'}
@@ -535,7 +529,6 @@ export default function SupervisorDashboard() {
       <Dialog
         open={confirmCloseOpen}
         onClose={() => {
-          console.log('[Dashboard] Dialog onClose, closingShift:', closingShift);
           if (!closingShift) {
             setConfirmCloseOpen(false);
             closeRequestedRef.current = false;

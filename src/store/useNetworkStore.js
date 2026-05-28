@@ -10,11 +10,19 @@ const useNetworkStore = create((set) => ({
     if (typeof window === 'undefined') return;
 
     const update = () => set({ isOnline: navigator.onLine });
+
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
 
     // Set inicial
     set({ isOnline: navigator.onLine });
+
+    // FIX M3: Retornar función de limpieza para remover listeners
+    // (útil si se necesitara desmontar, evita memory leaks)
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
   },
 }));
 

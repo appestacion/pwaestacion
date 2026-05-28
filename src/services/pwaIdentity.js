@@ -58,7 +58,7 @@ export function updatePWAIdentity() {
       display: 'standalone',
       background_color: '#F5F5F5',
       theme_color: COLOR_PRIMARY,
-      orientation: 'any',
+      orientation: 'portrait',
       categories: ['business', 'utilities'],
       icons: [
         { src: `${origin}/icons/icon-192.png`, sizes: '192x192', type: 'image/png' },

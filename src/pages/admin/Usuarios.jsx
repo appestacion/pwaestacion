@@ -31,6 +31,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import KeyIcon from '@mui/icons-material/Key';
+import WarningIcon from '@mui/icons-material/Warning';
 import useStore from '../../store/useStore.js';
 import { enqueueSnackbar } from 'notistack';
 
@@ -46,6 +47,10 @@ export default function Usuarios() {
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'supervisor' });
   const [loading, setLoading] = useState(false);
+  // FIX M1: Estado para el diálogo de confirmación de eliminación
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -129,18 +134,29 @@ export default function Usuarios() {
     }
   };
 
-  const handleDelete = async (user) => {
-    // Proteger TODOS los administradores por rol (no por email hardcodeado)
+  // FIX M1: Abrir diálogo de confirmación en vez de eliminar directamente
+  const handleDeleteClick = (user) => {
     if (user.role === 'administrador') {
       enqueueSnackbar('No se puede eliminar un usuario con rol de administrador', { variant: 'error' });
       return;
     }
+    setUserToDelete(user);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setDeleting(true);
     try {
-      await deleteUser(user.id);
+      await deleteUser(userToDelete.id);
       enqueueSnackbar('Usuario eliminado', { variant: 'success' });
       loadUsers();
     } catch (err) {
       enqueueSnackbar(err.message || 'Error al eliminar usuario', { variant: 'error' });
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
     }
   };
 
@@ -226,9 +242,18 @@ export default function Usuarios() {
                       <IconButton size="small" onClick={() => handleOpenEdit(user)} color="primary">
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(user)} color="error" disabled={user.role === 'administrador'}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title={user.role === 'administrador' ? 'No se puede eliminar administrador' : 'Eliminar usuario'}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteClick(user)}
+                            color="error"
+                            disabled={user.role === 'administrador'}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -306,6 +331,50 @@ export default function Usuarios() {
           </Button>
           <Button onClick={handleSave} variant="contained" disabled={loading}>
             {loading ? 'Guardando...' : editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* FIX M1: Diálogo de confirmación de eliminación */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => { if (!deleting) setDeleteConfirmOpen(false); }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+          <WarningIcon />
+          Eliminar Usuario
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            ¿Estás seguro de que deseas eliminar al usuario <strong>{userToDelete?.name}</strong>?
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Correo: {userToDelete?.email}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'error.main', mt: 1, fontWeight: 600 }}>
+            Esta acción no se puede deshacer. El usuario perderá acceso al sistema inmediatamente.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
+          <Button
+            onClick={() => setDeleteConfirmOpen(false)}
+            color="inherit"
+            disabled={deleting}
+            sx={{ minWidth: 100, fontWeight: 600 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deleting}
+            sx={{ minWidth: 100, fontWeight: 600 }}
+          >
+            {deleting ? 'Eliminando...' : 'Sí, Eliminar'}
           </Button>
         </DialogActions>
       </Dialog>

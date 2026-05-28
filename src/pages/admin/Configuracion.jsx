@@ -2,7 +2,7 @@
 // Panel de configuración exclusivo para E/S Montaña Fresca.
 // Solo campos operativos: tasas, dimensiones de estación.
 // La identidad está hardcodeada y no se muestra como configurable.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -21,6 +21,23 @@ import { enqueueSnackbar } from 'notistack';
 export default function Configuracion() {
   const { config, firestoreActive, loadConfig, updateConfig, resetConfig } = useConfigStore();
   const [showResetButton, setShowResetButton] = useState(false);
+
+  // FIX M7: Debounce para evitar escribir en Firestore en cada tecla
+  const debounceRef = useRef(null);
+  const debouncedUpdateConfig = useCallback((updates) => {
+    updateConfig(updates); // Actualizar estado local inmediatamente (UI reactiva)
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      updateConfig(updates); // Escribir a Firestore después de 1 segundo sin cambios
+    }, 1000);
+  }, [updateConfig]);
+
+  // Limpiar debounce al desmontar
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     loadConfig();
@@ -103,7 +120,7 @@ export default function Configuracion() {
                 label="Tasa 1 (Bs. por $)"
                 type="number"
                 value={tasa1Display}
-                onChange={(e) => updateConfig({ tasa1: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => debouncedUpdateConfig({ tasa1: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
                 helperText="Tasa principal"
                 InputLabelProps={{ shrink: true }}
@@ -116,7 +133,7 @@ export default function Configuracion() {
                 label="Tasa 2 (Bs. por $)"
                 type="number"
                 value={tasa2Display}
-                onChange={(e) => updateConfig({ tasa2: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => debouncedUpdateConfig({ tasa2: parseFloat(e.target.value) || 0 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>Bs.</span> }}
                 helperText="Segunda tasa"
                 InputLabelProps={{ shrink: true }}
@@ -129,7 +146,7 @@ export default function Configuracion() {
                 label="Precio Litro (USD)"
                 type="number"
                 value={config.precioLitroUSD != null ? parseFloat(config.precioLitroUSD).toFixed(2) : '0.50'}
-                onChange={(e) => updateConfig({ precioLitroUSD: parseFloat(e.target.value) || 0.50 })}
+                onChange={(e) => debouncedUpdateConfig({ precioLitroUSD: parseFloat(e.target.value) || 0.50 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>$</span> }}
                 helperText="Precio por litro en USD"
                 InputLabelProps={{ shrink: true }}

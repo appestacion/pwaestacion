@@ -2,10 +2,11 @@
 // Proxy para subir imágenes a imgbb sin exponer la API key al cliente.
 // Recibe un JSON { image: "data:image/..." } y retorna la URL de imgbb.
 //
-// SEGURIDAD v2:
-//   - Requiere autenticación Firebase (cualquier usuario activo puede subir)
+// SEGURIDAD v3:
+//   - Requiere autenticación Firebase con rol 'administrador' o 'supervisor'
 //   - Valida Content-Type y tamaño del payload
 //   - CORS dinámico según origen de la petición
+//   - FIX M11: Variable de entorno renombrada de VITE_IMGBB_API_KEY a IMGBB_API_KEY
 
 import { getCorsHeaders, handlePreflight, errorResponse, MAX_IMAGE_PAYLOAD_SIZE } from '../lib/cors.js';
 
@@ -53,8 +54,9 @@ export const handler = async (event) => {
       return errorResponse(500, 'Error interno del servidor', event);
     }
 
+    let decoded;
     try {
-      await admin.verifyIdToken(token);
+      decoded = await admin.verifyIdToken(token);
     } catch (authError) {
       console.error('Auth verification failed:', authError.message);
       if (authError.code === 'auth/id-token-expired') {
@@ -63,10 +65,17 @@ export const handler = async (event) => {
       return errorResponse(401, 'Token invalido', event);
     }
 
+    // FIX H7: Verificar rol — solo administrador y supervisor pueden subir imágenes
+    const userRole = decoded.role || decoded.customClaims?.role;
+    if (!userRole || (userRole !== 'administrador' && userRole !== 'supervisor')) {
+      return errorResponse(403, 'Sin permisos suficientes para subir imagenes', event);
+    }
+
     // ── Validar API key de imgbb ──
-    const apiKey = process.env.VITE_IMGBB_API_KEY;
+    // FIX M11: Usar IMGBB_API_KEY (sin prefijo VITE_) para que no se exponga al cliente
+    const apiKey = process.env.IMGBB_API_KEY;
     if (!apiKey) {
-      console.error('VITE_IMGBB_API_KEY no configurada');
+      console.error('IMGBB_API_KEY no configurada en Netlify');
       return errorResponse(500, 'Servicio de imagenes no configurado', event);
     }
 

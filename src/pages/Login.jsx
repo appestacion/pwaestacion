@@ -153,7 +153,7 @@ export default function LoginPage() {
       >
         <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-          {/* Logo DENTRO de la tarjeta - siempre LogoMF */}
+          {/* Logo DENTRO de la tarjeta */}
           <Box
             sx={{
               width: 96,
@@ -404,10 +404,7 @@ export default function LoginPage() {
       {/* Footer */}
       <Box sx={{ position: 'absolute', bottom: 12, textAlign: 'center', width: '100%' }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 600, fontSize: '0.7rem' }}>
-          © {new Date().getFullYear()} Copyright. Desarrollado por Erick Simosa
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.6rem' }}>
-          ericksimosa@gmail.com - 0424 3036024
+          © {new Date().getFullYear()} E/S Montaña Fresca. Todos los derechos reservados.
         </Typography>
       </Box>
     </Box>
@@ -419,7 +416,6 @@ function darkenColor(hex, percent) {
 
   hex = hex.replace('#', '');
 
-  // Validar que el string resultante sea un hex válido (3 o 6 caracteres hexadecimales)
   if (!/^[0-9A-Fa-f]{3}$/.test(hex) && !/^[0-9A-Fa-f]{6}$/.test(hex)) {
     return '#8B0000';
   }

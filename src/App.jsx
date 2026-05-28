@@ -140,12 +140,16 @@ export default function App() {
             <InstallPWA />
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route element={<ProtectedRoute />}>
+              {/* Rutas de administrador: solo rol 'administrador' */}
+              <Route element={<ProtectedRoute roles={['administrador']} />}>
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="usuarios" element={<Usuarios />} />
                   <Route path="configuracion" element={<Configuracion />} />
                 </Route>
+              </Route>
+              {/* Rutas de supervisor: administrador Y supervisor pueden acceder */}
+              <Route element={<ProtectedRoute roles={['administrador', 'supervisor']} />}>
                 <Route element={<SupervisorLayout />}>
                   <Route index element={<SupervisorDashboard />} />
                   <Route path="lecturas" element={<Lecturas />} />

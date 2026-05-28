@@ -26,7 +26,8 @@
 //     la jornada, garantizando que el 1TS tenga las 2 tasas disponibles.
 
 import admin from 'firebase-admin';
-import { verifyAuth, getSecurityHeaders, handleCorsPreflight } from '../lib/verifyAuth.js';
+import { verifyAuth, handleCorsPreflight } from '../lib/verifyAuth.js';
+import { getCorsHeaders } from '../lib/cors.js';
 
 const API_URL = process.env.BCV_API_URL || 'https://api-bcv-1vq1.onrender.com/tasas';
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -46,17 +47,6 @@ function initializeFirebase() {
     return false;
   }
 }
-
-const securityHeaders = getSecurityHeaders();
-
-// Horarios de operación (hora Venezuela) — TODOS LOS DÍAS
-// Wake-up: 23:40 (despierta Render antes de la actualización)
-// Actualización: 23:45 (única ejecución diaria)
-const WAKE_UP_HOUR = 23;
-const WAKE_UP_MINUTE = 40;
-const START_HOUR = 23;
-const END_HOUR = 23;
-const UPDATE_INTERVAL = 3;
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -81,9 +71,12 @@ function verifyCronOrAuth(event) {
 }
 
 export const handler = async (event, context) => {
-  // Handle CORS preflight
-  const corsResponse = handleCorsPreflight(event, securityHeaders);
+  // Handle CORS preflight (CORS dinámico según origin)
+  const corsResponse = handleCorsPreflight(event);
   if (corsResponse) return corsResponse;
+
+  // Headers CORS dinámicos para TODAS las respuestas
+  const corsHeaders = getCorsHeaders(event);
 
   // VERIFICAR AUTENTICACIÓN
   const cronResult = verifyCronOrAuth(event);
@@ -92,11 +85,12 @@ export const handler = async (event, context) => {
   if (cronResult) {
     authResult = cronResult;
   } else {
-    authResult = await verifyAuth(event, { allowedRoles: ['admin'] });
+    // FIX H3: 'admin' → 'administrador' (el rol real en el sistema)
+    authResult = await verifyAuth(event, { allowedRoles: ['administrador'] });
     if (!authResult.authenticated) {
       return {
         statusCode: authResult.error === 'Sin permisos suficientes' ? 403 : 401,
-        headers: securityHeaders,
+        headers: corsHeaders,
         body: JSON.stringify({ error: authResult.error }),
       };
     }
@@ -105,8 +99,8 @@ export const handler = async (event, context) => {
   if (!initializeFirebase()) {
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ error: 'Error Firebase' }),
-      headers: securityHeaders,
     };
   }
 
@@ -120,7 +114,7 @@ export const handler = async (event, context) => {
   // ----------------------------------------------------------------
   // 23:40 TODOS LOS DÍAS: DESPERTAR API (PING)
   // ----------------------------------------------------------------
-  if (currentHour === WAKE_UP_HOUR && currentMinute === WAKE_UP_MINUTE) {
+  if (currentHour === 23 && currentMinute === 40) {
     console.log(`${currentHour}:${currentMinute} (${dayName}) - Enviando ping para despertar Render...`);
     try {
       const controller = new AbortController();
@@ -133,7 +127,7 @@ export const handler = async (event, context) => {
     console.log(`Ping enviado (${dayName}). API despertando...`);
     return {
       statusCode: 200,
-      headers: securityHeaders,
+      headers: corsHeaders,
       body: JSON.stringify({
         action: 'wake-up',
         day: dayName,
@@ -146,6 +140,10 @@ export const handler = async (event, context) => {
   // ----------------------------------------------------------------
   // 23:45 TODOS LOS DÍAS: ACTUALIZAR TASA (ÚNICA EJECUCIÓN DIARIA)
   // ----------------------------------------------------------------
+  const START_HOUR = 23;
+  const END_HOUR = 23;
+  const UPDATE_INTERVAL = 3;
+
   const isInUpdateWindow = currentHour >= START_HOUR && currentHour <= END_HOUR;
   const shouldUpdateNow = currentMinute % UPDATE_INTERVAL === 0;
 
@@ -177,13 +175,11 @@ export const handler = async (event, context) => {
       const currentTasa2 = currentConfig.tasa2 || 0;
 
       // 3. ROTACIÓN CON GUARDIA: tasa2 → tasa1, API → tasa2
-      //    Nunca propagamos un tasa2=0 o inválida a tasa1.
       const newTasa2 = Number(parseFloat(newRate).toFixed(2));
       const previousTasa2 = Number(currentTasa2);
       let newTasa1 = Number(currentTasa2);
 
       // GUARDIA: Si tasa2 es 0 o inválida, mantener tasa1 actual.
-      // Esto previene que una rotación con tasa2 vacía destruya tasa1.
       if (newTasa1 <= 0 || isNaN(newTasa1)) {
         newTasa1 = Number(currentTasa1);
       }
@@ -196,7 +192,7 @@ export const handler = async (event, context) => {
         console.log(`Tasa sin cambios: tasa1=${newTasa1} tasa2=${newTasa2} (no se escribe en Firebase)`);
         return {
           statusCode: 200,
-          headers: securityHeaders,
+          headers: corsHeaders,
           body: JSON.stringify({
             success: true,
             updated: false,
@@ -229,7 +225,7 @@ export const handler = async (event, context) => {
 
       return {
         statusCode: 200,
-        headers: securityHeaders,
+        headers: corsHeaders,
         body: JSON.stringify({
           success: true,
           updated: true,
@@ -247,7 +243,7 @@ export const handler = async (event, context) => {
       console.error(`Error actualizando tasa (${dayName}):`, error.message);
       return {
         statusCode: 500,
-        headers: securityHeaders,
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Error interno del servidor' }),
       };
     }
@@ -256,6 +252,8 @@ export const handler = async (event, context) => {
   // ----------------------------------------------------------------
   // FUERA DE HORARIO: INFORMAR ESTADO
   // ----------------------------------------------------------------
+  const WAKE_UP_HOUR = 23;
+  const WAKE_UP_MINUTE = 40;
   let nextAction;
   if (currentHour < WAKE_UP_HOUR) {
     nextAction = `Esperando ${WAKE_UP_HOUR}:${String(WAKE_UP_MINUTE).padStart(2, '0')} para despertar API`;
@@ -271,7 +269,7 @@ export const handler = async (event, context) => {
 
   return {
     statusCode: 200,
-    headers: securityHeaders,
+    headers: corsHeaders,
     body: JSON.stringify({
       action: 'idle',
       day: dayName,

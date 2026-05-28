@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="theme-color" content="#CE1126" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Montaña Fresca" />
     <meta name="application-name" content="Montaña Fresca" />
     <meta name="description" content="E/S Montaña Fresca - Sistema de Cierre de Turno" />
-    <!-- FIX: Prevenir cache del HTML en el navegador (belt-and-suspenders con netlify.toml) -->
+    <!-- FIX: Prevenir cache del HTML en el navegador -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -22,9 +22,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>E/S Montaña Fresca</title>
-    <!-- FIX: Fallback inline spinner que se muestra ANTES de que React monte.
-         Si el JS falla por error MIME, el usuario verá este mensaje en vez de
-         una pantalla blanca o un spinner infinito del navegador. -->
     <style>
       #initial-loader {
         position: fixed;
@@ -76,7 +73,6 @@
     </style>
   </head>
   <body>
-    <!-- Loader inicial: visible hasta que React monte y lo oculte -->
     <div id="initial-loader">
       <div class="spinner"></div>
       <p>Cargando...</p>
@@ -88,15 +84,11 @@
     </div>
     <div id="root"></div>
 
-    <!-- FIX: Detección de error de carga de módulos JS (MIME type error).
-         Si el script type="module" falla, mostramos el mensaje de error inline
-         y ofrecemos borrar el caché del service worker. -->
     <script>
       (function() {
         var errorShown = false;
         var timer = setTimeout(function() {
           if (!errorShown && !window.__APP_MOUNTED) {
-            // Si despues de 15 segundos la app no ha montado, asumimos error
             showLoadError();
           }
         }, 15000);
@@ -113,32 +105,28 @@
           if (errorMsg) errorMsg.style.display = 'block';
         }
 
-        // Detectar errores de carga de scripts (incluye MIME type errors)
         window.addEventListener('error', function(e) {
           if (e.target && e.target.tagName === 'SCRIPT') {
             console.error('[PWA] Error cargando script:', e.target.src, e.message);
             showLoadError();
           }
-        }, true); // true = capture phase para atrapar errores de script
+        }, true);
 
         window.__forceReloadApp = function() {
           forceReload();
         };
 
         window.forceReload = function() {
-          // 1. Desregistrar el service worker viejo
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
               registrations.forEach(function(reg) {
                 reg.unregister();
               });
-              // 2. Borrar caches
               if ('caches' in window) {
                 caches.keys().then(function(names) {
                   names.forEach(function(name) {
                     caches.delete(name);
                   });
-                  // 3. Recargar limpio
                   window.location.reload();
                 });
               } else {

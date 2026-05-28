@@ -30,9 +30,21 @@
   # primero antes de aplicar el redirect. Solo las rutas que NO coinciden con un
   # archivo en dist/ seran redirigidas a index.html (routing SPA).
 
+# FIX M4: Content Security Policy — Permite los recursos que la app necesita.
+# - blob: → manifest dinámico (pwaIdentity.js), imágenes blob
+# - unsafe-inline → scripts y estilos inline en index.html (loader, spinner)
+# - fonts.googleapis.com / fonts.gstatic.com → Google Fonts (Inter)
+# - firestore.googleapis.com → Firestore SDK
+# - firebaseinstallations.googleapis.com → Firebase Installations
+# - identitytoolkit.googleapis.com → Firebase Auth (signIn)
+# - securetoken.googleapis.com → Firebase Auth (token refresh)
+# - apis.google.com → Google Identity Services
+# - firebasestorage.googleapis.com → Firebase Storage (imágenes subidas)
+# TODO futuro: migrar 'unsafe-inline' a nonces para script-src
 [[headers]]
   for = "/*"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'"
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"

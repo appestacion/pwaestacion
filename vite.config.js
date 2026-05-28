@@ -53,6 +53,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // FIX M4: CSP para el dev server directo (npm run dev sin Netlify Dev).
+    // Permite blob: para el manifest dinámico y los recursos de Firebase/Fonts.
+    headers: {
+      'Content-Security-Policy': "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'",
+    },
   },
   build: {
     outDir: 'dist',
