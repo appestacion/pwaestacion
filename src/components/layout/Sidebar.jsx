@@ -48,7 +48,7 @@ const supervisorMenuItems = [
   { path: '/cuadre-pv', label: 'Cuadre PV', icon: <PointOfSaleIcon /> },
   { path: '/productos', label: 'Gestión Productos', icon: <CategoryIcon /> },
   { path: '/inventario', label: 'Inventario', icon: <InventoryIcon /> },
-  { path: '/historial-cierres', label: 'Historial Cierres', icon: <HistoryIcon /> },
+  { path: '/historial-cierres', label: 'Historiales', icon: <HistoryIcon /> },
   { path: '/generar-pdf', label: 'Generar PDF', icon: <PictureAsPdfIcon /> },
   { path: '/estadisticas', label: 'Estadísticas', icon: <BarChartIcon /> },
 ];

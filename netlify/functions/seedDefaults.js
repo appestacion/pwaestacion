@@ -1,6 +1,7 @@
 // netlify/functions/seedDefaults.js
-// Siembra datos iniciales en Firestore: configuración y productos.
+// Siembra datos iniciales en Firestore: configuración.
 // Solo se ejecuta si los datos no existen (idempotente).
+// Los productos los gestiona el admin desde la app.
 //
 // IDENTIDAD HARDCODEADA para E/S Montaña Fresca.
 // NOTA: Ya NO se crean usuarios aquí. Los usuarios se gestionan
@@ -43,7 +44,7 @@ export const handler = async (event) => {
     const admin = getApp();
     const adminAuth = admin.auth();
     const adminDb = admin.firestore();
-    const results = { config: false, products: 0, messages: [] };
+    const results = { config: false, messages: [] };
 
     // ── Verificar autenticación de administrador ──
     const callerToken = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
@@ -55,40 +56,6 @@ export const handler = async (event) => {
     if (!callerDoc.exists || callerDoc.data().role !== 'administrador') {
       return errorResponse(403, 'Solo administradores', event);
     }
-
-    const PRODUCTS_LIST = [
-      { name: 'FLEX METANOL', category: 'aditivo', priceUSD: 2.50 },
-      { name: 'POWER BOOSTER', category: 'aditivo', priceUSD: 3.00 },
-      { name: 'STP OCTANAJE PEQUEÑO NARANJA', category: 'aditivo', priceUSD: 3.50 },
-      { name: 'STP NEGRO', category: 'aditivo', priceUSD: 4.00 },
-      { name: 'STP GRIS', category: 'aditivo', priceUSD: 3.50 },
-      { name: 'STP BLANCO', category: 'aditivo', priceUSD: 3.00 },
-      { name: 'STP DIRECCION', category: 'aditivo', priceUSD: 4.50 },
-      { name: 'ACEITE DE MOTOR KYOTO FULL SINT.', category: 'aceite', priceUSD: 18.00 },
-      { name: 'ACEITE OLISTONE 20W-50 MINERAL', category: 'aceite', priceUSD: 12.00 },
-      { name: 'ACEITE SKY EVOLUB SEMISINTETICO 15W-40', category: 'aceite', priceUSD: 14.00 },
-      { name: 'ACEITE SKY DEXRON III', category: 'aceite', priceUSD: 10.00 },
-      { name: 'PDV MULTIGRADO EXTRA 20W50', category: 'aceite', priceUSD: 11.00 },
-      { name: 'PDV SUPRA PREMIUM 14W40', category: 'aceite', priceUSD: 13.00 },
-      { name: 'PDV MOTO PREMIUM 4T 20W50', category: 'aceite', priceUSD: 8.00 },
-      { name: 'ACEITE VALVOLINE 20W-50 MINERAL', category: 'aceite', priceUSD: 15.00 },
-      { name: 'ACEITE VALVOLINE 15W-40 MINERAL', category: 'aceite', priceUSD: 14.00 },
-      { name: 'ACEITE VALVOLINE 20W-50 SEMISINTETICO', category: 'aceite', priceUSD: 18.00 },
-      { name: 'ACEITE VALVOLINE 15W-40 SEMISINTETICO', category: 'aceite', priceUSD: 17.00 },
-      { name: 'ACEITE FC 20W-50 MINERAL', category: 'aceite', priceUSD: 10.00 },
-      { name: 'ACEITE FC 15W-40 MINERAL', category: 'aceite', priceUSD: 9.00 },
-      { name: 'ACEITE FC TRANSM. DEXRON III', category: 'aceite', priceUSD: 8.00 },
-      { name: 'ACEITE FC 15W-40 SEMISINTETICO', category: 'aceite', priceUSD: 11.00 },
-      { name: 'REFIGERANTE DR. CARE', category: 'refrigerante', priceUSD: 5.00 },
-      { name: 'ACEITE INCA 15W-40 MINERAL', category: 'aceite', priceUSD: 9.00 },
-      { name: 'ACEITE INCA 15W-40 SEMISINTETICO', category: 'aceite', priceUSD: 11.00 },
-      { name: 'ACEITE INCA 20W-50 MINERAL', category: 'aceite', priceUSD: 10.00 },
-      { name: 'ACEITE INCA DEXRON III', category: 'aceite', priceUSD: 8.00 },
-      { name: 'ROSHFRANS 15W-40 SEMISINTETICO', category: 'aceite', priceUSD: 12.00 },
-      { name: 'LIGA DE FRENO PEQUEÑA', category: 'freno', priceUSD: 3.00 },
-      { name: 'LIGA DE FRENO GRANDE', category: 'freno', priceUSD: 5.00 },
-      { name: 'EXTINTOR PELOTA', category: 'extintor', priceUSD: 15.00 },
-    ];
 
     // ── Seed config — HARDCODEADO para E/S Montaña Fresca ──
     // Solo campos operativos (tasas, dimensiones de estación).
@@ -110,24 +77,7 @@ export const handler = async (event) => {
       results.messages.push('Configuracion ya existe');
     }
 
-    // ── Seed products ──
-    const productsSnapshot = await adminDb.collection('products').get();
-    if (productsSnapshot.empty) {
-      const batch = adminDb.batch();
-      for (const product of PRODUCTS_LIST) {
-        batch.set(adminDb.collection('products').doc(), {
-          ...product,
-          active: true,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-      await batch.commit();
-      results.products = PRODUCTS_LIST.length;
-      results.messages.push(PRODUCTS_LIST.length + ' productos creados');
-    } else {
-      results.messages.push(productsSnapshot.size + ' productos ya existen');
-    }
+    results.messages.push('Productos gestionados por el admin desde la app');
 
     return {
       statusCode: 200,

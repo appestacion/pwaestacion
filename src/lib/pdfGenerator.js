@@ -2,7 +2,16 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatBs, formatUSD, formatNumber } from './formatters.js';
+import { usdToBs } from './conversions.js';
 import { ISLAND_LABELS } from '../config/constants.js';
+
+// ── Labels para formas de pago (igual a CuadrePV.jsx) ──
+const PAYMENT_LABELS = {
+  punto_de_venta: 'PV',
+  efectivo_bs: 'Ef.Bs',
+  efectivo_usd: 'Ef.$',
+  combinado: 'Combinado',
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // IDENTIDAD FIJA — siempre estos valores, sin depender de Firestore
@@ -910,100 +919,118 @@ export function generateCuadrePVPDF(shift, cuadre, cuadreTotals, stationConfig, 
       const productsSold = island.productsSold || [];
       if (vales.length === 0 && transferencias.length === 0 && productsSold.length === 0) return;
 
-      y = ensureSpace(doc, 40, y);
+      // Calcular alto real que necesita esta isla (~5mm por fila simple, ~7mm por producto con 2 líneas)
+      const rowCount = 1 // encabezado isla
+        + (vales.length > 0 ? 1 + vales.length + (vales.length > 1 ? 1 : 0) : 0)
+        + (transferencias.length > 0 ? 1 + transferencias.length + (transferencias.length > 1 ? 1 : 0) : 0)
+        + (productsSold.length > 0 ? 1 + productsSold.length : 0);
+      const neededHeight = rowCount * 6 + 4; // 6mm por fila + margen
 
-      autoTable(doc, {
-        startY: y,
-        body: [[
-          { content: ISLAND_LABELS[island.islandId], colSpan: 3, styles: { fillColor: [153, 153, 153], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
-        ]],
-        theme: 'grid',
-        margin: { left: 14, right: 14 },
-      });
-      y = doc.lastAutoTable.finalY + 2;
+      y = ensureSpace(doc, neededHeight, y);
 
+      // ── Una sola tabla por isla: encabezado + vales + transferencias + productos ──
+      const islandBody = [];
+
+      // Encabezado de isla
+      islandBody.push([
+        { content: ISLAND_LABELS[island.islandId], colSpan: 3, styles: { fillColor: [153, 153, 153], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+      ]);
+
+      // Vales
       if (vales.length > 0) {
-        y = ensureSpace(doc, 20, y);
-        const valeRows = vales.map((v, i) => [
-          { content: v.descripcion || `Vale ${i + 1}`, styles: { fontSize: 7, fontStyle: 'italic' } },
-          { content: formatUSD(v.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+        islandBody.push([
+          { content: 'Vales', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
         ]);
+        vales.forEach((v, i) => {
+          islandBody.push([
+            { content: v.descripcion || `Vale ${i + 1}`, styles: { fontSize: 7, fontStyle: 'italic' } },
+            { content: formatUSD(v.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+          ]);
+        });
         if (vales.length > 1) {
           const totalV = vales.reduce((s, v) => s + (v.monto || 0), 0);
-          valeRows.push([
+          islandBody.push([
             { content: 'Total Vales', styles: { fontStyle: 'bold', fontSize: 7 } },
             { content: formatUSD(totalV), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
           ]);
         }
-        autoTable(doc, {
-          startY: y,
-          head: [[
-            { content: 'Vales', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
-          ]],
-          body: valeRows,
-          theme: 'grid',
-          margin: { left: 14, right: 14 },
-        });
-        y = doc.lastAutoTable.finalY + 3;
       }
 
+      // Transferencias
       if (transferencias.length > 0) {
-        y = ensureSpace(doc, 20, y);
-        const transfRows = transferencias.map((t, i) => [
-          { content: t.descripcion || `Transf. ${i + 1}`, styles: { fontSize: 7, fontStyle: 'italic' } },
-          { content: formatUSD(t.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+        islandBody.push([
+          { content: 'Transferencias', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
         ]);
+        transferencias.forEach((t, i) => {
+          islandBody.push([
+            { content: t.descripcion || `Transf. ${i + 1}`, styles: { fontSize: 7, fontStyle: 'italic' } },
+            { content: formatUSD(t.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+          ]);
+        });
         if (transferencias.length > 1) {
           const totalT = transferencias.reduce((s, t) => s + (t.monto || 0), 0);
-          transfRows.push([
+          islandBody.push([
             { content: 'Total Transferencias', styles: { fontStyle: 'bold', fontSize: 7 } },
             { content: formatUSD(totalT), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
           ]);
         }
-        autoTable(doc, {
-          startY: y,
-          head: [[
-            { content: 'Transferencias', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
-          ]],
-          body: transfRows,
-          theme: 'grid',
-          margin: { left: 14, right: 14 },
-        });
-        y = doc.lastAutoTable.finalY + 3;
       }
 
+      // Productos vendidos
       if (productsSold.length > 0) {
-        y = ensureSpace(doc, 20, y);
-        const prodRows = productsSold.map((ps) => {
+        islandBody.push([
+          { content: 'Producto', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
+          { content: 'Cant.', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
+          { content: 'Total', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
+        ]);
+        productsSold.forEach((ps) => {
           const prod = (products || []).find(p => p.name === ps.productName);
           const price = prod?.priceUSD || 0;
           const total = price * ps.quantity;
           const method = ps.paymentMethod || 'punto_de_venta';
-          const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-          const totalBs = showBs && tasa1 > 0 ? total * tasa1 : 0;
-          const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : 'Ef.$';
-          const label = `${ps.productName}${showBs ? `  (${formatBs(totalBs)} - ${methodLabel})` : `  (${methodLabel})`}`;
-          return [
-            { content: label, styles: { fontSize: 7, cellWidth: 55 } },
+          const isCombined = method === 'combinado';
+
+          let paymentDetail = '';
+          if (isCombined && ps.paymentBreakdown && ps.paymentBreakdown.length > 0) {
+            paymentDetail = ps.paymentBreakdown
+              .filter((bd) => bd.amountUSD > 0)
+              .map((bd) => {
+                const bdLabel = PAYMENT_LABELS[bd.method] || bd.method;
+                const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs';
+                if (bdShowBs) {
+                  return `${bdLabel}: ${formatUSD(bd.amountUSD)} = ${formatBs(usdToBs(bd.amountUSD, tasa1))}`;
+                }
+                return `${bdLabel}: ${formatUSD(bd.amountUSD)}`;
+              })
+              .join(' | ');
+          } else {
+            const methodLabel = PAYMENT_LABELS[method] || method;
+            const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+            if (showBs) {
+              paymentDetail = `${methodLabel}: ${formatUSD(total)} = ${formatBs(usdToBs(total, tasa1))}`;
+            } else {
+              paymentDetail = `(${methodLabel})`;
+            }
+          }
+
+          islandBody.push([
+            { content: [ps.productName, paymentDetail], styles: { fontSize: 7 } },
             { content: String(ps.quantity), styles: { fontSize: 7 } },
             { content: formatUSD(total), styles: { fontSize: 7, fontStyle: 'bold' } },
-          ];
+          ]);
         });
-        autoTable(doc, {
-          startY: y,
-          head: [[
-            { content: 'Producto', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
-            { content: 'Cant.', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
-            { content: 'Total', styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
-          ]],
-          body: prodRows,
-          theme: 'grid',
-          styles: { halign: 'center', cellPadding: 1.5 },
-          columnStyles: { 0: { halign: 'left' } },
-          margin: { left: 14, right: 14 },
-        });
-        y = doc.lastAutoTable.finalY + 5;
       }
+
+      // Una sola autoTable con todo el contenido de la isla
+      autoTable(doc, {
+        startY: y,
+        body: islandBody,
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 1.5 },
+        columnStyles: { 0: { halign: 'left' } },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 5;
     });
   }
 

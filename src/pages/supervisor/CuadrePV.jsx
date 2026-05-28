@@ -20,6 +20,14 @@ import { formatBs, formatUSD, formatNumber } from '../../lib/formatters.js';
 import { usdToBs } from '../../lib/conversions.js';
 import { ISLAND_LABELS } from '../../config/constants.js';
 
+// ── Labels para formas de pago ──
+const PAYMENT_LABELS = {
+  punto_de_venta: 'PV',
+  efectivo_bs: 'Ef.Bs',
+  efectivo_usd: 'Ef.$',
+  combinado: 'Combinado',
+};
+
 // ── Estilos tipo formulario impreso (consistente con Biblia) ──
 const b = '1px solid #666';
 const c = { border: b, p: '4px 6px', fontSize: '0.72rem', lineHeight: 1.3 };
@@ -273,26 +281,38 @@ export default function CuadrePV() {
                       const price = prod?.priceUSD || 0;
                       const total = price * ps.quantity;
                       const method = ps.paymentMethod || 'punto_de_venta';
-                      const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-                      const totalBs = showBs ? usdToBs(total, tasa1) : 0;
-                      const methodLabel = method === 'punto_de_venta' ? 'PV'
-                        : method === 'efectivo_bs' ? 'Ef.Bs'
-                        : 'Ef.$';
+                      const isCombined = method === 'combinado';
+
+                      let paymentDetail = '';
+                      if (isCombined && ps.paymentBreakdown && ps.paymentBreakdown.length > 0) {
+                        paymentDetail = ps.paymentBreakdown
+                          .filter((bd) => bd.amountUSD > 0)
+                          .map((bd) => {
+                            const bdLabel = PAYMENT_LABELS[bd.method] || bd.method;
+                            const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs';
+                            if (bdShowBs) {
+                              return `${bdLabel}: ${formatUSD(bd.amountUSD)} = ${formatBs(usdToBs(bd.amountUSD, tasa1))}`;
+                            }
+                            return `${bdLabel}: ${formatUSD(bd.amountUSD)}`;
+                          })
+                          .join(' | ');
+                      } else {
+                        const methodLabel = PAYMENT_LABELS[method] || method;
+                        const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                        if (showBs) {
+                          paymentDetail = `${methodLabel}: ${formatUSD(total)} = ${formatBs(usdToBs(total, tasa1))}`;
+                        } else {
+                          paymentDetail = `(${methodLabel})`;
+                        }
+                      }
 
                       return (
                         <TableRow key={`p-${idx}`}>
                           <TableCell sx={lbl}>
                             {ps.productName}
-                            {showBs && (
-                              <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic' }}>
-                                {formatBs(totalBs)} ({methodLabel})
-                              </Typography>
-                            )}
-                            {!showBs && (
-                              <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic' }}>
-                                ({methodLabel})
-                              </Typography>
-                            )}
+                            <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic', mt: 0.25 }}>
+                              {paymentDetail}
+                            </Typography>
                           </TableCell>
                           <TableCell sx={dataCell}>{ps.quantity}</TableCell>
                           <TableCell sx={{ ...dataCell, fontWeight: 700 }}>{formatUSD(total)}</TableCell>

@@ -62,6 +62,7 @@ export default function CierreTurno() {
   const config = useConfigStore((s) => s.config) || {};
   const maxCortes = config.maxCortes || 12;
   const precioLitroUSD = config.precioLitroUSD || 0.50;
+  const porcentajeRecaudacion = config.porcentajeRecaudacion != null ? config.porcentajeRecaudacion / 100 : 0.10;
   const [activeTab, setActiveTab] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
@@ -159,6 +160,16 @@ export default function CierreTurno() {
   const handleUpdateCombinedEntry = (idx, field, value) => {
     const updated = [...combinedPayments];
     updated[idx] = { ...updated[idx], [field]: value };
+
+    // ★ VALIDACIÓN: No permitir que el monto total combinado exceda el precio del producto
+    if (field === 'amountUSD' && selectedPaymentMethod === 'combinado') {
+      const otherEntriesTotal = updated.reduce((s, p, i) => i === idx ? s : s + (p.amountUSD || 0), 0);
+      const maxAllowed = Math.max(0, selectedProductTotalUSD - otherEntriesTotal);
+      if (value > maxAllowed) {
+        updated[idx].amountUSD = parseFloat(maxAllowed.toFixed(2));
+      }
+    }
+
     setCombinedPayments(updated);
   };
 
@@ -721,10 +732,10 @@ export default function CierreTurno() {
                     </Paper>
                   </Grid>
                 </Grid>
-                {/* ★ Recaudación 10% — justificado a la derecha */}
+                {/* ★ Recaudación — porcentaje configurable desde admin */}
                 <Box sx={{ mt: 1, textAlign: 'right' }}>
                   <Chip
-                    label={`Recaudación 10%: ${hasReadings && propinaBs > 0 ? formatBs(roundDownTo10(propinaBs * 0.10)) : '—'}`}
+                    label={`Recaudación ${config.porcentajeRecaudacion != null ? config.porcentajeRecaudacion : 10}%: ${hasReadings && propinaBs > 0 ? formatBs(roundDownTo10(propinaBs * porcentajeRecaudacion)) : '—'}`}
                     color="warning"
                     size="small"
                     sx={{ fontWeight: 600 }}
@@ -883,10 +894,17 @@ export default function CierreTurno() {
                           type="number"
                           value={entry.amountUSD || ''}
                           onChange={(e) => {
-                            const v = parseFloat(e.target.value);
-                            handleUpdateCombinedEntry(idx, 'amountUSD', isNaN(v) ? 0 : v);
+                            let v = parseFloat(e.target.value);
+                            if (isNaN(v) || v < 0) v = 0;
+                            // ★ Clamp: no exceder el monto restante disponible
+                            const otherTotal = combinedPayments.reduce((s, p, i) => i === idx ? s : s + (p.amountUSD || 0), 0);
+                            const maxAllowed = Math.max(0, selectedProductTotalUSD - otherTotal);
+                            if (v > maxAllowed) v = parseFloat(maxAllowed.toFixed(2));
+                            handleUpdateCombinedEntry(idx, 'amountUSD', v);
                           }}
-                          inputProps={{ min: 0, step: 0.01 }}
+                          error={combinedAssignedUSD > selectedProductTotalUSD + 0.01}
+                          helperText={combinedAssignedUSD > selectedProductTotalUSD + 0.01 ? 'Excede el total' : ''}
+                          inputProps={{ min: 0, step: 0.01, max: selectedProductTotalUSD }}
                           sx={{ flex: 1, minWidth: 120 }}
                         />
                         {entry.method === 'punto_de_venta' && entry.amountUSD > 0 && (
@@ -921,12 +939,18 @@ export default function CierreTurno() {
                         variant="body2"
                         sx={{
                           fontWeight: 700,
-                          color: Math.abs(combinedRemainingUSD) < 0.01 ? '#2E7D32' : '#D32F2F',
+                          color: Math.abs(combinedRemainingUSD) < 0.01
+                            ? '#2E7D32'
+                            : combinedAssignedUSD > selectedProductTotalUSD + 0.01
+                              ? '#D32F2F'
+                              : '#E65100',
                         }}
                       >
                         {Math.abs(combinedRemainingUSD) < 0.01
                           ? 'Completo'
-                          : `Faltan: ${formatUSD(Math.abs(combinedRemainingUSD))}`}
+                          : combinedAssignedUSD > selectedProductTotalUSD + 0.01
+                            ? `Excede: ${formatUSD(combinedAssignedUSD - selectedProductTotalUSD)}`
+                            : `Faltan: ${formatUSD(Math.abs(combinedRemainingUSD))}`}
                       </Typography>
                     </Box>
                   </Paper>

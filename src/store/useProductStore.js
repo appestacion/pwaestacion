@@ -1,39 +1,13 @@
 // src/store/useProductStore.js
 // Productos con Firestore en tiempo real.
 // Cloud-only — no localStorage fallback.
+// Sin productos por defecto: el admin agrega los que necesite.
 
 import { create } from 'zustand';
-import { PRODUCTS_LIST, DEFAULT_PRODUCT_PRICES } from '../config/constants.js';
 import { isFirebaseConfigured, getDb } from '../config/firebase.js';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 let unsubscribeProducts = null;
-
-function getDefaultProducts() {
-  return PRODUCTS_LIST.map((p, i) => ({
-    id: `prod-${(i + 1).toString().padStart(3, '0')}`,
-    name: p.name,
-    priceUSD: DEFAULT_PRODUCT_PRICES[p.name] || 5.00,
-    category: p.category,
-    active: true,
-    createdAt: new Date().toISOString(),
-  }));
-}
-
-async function seedProductsToFirestore(products) {
-  if (!isFirebaseConfigured() || !products || products.length === 0) return;
-  try {
-    const db = getDb();
-    const batch = products.map((p) => {
-      const { id, ...data } = p;
-      return setDoc(doc(db, 'products', id), data);
-    });
-    await Promise.all(batch);
-    console.log(`[ProductStore] ${products.length} productos sembrados en Firestore`);
-  } catch (error) {
-    console.error('[ProductStore] Error sembrando productos en Firestore:', error);
-  }
-}
 
 const useProductStore = create((set, get) => ({
   products: [],
@@ -50,14 +24,6 @@ const useProductStore = create((set, get) => ({
           q,
           (snapshot) => {
             const products = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-            if (products.length === 0) {
-              const defaultProducts = getDefaultProducts();
-              console.log('[ProductStore] Firestore vacio, sembrando', defaultProducts.length, 'productos por defecto');
-              set({ products: defaultProducts, firestoreActive: true });
-              seedProductsToFirestore(defaultProducts);
-              return;
-            }
 
             set({ products, firestoreActive: true });
           },

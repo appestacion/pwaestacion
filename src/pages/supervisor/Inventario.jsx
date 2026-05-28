@@ -45,7 +45,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
-import { useConfigStore } from '../../store/useConfigStore.js';
+import { useConfigStore, STATION_IDENTITY } from '../../store/useConfigStore.js';
 import { ISLAND_LABELS, CATEGORY_ORDER } from '../../config/constants.js';
 import { enqueueSnackbar } from 'notistack';
 
@@ -233,6 +233,11 @@ export default function Inventario() {
     updateStockItem, updateIslandStockItem,
   } = useInventoryStore();
   const config = useConfigStore((state) => state.config);
+
+  // ── Identidad de la estación (constante fija) ──
+  const stationName = STATION_IDENTITY.stationName;
+  const stationRif = STATION_IDENTITY.stationRif;
+  const stationLogo = STATION_IDENTITY.stationLogo;
 
   const [tab, setTab] = useState(0);
   const [editingStock, setEditingStock] = useState(false);
@@ -546,22 +551,16 @@ export default function Inventario() {
       {/* ═══ Encabezado ═══ */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {config.stationLogo ? (
-            <Avatar
-              src={config.stationLogo}
-              alt={config.stationName}
-              sx={{ width: 48, height: 48, borderRadius: 1.5 }}
-              variant="rounded"
-            />
-          ) : (
-            <Box sx={{ width: 48, height: 48, borderRadius: 1.5, bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LocalGasStationIcon sx={{ fontSize: 30, color: 'grey.500' }} />
-            </Box>
-          )}
+          <Avatar
+            src={stationLogo}
+            alt={stationName}
+            sx={{ width: 48, height: 48, borderRadius: 1.5 }}
+            variant="rounded"
+          />
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>Inventario</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {config.stationName} — {config.stationRif}
+              {stationName} — RIF: {stationRif}
             </Typography>
           </Box>
         </Box>

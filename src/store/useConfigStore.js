@@ -40,6 +40,7 @@ const defaultConfig = {
   islandsCount: 3,
   pumpsPerIsland: 2,
   maxCortes: 12,
+  porcentajeRecaudacion: 10,
   previousTasa2: null,
   fechaValor: null,
   lastRateUpdate: null,
@@ -111,6 +112,7 @@ const useConfigStore = create(
                     pumpsPerIsland: firestoreData.pumpsPerIsland ?? get().config.pumpsPerIsland,
                     maxCortes: firestoreData.maxCortes ?? get().config.maxCortes,
                     precioLitroUSD: firestoreData.precioLitroUSD ?? 0.50,
+                    porcentajeRecaudacion: firestoreData.porcentajeRecaudacion ?? get().config.porcentajeRecaudacion,
                     previousTasa2: firestoreData.previousTasa2 ?? null,
                     fechaValor: firestoreData.fechaValor ?? null,
                     lastRateUpdate: firestoreData.lastRateUpdate ?? null,
@@ -127,6 +129,7 @@ const useConfigStore = create(
                     islandsCount: get().config.islandsCount,
                     pumpsPerIsland: get().config.pumpsPerIsland,
                     maxCortes: get().config.maxCortes,
+                    porcentajeRecaudacion: get().config.porcentajeRecaudacion,
                     createdAt: serverTimestamp(),
                   }, { merge: true });
                   set({ firestoreActive: true, loading: false });
@@ -222,6 +225,7 @@ const useConfigStore = create(
               islandsCount: defaultConfig.islandsCount,
               pumpsPerIsland: defaultConfig.pumpsPerIsland,
               maxCortes: defaultConfig.maxCortes,
+              porcentajeRecaudacion: defaultConfig.porcentajeRecaudacion,
             }, { merge: true }).catch((err) => {
               console.error('[ConfigStore] Error reset Firestore:', err);
             });
