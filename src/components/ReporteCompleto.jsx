@@ -596,23 +596,38 @@ export default function ReporteCompleto({ shift, config, products }) {
                           const price = prod?.priceUSD || 0;
                           const total = price * ps.quantity;
                           const method = ps.paymentMethod || 'punto_de_venta';
-                          const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
-                          const totalBs = showBs ? usdToBs(total, tasa1) : 0;
-                          const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : 'Ef.$';
+                          const isCombined = method === 'combinado';
+
+                          let paymentDetail = '';
+                          if (isCombined && ps.paymentBreakdown && ps.paymentBreakdown.length > 0) {
+                            paymentDetail = ps.paymentBreakdown
+                              .filter((bd) => bd.amountUSD > 0)
+                              .map((bd) => {
+                                const bdLabel = bd.method === 'punto_de_venta' ? 'PV' : bd.method === 'efectivo_bs' ? 'Ef.Bs' : bd.method === 'efectivo_usd' ? 'Ef.$' : bd.method;
+                                const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs';
+                                if (bdShowBs) {
+                                  return `${bdLabel}: ${formatUSD(bd.amountUSD)} = ${formatBs(usdToBs(bd.amountUSD, tasa1))}`;
+                                }
+                                return `${bdLabel}: ${formatUSD(bd.amountUSD)}`;
+                              })
+                              .join(' | ');
+                          } else {
+                            const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : method === 'efectivo_usd' ? 'Ef.$' : method;
+                            const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                            if (showBs) {
+                              paymentDetail = `${methodLabel}: ${formatUSD(total)} = ${formatBs(usdToBs(total, tasa1))}`;
+                            } else {
+                              paymentDetail = `(${methodLabel})`;
+                            }
+                          }
+
                           return (
                             <TableRow key={idx}>
                               <TableCell sx={{ ...c, fontSize: '0.65rem' }}>
                                 {ps.productName}
-                                {showBs && (
-                                  <Typography variant="caption" sx={{ display: 'block', color: '#555', fontSize: '0.58rem' }}>
-                                    {formatBs(totalBs)} — {methodLabel}
-                                  </Typography>
-                                )}
-                                {!showBs && (
-                                  <Typography variant="caption" sx={{ display: 'block', color: '#555', fontSize: '0.58rem' }}>
-                                    {methodLabel}
-                                  </Typography>
-                                )}
+                                <Typography variant="caption" sx={{ display: 'block', color: '#555', fontStyle: 'italic', fontSize: '0.58rem' }}>
+                                  {paymentDetail}
+                                </Typography>
                               </TableCell>
                               <TableCell sx={{ ...c, textAlign: 'center' }}>{ps.quantity}</TableCell>
                               <TableCell sx={{ ...c, textAlign: 'right', fontWeight: 700 }}>{formatUSD(total)}</TableCell>

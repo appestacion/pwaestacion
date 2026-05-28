@@ -7,11 +7,12 @@
   "background_color": "#F5F5F5",
   "theme_color": "#CE1126",
   "orientation": "any",
+  "categories": ["business", "utilities"],
   "icons": [
-    { "src": "/LogoMF.jpg", "sizes": "192x192", "type": "image/jpeg" },
-    { "src": "/LogoMF.jpg", "sizes": "512x512", "type": "image/jpeg" },
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
 }

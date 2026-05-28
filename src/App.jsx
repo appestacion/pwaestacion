@@ -15,6 +15,7 @@ import { useInventoryStore } from './store/useInventoryStore.js';
 import { useGandolaStore } from './store/useGandolaStore.js';
 import { useNetworkStore } from './store/useNetworkStore.js';
 import { updatePWAIdentity } from './services/pwaIdentity.js';
+import InstallPWA from './components/InstallPWA.jsx';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -136,6 +137,7 @@ export default function App() {
       <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} autoHideDuration={3000}>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppInitializer>
+            <InstallPWA />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<ProtectedRoute />}>

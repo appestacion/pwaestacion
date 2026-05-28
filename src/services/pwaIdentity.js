@@ -4,6 +4,9 @@
  * Identidad PWA exclusiva para E/S Montaña Fresca.
  * Todos los valores son constantes fijas.
  * Se ejecuta una sola vez al cargar la app.
+ *
+ * FIX: Usa iconos PNG (no JPG) para compatibilidad total con Android/iOS.
+ *      Incluye iconos maskable para Android 12+.
  */
 
 const STATION_NAME = 'E/S Montaña Fresca';
@@ -11,7 +14,6 @@ const STATION_SHORT_NAME = 'Montaña Fresca';
 const STATION_RIF = 'J-30894985-2';
 const STATION_ADDRESS = 'AV. CASANOVA GODOY ZONA INDUSTRIAL, Aragua - Venezuela';
 const STATION_PHONE = '0424 3036024';
-const DEFAULT_LOGO = '/LogoMF.jpg';
 const COLOR_PRIMARY = '#CE1126';
 
 let _initialized = false;
@@ -28,11 +30,11 @@ export function updatePWAIdentity() {
   // 1. Actualizar el título de la pestaña del navegador
   document.title = STATION_NAME;
 
-  // 2. Actualizar el favicon
-  updateFavicon(DEFAULT_LOGO);
+  // 2. Actualizar el favicon (PNG de 32x32)
+  updateFavicon('/icons/icon-192.png');
 
-  // 3. Actualizar apple-touch-icon
-  updateAppleTouchIcon(DEFAULT_LOGO);
+  // 3. Actualizar apple-touch-icon (PNG de 180x180)
+  updateAppleTouchIcon('/icons/apple-touch-icon.png');
 
   // 4. Crear manifest dinámico con la identidad fija
   try {
@@ -46,7 +48,7 @@ export function updatePWAIdentity() {
 
     // FIX: Usar URLs absolutas (origin + path) para los íconos.
     // Cuando el manifest se crea como Blob URL, las rutas relativas
-    // como "/LogoMF.jpg" no resuelven correctamente desde blob: origin.
+    // como "/icons/icon-192.png" no resuelven correctamente desde blob: origin.
     // Chrome muestra "Manifest: property 'src' ignored, URL is invalid".
     const dynamicManifest = {
       name: STATION_NAME,
@@ -57,12 +59,13 @@ export function updatePWAIdentity() {
       background_color: '#F5F5F5',
       theme_color: COLOR_PRIMARY,
       orientation: 'any',
+      categories: ['business', 'utilities'],
       icons: [
-        { src: `${origin}/LogoMF.jpg`, sizes: '192x192', type: 'image/jpeg' },
-        { src: `${origin}/LogoMF.jpg`, sizes: '512x512', type: 'image/jpeg' },
         { src: `${origin}/icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
         { src: `${origin}/icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
-        { src: `${origin}/icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: `${origin}/icons/icon-192-maskable.png`, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: `${origin}/icons/icon-512-maskable.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: `${origin}/icons/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' },
       ],
     };
 
@@ -83,9 +86,9 @@ export function updatePWAIdentity() {
 
 /**
  * Actualiza el favicon del navegador.
- * Usa el logo de E/S Montaña Fresca.
+ * Usa el icono PNG de 192x192 (el navegador lo redimensiona).
  */
-function updateFavicon(logoUrl) {
+function updateFavicon(iconUrl) {
   try {
     let faviconLink = document.querySelector('link[rel="icon"][type="image/x-icon"]') ||
                       document.querySelector('link[rel="icon"]') ||
@@ -97,27 +100,9 @@ function updateFavicon(logoUrl) {
       document.head.appendChild(faviconLink);
     }
 
-    if (logoUrl) {
-      faviconLink.type = 'image/jpeg';
-      faviconLink.href = logoUrl;
-    } else {
-      // Generar favicon con la "M" de Montaña
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-
-      ctx.fillStyle = COLOR_PRIMARY;
-      ctx.fillRect(0, 0, 64, 64);
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 40px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('M', 32, 34);
-
+    if (iconUrl) {
       faviconLink.type = 'image/png';
-      faviconLink.href = canvas.toDataURL('image/png');
+      faviconLink.href = iconUrl;
     }
   } catch (error) {
     console.error('[PWA Identity] Error actualizando favicon:', error);
@@ -126,8 +111,9 @@ function updateFavicon(logoUrl) {
 
 /**
  * Actualiza el apple-touch-icon (icono en iOS/Safari).
+ * Debe ser PNG de 180x180 para compatibilidad óptima con iOS.
  */
-function updateAppleTouchIcon(logoUrl) {
+function updateAppleTouchIcon(iconUrl) {
   try {
     let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
 
@@ -137,8 +123,8 @@ function updateAppleTouchIcon(logoUrl) {
       document.head.appendChild(appleIcon);
     }
 
-    if (logoUrl) {
-      appleIcon.href = logoUrl;
+    if (iconUrl) {
+      appleIcon.href = iconUrl;
     }
   } catch (error) {
     console.error('[PWA Identity] Error actualizando apple-touch-icon:', error);
