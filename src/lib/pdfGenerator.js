@@ -546,9 +546,12 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
   const excedenteUSD = !haySobregiro ? Math.max(0, netoSinGastosUSD - (totals?.totalLitersRef || 0)) : 0;
   const excedenteBs = tasa1 > 0 ? excedenteUSD * tasa1 : 0;
 
-  // Con sobregiro: caja chica = sobregiro + gastos
+  // Con sobregiro: reserva = sobregiro + gastos
   const totalCajaChicaUSD = sobregiroUSD + totalGastosUSD;
   const totalCajaChicaBs = tasa1 > 0 ? totalCajaChicaUSD * tasa1 : 0;
+
+  // Total dólares a entregar = suma de $ y UE$ del Resumen
+  const totalDolaresAEntregarUSD = (totals?.totalUsdSinUE || 0) + (totals?.totalUeUSD || 0);
 
   // ═══════════════════════════════════════════════════════════════
   // ★ RENDER TABLA DE ISLA — filas idénticas a Biblia.jsx
@@ -707,13 +710,32 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
       cardY = doc.lastAutoTable.finalY + 3;
     }
 
-    // CAJA CHICA — muestra el Bs. del Resumen (restoBs), idéntico a Biblia.jsx
+    // TOTAL DÓLARES A ENTREGAR — siempre visible si hay $ o UE$
+    if (totalDolaresAEntregarUSD > 0) {
+      autoTable(doc, {
+        startY: cardY,
+        body: [
+          [
+            { content: 'TOTAL DÓLARES A ENTREGAR', colSpan: 2, styles: { fillColor: [123, 31, 162], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+          ],
+          [
+            { content: formatUSD(totalDolaresAEntregarUSD), colSpan: 2, styles: { fillColor: [243, 229, 245], textColor: [74, 20, 140], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
+          ],
+        ],
+        theme: 'grid',
+        styles: { halign: 'center', cellPadding: 2 },
+        margin: { left: startX, right: pw - startX - columnWidth },
+      });
+      cardY = doc.lastAutoTable.finalY + 3;
+    }
+
+    // TOTAL BOLÍVARES A ENTREGAR — muestra el Bs. del Resumen (restoBs)
     if (!haySobregiro && bsResumenUSD > 0) {
       autoTable(doc, {
         startY: cardY,
         body: [
           [
-            { content: 'TOTAL A COLOCAR EN CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+            { content: 'TOTAL BOLÍVARES A ENTREGAR', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
           ],
           [
             { content: formatUSD(bsResumenUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
@@ -727,12 +749,12 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
         margin: { left: startX, right: pw - startX - columnWidth },
       });
     } else if (haySobregiro) {
-      // TOTAL A TOMAR DE CAJA CHICA — solo con sobregiro
+      // TOTAL A TOMAR DE RESERVA — solo con sobregiro
       autoTable(doc, {
         startY: cardY,
         body: [
           [
-            { content: 'TOTAL A TOMAR DE CAJA CHICA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
+            { content: 'TOTAL A TOMAR DE RESERVA', colSpan: 2, styles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 } },
           ],
           [
             { content: formatUSD(totalCajaChicaUSD), colSpan: 2, styles: { fillColor: [232, 245, 233], textColor: [27, 94, 32], fontStyle: 'bold', fontSize: 12, halign: 'center' } },
@@ -762,7 +784,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
     // Calcular espacio de tarjetas dinámicas
     let cardsExtra = 0;
     if (hasResumenBlock) {
-      const numCards = (haySobregiro ? 1 : 0) + (totalGastosUSD > 0 ? 1 : 0) + (haySobregiro ? 1 : (excedenteUSD > 0 ? 1 : 0));
+      const numCards = (haySobregiro ? 1 : 0) + (totalGastosUSD > 0 ? 1 : 0) + (totalDolaresAEntregarUSD > 0 ? 1 : 0) + (!haySobregiro && bsResumenUSD > 0 ? 1 : 0) + (haySobregiro ? 1 : 0);
       cardsExtra = numCards > 0 ? numCards * 20 + 5 : 0;
     }
 

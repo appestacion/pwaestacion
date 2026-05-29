@@ -71,6 +71,9 @@ export default function Biblia() {
   const haySobregiro = bsResumenUSD < 0;
   const sobregiroUSD = haySobregiro ? Math.abs(bsResumenUSD) : 0;
 
+  // Total dólares a entregar = suma de $ y UE$ del Resumen
+  const totalDolaresAEntregarUSD = (totals.totalUsdSinUE || 0) + (totals.totalUeUSD || 0);
+
   // Total del Resumen: suma todo lo visible en la tabla (incluyendo gastos)
   // Si hay sobregiro, se excluye Bs (negativo)
   const itemsTotalUSD = (totals.resumenItems || []).reduce((s, item) => s + item.montoUSD, 0);
@@ -359,7 +362,27 @@ export default function Biblia() {
           </Paper>
         )}
 
-        {/* TOTAL A COLOCAR EN CAJA CHICA — muestra el Bs. del Resumen (restoBs) */}
+        {/* TOTAL DOLARES A ENTREGAR — suma de $ y UE$ del Resumen */}
+        {totalDolaresAEntregarUSD > 0 && (
+          <Paper sx={{
+            flex: '1 1 0',
+            minWidth: 200,
+            p: 2,
+            bgcolor: '#F3E5F5',
+            border: '2px solid #7B1FA2',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#7B1FA2', letterSpacing: 1 }}>
+              TOTAL DOLARES A ENTREGAR
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: '#4A148C', mt: 1 }}>
+              {formatUSD(totalDolaresAEntregarUSD)}
+            </Typography>
+          </Paper>
+        )}
+
+        {/* TOTAL BOLIVARES A ENTREGAR — muestra el Bs. del Resumen (restoBs) */}
         {!haySobregiro && bsResumenUSD > 0 && (
           <Paper sx={{
             flex: '1 1 0',
@@ -371,7 +394,7 @@ export default function Biblia() {
             textAlign: 'center',
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#2E7D32', letterSpacing: 1 }}>
-              TOTAL A COLOCAR EN CAJA CHICA
+              TOTAL BOLIVARES A ENTREGAR
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 900, color: '#1B5E20', mt: 1 }}>
               {formatUSD(bsResumenUSD)}
@@ -382,7 +405,7 @@ export default function Biblia() {
           </Paper>
         )}
 
-        {/* TOTAL A TOMAR DE CAJA CHICA — con sobregiro */}
+        {/* TOTAL A TOMAR DE RESERVA — con sobregiro */}
         {haySobregiro && (
           <Paper sx={{
             flex: '1 1 0',
@@ -394,7 +417,7 @@ export default function Biblia() {
             textAlign: 'center',
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#2E7D32', letterSpacing: 1 }}>
-              TOTAL A TOMAR DE CAJA CHICA
+              TOTAL A TOMAR DE RESERVA
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 900, color: '#1B5E20', mt: 1 }}>
               {formatUSD(totalCajaChicaUSD)}
@@ -433,7 +456,7 @@ export default function Biblia() {
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {haySobregiro
-                ? `Resumen − Caja Chica ${factorLabel}`
+                ? `Resumen − Reserva ${factorLabel}`
                 : (totalGastosUSD > 0
                   ? `Resumen − Gastos ${factorLabel}`
                   : `Total Resumen ${factorLabel}`

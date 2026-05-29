@@ -36,6 +36,8 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import CategoryIcon from '@mui/icons-material/Category';
+import LoginIcon from '@mui/icons-material/Login';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -220,7 +222,7 @@ export default function UserManual({ open, onClose }) {
           top: 0,
           bgcolor: 'background.paper',
           zIndex: 2,
-          borderRadius: fullScreen ? 0 : '12px 12px 0 0',
+          borderRadius: fullScreen ? 0 : '12px 0 0',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -257,7 +259,7 @@ export default function UserManual({ open, onClose }) {
           </Typography>
           <Chip label="E/S Montaña Fresca v1.0" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
-            Documento de referencia para el uso completo del sistema de gestion de estación de servicio.
+            Documento de referencia para el uso completo del sistema de gestión de estación de servicio.
             Contiene instrucciones detalladas paso a paso para todas las funciones disponibles para el rol de Supervisor.
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600, display: 'block' }}>
@@ -278,17 +280,19 @@ export default function UserManual({ open, onClose }) {
                 {[
                   ['1', 'Dashboard (Pantalla Principal)', 'Resumen del sistema y creación de turnos'],
                   ['2', 'Recepción de Gandola', 'Registro de descarga de combustible'],
-                  ['3', 'Gastos del Turno', 'Registro de gastos en Bolivares'],
+                  ['3', 'Gastos del Turno', 'Registro de gastos en Bolívares (NO afectan la propina del operador)'],
                   ['4', 'Lecturas', 'Lecturas de bombas, tanques y tasas de cambio'],
                   ['5', 'Cierre de Turno', 'Registro completo de cortes, PV, vales y productos'],
                   ['6', 'Reporte de Lectura y Recepción', 'Vista consolidada diurno/nocturno'],
-                  ['7', 'Biblia (Resumen Financiero)', 'Cálculo de propina y balance por isla'],
-                  ['8', 'Cuadre PV (Punto de Venta)', 'Conciliacion de punto de venta'],
+                  ['7', 'Biblia (Resumen Financiero)', 'Cálculo de propina por isla, sobregiro y balance general'],
+                  ['8', 'Cuadre PV (Punto de Venta)', 'Conciliación de punto de venta'],
                   ['9', 'Inventario', 'Gestion de stock general y por isla'],
-                  ['10', 'Historial de Cierres', 'Consulta de turnos cerrados anteriores'],
+                  ['10', 'Historiales (Cierres / Recaudación / Gandolas)', 'Consulta de turnos cerrados, recaudación por operador y recepciones de gandolas'],
                   ['11', 'Generar PDF', 'Descarga e impresión de reportes'],
-                  ['12', 'Estadisticas', 'Gráficos y métricas de rendimiento'],
-                  ['13', 'Cuenta y Seguridad', 'Cambio de contraseña y cierre de sesión'],
+                  ['12', 'Gestión de Productos', 'Creación y administración del catálogo de productos'],
+                  ['13', 'Estadísticas', 'Gráficos y métricas de rendimiento'],
+                  ['14', 'Cuenta y Seguridad', 'Cambio de contraseña, cierre de sesión e indicadores de conexión'],
+                  ['15', 'Instalación PWA y Recuperación de Contraseña', 'Instalar la app como nativa y recuperar acceso'],
                 ].map(([num, titulo, desc]) => (
                   <TableRow key={num} hover>
                     <TableCell sx={{ fontWeight: 700, width: 40, pl: 2 }}>{num}</TableCell>
@@ -308,7 +312,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="1" icon={<DashboardIcon fontSize="small" />} title="Dashboard (Pantalla Principal)">
           <P>
-            El Dashboard es la primera pantalla que ve el supervisor al iniciar sesión. Desde aqui puede ver un resumen rápido del estado actual del sistema, crear nuevos turnos de trabajo y acceder rapidamente a las funciones principales.
+            El Dashboard es la primera pantalla que ve el supervisor al iniciar sesión. Desde aquí puede ver un resumen rápido del estado actual del sistema, crear nuevos turnos de trabajo y acceder rápidamente a las funciones principales.
           </P>
 
           <Sub>Turnos de Supervisor</Sub>
@@ -361,18 +365,18 @@ export default function UserManual({ open, onClose }) {
               <TableBody>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Lecturas</TableCell><TableCell>Registrar lecturas de bombas, tanques y tasas de cambio</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Cierre de Turno</TableCell><TableCell>Registrar cortes, PV, vales, transferencias y productos por isla</TableCell></TableRow>
-                <TableRow><TableCell sx={{ fontWeight: 600 }}>Gastos</TableCell><TableCell>Registrar gastos del turno en Bolivares (agua potable, pago técnico, etc.)</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Gastos</TableCell><TableCell>Registrar gastos del turno en Bolívares (agua potable, pago técnico, etc.)</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Biblia</TableCell><TableCell>Resumen financiero: propina, sobregiro y balance por isla</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Cuadre PV</TableCell><TableCell>Conciliación de pagos con punto de venta</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Inventario</TableCell><TableCell>Gestión de stock general y por isla</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Recepción Gandola</TableCell><TableCell>Registro de descarga de combustible</TableCell></TableRow>
-                <TableRow><TableCell sx={{ fontWeight: 600 }}>Historiales</TableCell><TableCell>Consulta de turnos cerrados y recaudaciones anteriores</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Historiales</TableCell><TableCell>Consulta de turnos cerrados, recaudaciones anteriores y Recepciones de Combustible</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Generar PDF</TableCell><TableCell>Descarga e impresión de reportes del turno</TableCell></TableRow>
               </TableBody>
             </Table>
           </TableContainer>
 
-          <Warning>No puede tener dos turnos activos simultáneamente. Debe cerrar el turno actual antes de crear uno nuevo. Si por error queda un turno abierto de un día anterior, puede cerrarlo desde la seccion de Cierre de Turno.</Warning>
+          <Warning>No puede tener dos turnos activos simultáneamente. Debe cerrar el turno actual antes de crear uno nuevo. Si por error queda un turno abierto de un día anterior, puede cerrarlo desde la sección de Cierre de Turno.</Warning>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -380,7 +384,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="2" icon={<LocalShippingIcon fontSize="small" />} title="Recepción de Gandola">
           <P>
-            Esta seccion permite registrar la descarga de combustible desde una gandola (camion cisterna) a los tanques de almacenamiento de la estación. Es un proceso crítico que afecta directamente el inventario y los cálculos de ventas.
+            Esta sección permite registrar la descarga de combustible desde una gandola (camión cisterna) a los tanques de almacenamiento de la estación. Es un proceso crítico que afecta directamente el inventario y los cálculos de ventas.
           </P>
 
           <Sub>Proceso de Recepción</Sub>
@@ -394,7 +398,7 @@ export default function UserManual({ open, onClose }) {
 
           <Sub>Sugerencias de Descarga</Sub>
           <P>
-            El sistema genera automáticamente sugerencias de distribución de combustible a los tanques, considerando la capacidad restante de cada tanque. Las sugerencias aparecen como tarjetas y recomiendan a que tanque descargar cada compartimento. Las cantidades sugeridas se redondean a multiplos de 1.000 litros para facilitar la operación.
+            El sistema genera automáticamente sugerencias de distribución de combustible a los tanques, considerando la capacidad restante de cada tanque. Las sugerencias aparecen como tarjetas y recomiendan a que tanque descargar cada compartimento. Las cantidades sugeridas se redondean a múltiplos de 1.000 litros para facilitar la operación.
           </P>
 
           <Tip>Si la gandola trae un tipo de producto diferente (por ejemplo, Gasolina 95 en vez de 91), registre el tipo de producto en el campo "Tipo de Producto" para llevar un control adecuado del inventario por tipo de combustible.</Tip>
@@ -410,22 +414,22 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="3" icon={<PaymentsIcon fontSize="small" />} title="Gastos del Turno">
           <P>
-            Esta seccion permite registrar todos los gastos incurridos durante el turno en Bolivares (Bs.). Los gastos se incluyen en la Biblia (resumen financiero) y se útilizan para calcular la propina real del operador. Los gastos se ingresan en Bs. y el sistema los convierte automáticamente a USD usando la tasa del día.
+            Esta sección permite registrar todos los gastos incurridos durante el turno en Bolívares (Bs.). Los gastos aparecen en la Biblia (resumen financiero) como líneas individuales en el Resumen, pero es importante tener en cuenta que los gastos NO se utilizan para calcular la propina del operador. La propina se calcula únicamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias), sin descontar gastos. Los gastos se ingresan en Bs. y el sistema los convierte automáticamente a USD usando la tasa del día.
           </P>
           <P bold>
             Ejemplos de gastos frecuentes: pago de agua potable, pago técnico (servicios de mantenimiento), pago eléctrico, reparaciones, compra de materiales menores, entre otros. Cada gasto debe registrarse con su monto y una descripción clara.
           </P>
 
           <Sub>Registrar un Gasto</Sub>
-          <Step num={1}>Ingrese el monto del gasto en Bolivares en el campo de texto. Use el formato numérico con decimales (por ejemplo: 150,50).</Step>
-          <Step num={2}>Escriba una descripción breve del gasto (por ejemplo: "Pago agua potable", "Pago técnico electrico", "Reparación surtidor").</Step>
+          <Step num={1}>Ingrese el monto del gasto en Bolívares en el campo de texto. Use el formato numérico con decimales (por ejemplo: 150,50).</Step>
+          <Step num={2}>Escriba una descripción breve del gasto (por ejemplo: "Pago agua potable", "Pago técnico eléctrico", "Reparación surtidor").</Step>
           <Step num={3}>El gasto se guarda automáticamente. El sistema muestra la conversión a USD al lado del monto en Bs.</Step>
 
           <Sub>Eliminar un Gasto</Sub>
           <Step num={1}>Cada gasto registrado aparece como una tarjeta con el monto y la descripción.</Step>
           <Step num={2}>Haga clic en el botón rojo de eliminar (icono de papelera) para quitar el gasto de la lista.</Step>
 
-          <Tip>Todos los gastos se muestran en la Biblia como líneas individuales en el Resumen. Esto permite al operador y al supervisor ver exactamente qué gastos se descuentan del total de ingresos para calcular la propina.</Tip>
+          <Tip>Los gastos aparecen en la Biblia como líneas individuales en la sección Resumen, solo como referencia informativa. Los gastos NO se descuentan del total de ingresos para calcular la propina. La propina de cada operador se calcula exclusivamente con sus ingresos (Bs., USD, Punto, Vales y Transferencias) contra el valor de referencia de los litros vendidos.</Tip>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -433,7 +437,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="4" icon={<SpeedIcon fontSize="small" />} title="Lecturas">
           <P>
-            La seccion de Lecturas es donde se registran las lecturas de los contadores de las bombas (surtidores), las medidas de los tanques de almacenamiento, y las tasas de cambio del día. Esta información es fundamental para calcular los litros vendidos y el inventario disponible.
+            La sección de Lecturas es donde se registran las lecturas de los contadores de las bombas (surtidores), las medidas de los tanques de almacenamiento, y las tasas de cambio del día. Esta información es fundamental para calcular los litros vendidos y el inventario disponible.
           </P>
 
           <Sub>Lecturas de Bombas (Surtidores)</Sub>
@@ -452,12 +456,12 @@ export default function UserManual({ open, onClose }) {
           <Step num={3}>El sistema convierte automáticamente el valor a litros usando la tabla de calibración de tanques (tabla CM a Litros).</Step>
           <Step num={4}>Puede compartir las lecturas de tanques por WhatsApp haciendo clic en el botón de compartir, lo cual genera un mensaje con el inventario actual.</Step>
 
-          <Warning>La tabla de calibración tiene incrementos de 0.5 cm (0.5, 1.0, 1.5, 2.0 ... hasta 230 cm). Solo se aceptan valores exactos de la tabla. Si ingresa un valor intermedio (por ejemplo 3.7 cm), el sistema no podrá convertirlo y mostrará 0 litros. Redondee al valor mas cercano de la tabla.</Warning>
+          <Warning>La tabla de calibración tiene incrementos de 0.5 cm (0.5, 1.0, 1.5, 2.0 ... hasta 230 cm). Solo se aceptan valores exactos de la tabla. Si ingresa un valor intermedio (por ejemplo 3.7 cm), el sistema no podrá convertirlo y mostrará 0 litros. Redondee al valor más cercano de la tabla.</Warning>
 
           <Sub>Tasas de Cambio</Sub>
-          <P>Las tasas de cambio son esenciales para convertir entre Bolivares y Dólares:</P>
-          <Step num={1}><strong>Tasa 1:</strong> Es la tasa principal del día. Se útiliza para todos los cálculos de conversión Bs. a USD en el turno.</Step>
-          <Step num={2}><strong>Tasa 2 (solo para turno nocturno):</strong> Se habilita unicamente cuando el turno activo es el 2TO Nocturno. Se útiliza para los pagos con punto de venta (PV) que se realizan con una tasa diferente a la Tasa 1.</Step>
+          <P>Las tasas de cambio son esenciales para convertir entre Bolívares y Dólares:</P>
+          <Step num={1}><strong>Tasa 1:</strong> Es la tasa principal del día. Se utiliza para todos los cálculos de conversión Bs. a USD en el turno.</Step>
+          <Step num={2}><strong>Tasa 2 (solo para turno nocturno):</strong> Se habilita únicamente cuando el turno activo es el 2TO Nocturno. Se utiliza para los pagos con punto de venta (PV) que se realizan con una tasa diferente a la Tasa 1.</Step>
 
           <Success>Las tasas se actualizan automáticamente todos los días a las 11:45 PM (hora de Venezuela) consultando la tasa oficial del BCV. La Tasa 2 se promociona automáticamente a Tasa 1 al inicio del turno 2TS.</Success>
         </ManualSection>
@@ -467,48 +471,48 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="5" icon={<ReceiptLongIcon fontSize="small" />} title="Cierre de Turno">
           <P>
-            Esta es la seccion mas completa y critica del sistema. Aqui se registran todos los datos financieros del turno por cada isla: los cortes en efectivo (Bs. y USD), los pagos con punto de venta (PV), los vales, las transferencias y los productos vendidos. El cierre de turno debe ser meticuloso ya que afecta directamente la Biblia (cálculo de propina) y los reportes generados.
+            Esta es la sección más completa y critica del sistema. Aquí se registran todos los datos financieros del turno por cada isla: los cortes en efectivo (Bs. y USD), los pagos con punto de venta (PV), los vales, las transferencias y los productos vendidos. El cierre de turno debe ser meticuloso ya que afecta directamente la Biblia (cálculo de propina) y los reportes generados.
           </P>
 
-          <Sub>Navegacion por Pestañas</Sub>
+          <Sub>Navegación por Pestañas</Sub>
           <P>Los datos se organizan por isla. Cada isla tiene su propia pestaña. Si la estación tiene 3 islas, verá 3 pestañas (Isla 1, Isla 2, Isla 3). Haga clic en cada pestaña para ver y editar los datos de esa isla.</P>
 
           <Sub>Registro de Cortes en Efectivo</Sub>
           <P>Los cortes son los pagos en efectivo que recibe el operador. Se dividen en dos secciones:</P>
-          <Step num={1}><strong>Cortes en Bolivares (Bs.):</strong> Ingrese cada corte en el campo correspondiente. El número maximo de cortes se configura en la seccion de Configuracion (por defecto 12). Solo ingrese los cortes que realmente se hicieron; deje en 0 los campos vacios.</Step>
+          <Step num={1}><strong>Cortes en Bolívares (Bs.):</strong> Ingrese cada corte en el campo correspondiente. El número máximo de cortes se configura en la sección de Configuración (por defecto 12). Solo ingrese los cortes que realmente se hicieron; deje en 0 los campos vacíos.</Step>
           <Step num={2}><strong>Cortes en Dólares (USD):</strong> Igualmente, ingrese cada corte en dólares recibido.</Step>
-          <Step num={3}><strong>UEBs (Ultima Entrega en Bs.):</strong> Si el operador recibió efectivo adicional en Bolivares que no corresponde a un corte estandar (por ejemplo, un cliente pagó con un billete grande y dejó sobrante), registre el monto en UEBs.</Step>
-          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Si el operador recibió efectivo adicional en dólares, registre el monto en UE$.</Step>
+          <Step num={3}><strong>UEBs (Ultima Entrega en Bs.):</strong> Si el operador recibió efectivo adicional en bolívares después de su último corte en bolívares entregado, registre el monto en UEBs.</Step>
+          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Si el operador recibió efectivo adicional en dólares después de su último corte en dólares entregado, registre el monto en UE$.</Step>
           <Step num={5}>El sistema muestra automáticamente el total de Bs. y USD para cada isla.</Step>
 
           <Sub>Punto de Venta (PV)</Sub>
-          <P>Los pagos con punto de venta (tarjeta de debito/credito) se registran por isla:</P>
-          <Step num={1}>En la seccion "Punto de Venta 1", ingrese hasta 3 montos en Bs. que representan las transacciones con tarjeta. El sistema calcula automáticamente el equivalente en USD usando la Tasa 1.</Step>
-          <Step num={2}>Para el turno nocturno, aparece una seccion adicional "Punto de Venta 2" con la Tasa 2.</Step>
+          <P>Los pagos con punto de venta (tarjeta de débito/crédito) se registran por isla:</P>
+          <Step num={1}>En la sección "Punto de Venta 1", ingrese hasta 3 montos en Bs. que representan las transacciones con tarjeta. El sistema calcula automáticamente el equivalente en USD usando la Tasa 1.</Step>
+          <Step num={2}>Para el turno nocturno, aparece una sección adicional "Punto de Venta 2" con la Tasa 2.</Step>
           <Step num={3}>Los totales de PV se reflejan en el Cuadre PV y en la Biblia.</Step>
 
-          <Tip>El PV se calcula como: Monto Bs. / Tasa = Monto USD. Los litros equivalentes se calculan como: USD / Precio por Litro. Por ejemplo, si el precio es $0.50/litro, entonces $2.00 / $0.50 = 4 litros. El precio por litro se configura desde la seccion de Configuracion (admin).</Tip>
+          <Tip>El PV se calcula como: Monto Bs. / Tasa = Monto USD. Los litros equivalentes se calculan como: USD / Precio por Litro. Por ejemplo, si el precio es $0.50/litro, entonces $2.00 / $0.50 = 4 litros. El precio por litro se configura desde la sección de Configuración (admin).</Tip>
 
-          <Sub>Vales (Apoyo Institucional)</Sub>
-          <P>Los vales son comprobantes de <strong>Apoyo Institucional</strong> otorgados por terceros (por ejemplo, empresas del Estado, flotas corporativas, organismos gubernamentales como Corpoelec, Movilnet, entre otros):</P>
+          <Sub>Vales</Sub>
+          <P>Los vales son comprobantes de <strong>Apoyo Institucional</strong> y/o <strong>Autorizaciones Superiores</strong> otorgados a terceros (por ejemplo, Instituciones de Seguridad del Estado como GNB, SEBIN, entre otros):</P>
           <Step num={1}>Haga clic en "Agregar Vale" para crear un nuevo registro.</Step>
-          <Step num={2}>Ingrese el monto del vale en USD y una descripción (por ejemplo: "Vale Corpoelec", "Vale Movilnet").</Step>
+          <Step num={2}>Ingrese el monto del vale en USD y una descripción (por ejemplo: "Vale SEBIN", es importante reflejar en la descripción quien autorizó el vale).</Step>
           <Step num={3}>Puede agregar múltiples vales por isla. Para eliminar un vale, haga clic en el botón de eliminar.</Step>
 
           <Sub>Transferencias (Pago de Gasolina)</Sub>
-          <P>Las transferencias son <strong>pagos de gasolina mediante transferencias bancarias</strong> recibidos de clientes que realizan el pago de forma electrónica (transferencia, pago móvil) en lugar de efectivo o punto de venta:</P>
+          <P>Las transferencias son <strong>pagos de gasolina mediante transferencias bancarias</strong> recibidos de empleados y/o clientes que realizan el pago de forma electrónica (transferencia) en lugar de efectivo o punto de venta:</P>
           <Step num={1}>Haga clic en "Agregar Transferencia" para crear un nuevo registro.</Step>
-          <Step num={2}>Ingrese el monto en USD y la descripción (por ejemplo: "Transferencia Banco de Venezuela", "Pago Movil Mercantil", "Transferencia BNC").</Step>
+          <Step num={2}>Ingrese el monto en USD y en la descripción el nombre de quien realizo la transferencia (por ejemplo: "Transferencia Erick",).</Step>
           <Step num={3}>Puede agregar múltiples transferencias por isla.</Step>
 
           <Sub>Productos Vendidos</Sub>
           <P>Registre los productos (aditivos, aceites, refrigerantes, etc.) vendidos durante el turno:</P>
           <Step num={1}>Seleccione el producto del listado desplegable.</Step>
           <Step num={2}>Ingrese la cantidad vendida.</Step>
-          <Step num={3}>Seleccione el metodo de pago: Punto de Venta (PV), Efectivo en Bolivares, o Efectivo en Dólares.</Step>
+          <Step num={3}>Seleccione el método de pago: Punto de Venta (PV), Efectivo en Bolívares, o Efectivo en Dólares.</Step>
           <Step num={4}>El sistema registra la venta y la asocia a la isla correspondiente. Los productos vendidos se reflejan en el inventario.</Step>
 
-          <Warning>Todos los cambios se guardan automáticamente cada 2 segundos (ver indicador "Guardado" en verde). Sin embargo, no cierre el navegador mientras este editando. Espere a ver el indicador de guardado antes de cambiar de seccion o cerrar el turno.</Warning>
+          <Warning>Todos los cambios se guardan automáticamente cada 2 segundos (ver indicador "Guardado" en verde). Sin embargo, no cierre el navegador mientras este editando. Espere a ver el indicador de guardado antes de cambiar de sección o cerrar el turno.</Warning>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -519,9 +523,9 @@ export default function UserManual({ open, onClose }) {
             El Reporte muestra una vista consolidada de las lecturas del día en un formato de tres columnas: lecturas del turno diurno (7:00 AM - 7:00 PM) a la izquierda, inventario de tanques en el centro, y lecturas del turno nocturno (7:00 PM - 7:00 AM) a la derecha.
           </P>
 
-          <Sub>Interpretacion de las Columnas</Sub>
+          <Sub>Interpretación de las Columnas</Sub>
           <Step num={1}><strong>Columna izquierda (Diurno):</strong> Muestra las lecturas de bombas del turno diurno para cada isla. Incluye lectura inicial, lectura final y litros vendidos por surtidor, más el total de litros del turno.</Step>
-          <Step num={2}><strong>Columna central (Tanques):</strong> Muestra el inventario de tanques en tres momentos: Inventario Inicial (al inicio del día), Antes de la Descarga (si hubo gandola), Despues de la Descarga, y el Inventario Final. También muestra el total de litros recibidos por gandola.</Step>
+          <Step num={2}><strong>Columna central (Tanques):</strong> Muestra el inventario de tanques en tres momentos: Inventario Inicial (al inicio del día), Antes de la Descarga (si hubo gandola), Después de la Descarga, y el Inventario Final. También muestra el total de litros recibidos por gandola.</Step>
           <Step num={3}><strong>Columna derecha (Nocturno):</strong> Muestra las lecturas del turno nocturno. Si es 1TS (6AM-2PM), está columna puede mostrar datos del turno nocturno anterior. Si es 2TS (2PM-10PM), está columna estará en cero ya que el nocturno aún no ha cerrado.</Step>
 
           <Tip>Este reporte es especialmente útil para el supervisor de 1TS, ya que puede ver tanto el turno nocturno cerrado cómo el diurno cerrado, junto con la recepción de gandola del día, todo en una sola pantalla.</Tip>
@@ -532,39 +536,50 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="7" icon={<BookIcon fontSize="small" />} title="Biblia (Resumen Financiero)">
           <P>
-            La Biblia es el resumen financiero completo del turno. Calcula los ingresos totales por isla, determina la propina del operador y muestra el balance general. Es el documento mas importante del cierre de turno y debe revisarse cuidadosamente antes de generar el PDF.
+            La Biblia es el resumen financiero completo del turno. Calcula los ingresos totales por isla, determina la propina del operador y muestra el balance general. Es el documento más importante del cierre de turno y debe revisarse cuidadosamente antes de generar el PDF.
           </P>
 
           <Sub>Campos por Isla</Sub>
-          <P>Para cada isla se muestran los siguientes campos:</P>
-          <Step num={1}><strong>Bs.:</strong> Total de bolivares en efectivo (suma de cortes + UE en Bs.). Se convierte a USD para el cálculo.</Step>
-          <Step num={2}><strong>$ (USD):</strong> Total de dólares en efectivo (cortes + UE en USD), excluyendo la UE.</Step>
-          <Step num={3}><strong>Punto:</strong> Total de pagos con punto de venta en USD (de la seccion PV).</Step>
-          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Efectivo adicional en dólares recibido por el operador que no corresponde a un corte estandar (si las hay).</Step>
-          <Step num={5}><strong>Vale(s) - Apoyo Institucional:</strong> Total de vales en USD con su descripción. Corresponden a comprobantes de apoyo institucional otorgados por terceros.</Step>
+          <P>Para cada isla se muestran los siguientes campos. Es importante notar que la propina se calcula por isla de forma independiente:</P>
+          <Step num={1}><strong>Bs.:</strong> Total de bolívares en efectivo (suma de cortes + UE en Bs.). Se convierte a USD para el cálculo.</Step>
+          <Step num={2}><strong>$ (USD):</strong> Total de dólares en efectivo (cortes), excluyendo la UE$.</Step>
+          <Step num={3}><strong>Punto:</strong> Total de pagos con punto de venta en USD (de la sección PV).</Step>
+          <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Efectivo adicional en dólares recibido por el operador que no corresponde a un corte estándar (si las hay).</Step>
+          <Step num={5}><strong>Vale(s) - Apoyo Institucional y/o Autorizaciones Superiores:</strong> Total de vales en USD con su descripción. Corresponden a comprobantes de apoyo institucional otorgados a terceros.</Step>
           <Step num={6}><strong>Transferencia(s) - Pago de Gasolina:</strong> Total de pagos de gasolina mediante transferencias bancarias en USD con su descripción.</Step>
-          <Step num={7}><strong>Propina:</strong> Es la diferencia entre los ingresos totales y el valor de referencia de los litros vendidos (litros vendidos / precio por litro = valor de referencia en USD). Se muestra en Bs. y en USD. El precio por litro se configura en la seccion de Configuracion.</Step>
+          <Step num={7}><strong>Propina:</strong> Es la diferencia entre los ingresos totales de la isla y el valor de referencia de los litros vendidos (litros vendidos × precio por litro = valor de referencia en USD). Se muestra en Bs. y en USD. Los gastos del turno NO se incluyen en este cálculo; la propina es exclusivamente por isla. El precio por litro se configura en la sección de Configuración.</Step>
 
           <Sub>Resumen General</Sub>
           <P>
-            El Resumen consolida los datos de todas las islas más los gastos del turno. Incluye la suma total de Bs., USD, Punto, UE, Vales, Transferencias y Gastos. El cálculo de la propina total se basa en la siguiente fórmula:
+            El Resumen consolida los datos de todas las islas y agrega los gastos del turno como líneas informativas individuales. Los gastos aparecen detallados uno por uno en la sección Resumen con su concepto y monto. Es fundamental entender que los gastos NO se restan de los ingresos para calcular la propina. La propina se calcula por isla de forma independiente usando únicamente los ingresos (Bs., USD, Punto, Vales y Transferencias), y luego se suman las propinas de todas las islas para obtener la propina total. La fórmula por isla es:
           </P>
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8F9FA', mb: 2 }}>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, textAlign: 'center' }}>
-              Propina = Ingresos Totales - (Litros Vendidos / Precio por Litro)
+              Propina por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro)
             </Typography>
           </Paper>
+          <Warning>Los gastos del turno se muestran en el Resumen como referencia y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos). Sin embargo, los gastos NUNCA afectan el cálculo de la propina del operador. La propina se calcula limpiamente como: ingresos por isla menos el valor de referencia de los litros vendidos por esa isla.</Warning>
 
           <Sub>Sobregiro</Sub>
           <P>
-            Cuando la propina es negativa (los ingresos son menores al valor de referencia de los litros), el sistema indica un "Sobregiro". Esto significa qué falta dinero. En ese caso, el sistema calcula el "Total a tomar de caja chica", que es la suma del sobregiro más los gastos del turno.
+            Cuando la propina es negativa (los ingresos son menores al valor de referencia de los litros vendidos), el sistema indica un "Sobregiro". Esto significa que falta dinero. Cuando hay sobregiro, el sistema calcula el "Total a tomar de Reserva", que es la suma del sobregiro más los gastos del turno. Este monto se debe tomar de la reserva para cubrir el faltante.
           </P>
 
-          <Warning>Si hay un sobregiro significativo, revise cuidadosamente los cortes, los valores de UE y los datos del punto de venta antes de proceder. Un sobregiro puede indicar un error en el registro o un faltante real de caja.</Warning>
+          <Warning>Si hay un sobregiro significativo, revise cuidadosamente los cortes, los valores de UE y los datos del punto de venta antes de proceder. Un sobregiro puede indicar un error en el registro o un faltante real de caja. Recuerde que los gastos NO se restan para calcular la propina; el sobregiro se determina únicamente comparando los ingresos del operador contra el valor de los litros vendidos.</Warning>
 
-          <Sub>Comprensión (Verificacion)</Sub>
+          <Sub>Tarjetas Dinámicas</Sub>
           <P>
-            En la parte inferior de la Biblia, el sistema muestra una verificación que compara los litros vendidos con el total del Resumen convertido a litros (USD / precio por litro). Si ambos valores coinciden, significa que la caja está cuadrada. Si hay diferencia, indica un sobregiro o un excedente.
+            Debajo de la tabla Resumen, la Biblia muestra tarjetas informativas que aparecen dinámicamente según la situación del turno:
+          </P>
+          <Step num={1}><strong>Sobregiro (naranja):</strong> Aparece únicamente cuando hay sobregiro. Muestra el monto en USD del faltante.</Step>
+          <Step num={2}><strong>Total Gastos (azul):</strong> Aparece únicamente cuando hay gastos registrados. Muestra la suma total de todos los gastos del turno en USD.</Step>
+          <Step num={3}><strong>Total Dólares a Entregar (morado):</strong> Muestra la suma de los cortes en USD (sin UE) más los UE$ del Resumen. Es el monto en efectivo dólar que el supervisor debe entregar.</Step>
+          <Step num={4}><strong>Total Bolívares a Entregar (verde):</strong> Aparece cuando no hay sobregiro. Muestra el monto en Bs. del Resumen (total de Bs. menos la propina en Bs.) y su equivalente en USD.</Step>
+          <Step num={5}><strong>Total a Tomar de Reserva (verde, con sobregiro):</strong> Aparece únicamente cuando hay sobregiro. Es la suma del sobregiro más los gastos. Muestra el desglose de ambos montos.</Step>
+
+          <Sub>Comprobación (Verificación)</Sub>
+          <P>
+            En la parte inferior de la Biblia, el sistema muestra una verificación que compara los litros vendidos reales con el total del Resumen convertido a litros. La lógica es: si no hay gastos, compara Total Resumen / precio por litro; si hay gastos, compara (Total Resumen - Gastos) / precio por litro. Si ambos valores coinciden (dentro de 1 litro de tolerancia), indica "Correcto" en verde. Si hay diferencia, indica "Mandar a Revisión" en naranja. Esta tarjeta es solo informativa y NO aparece en el PDF.
           </P>
         </ManualSection>
 
@@ -580,7 +595,7 @@ export default function UserManual({ open, onClose }) {
           <Step num={2}><strong>Totales:</strong> Al final se muestra el Total Turno con la suma de todas las islas.</Step>
           <Step num={3}><strong>Detalle adicional:</strong> Debajo de cada isla se muestra el detalle de vales, transferencias y productos vendidos si los hay.</Step>
 
-          <Tip>Los litros del PV se calculan como: USD del PV / precio por litro. Si la tasa es 50 Bs./USD, el PV registro 100 Bs. y el precio es $0.50/litro, entonces 100/50 = 2 USD, y 2 / 0.50 = 4 litros. El precio por litro se configura desde la seccion de Configuracion (admin).</Tip>
+          <Tip>Los litros del PV se calculan como: USD del PV / precio por litro. Si la tasa es 50 Bs./USD, el PV registro 100 Bs. y el precio es $0.50/litro, entonces 100/50 = 2 USD, y 2 / 0.50 = 4 litros. El precio por litro se configura desde la sección de Configuración (admin).</Tip>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -588,11 +603,11 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="9" icon={<InventoryIcon fontSize="small" />} title="Inventario">
           <P>
-            La seccion de Inventario gestiona el stock de productos (aditivos, aceites, refrigerantes, liquido de freno, extintores) en dos niveles: el inventario general (almacén/cajas) y el inventario por isla (productos distribuidos a cada isla para la venta).
+            La sección de Inventario gestiona el stock de productos (aditivos, aceites, refrigerantes, liquido de freno, extintores) en dos niveles: el inventario general (almacén/cajas) y el inventario por isla (productos distribuidos a cada isla para la venta).
           </P>
 
           <Sub>Pestaña: Inventario General</Sub>
-          <P>Muestra todos los productos disponibles en almacén con su cantidad actual. El sistema usa un codigo de colores para indicar el estado del stock:</P>
+          <P>Muestra todos los productos disponibles en almacén con su cantidad actual. El sistema usa un código de colores para indicar el estado del stock:</P>
           <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, mb: 2 }}>
             <Table size="small">
               <TableHead>
@@ -610,14 +625,14 @@ export default function UserManual({ open, onClose }) {
             </Table>
           </TableContainer>
 
-          <Sub>Como Agregar Stock al Almacen</Sub>
+          <Sub>Como Agregar Stock al Almacén</Sub>
           <Step num={1}>Haga clic en el botón "Agregar Stock" en la pestaña de Inventario General.</Step>
           <Step num={2}>Seleccione el producto del listado desplegable.</Step>
           <Step num={3}>Ingrese la cantidad a agregar.</Step>
           <Step num={4}>Haga clic en "Agregar" para registrar la entrada de stock.</Step>
 
           <Sub>Pestaña: Inventario por Isla</Sub>
-          <P>Muestra los productos distribuidos a cada isla. Aqui puede ver cuanto stock hay en cada punto de venta y realizar operaciónes de distribución y retorno.</P>
+          <P>Muestra los productos distribuidos a cada isla. Aquí puede ver cuanto stock hay en cada punto de venta y realizar operaciones de distribución y retorno.</P>
 
           <Sub>Distribuir Productos a una Isla</Sub>
           <Step num={1}>En la pestaña "Inventario por Isla", seleccione la isla destino.</Step>
@@ -631,25 +646,64 @@ export default function UserManual({ open, onClose }) {
           <Step num={3}>Ingrese la cantidad a retornar. El sistema verifica qué haya stock suficiente en la isla.</Step>
           <Step num={4}>La cantidad se descuenta de la isla y se suma al almacén general.</Step>
 
-          <Warning>Todas las operaciónes de inventario se realizan en tiempo real. Si hay múltiples usuarios conectados, los cambios se sincronizan automáticamente. Evite editar el mismo producto simultáneamente desde dos dispositivos diferentes.</Warning>
+          <Warning>Todas las operaciones de inventario se realizan en tiempo real. Si hay múltiples usuarios conectados, los cambios se sincronizan automáticamente. Evite editar el mismo producto simultáneamente desde dos dispositivos diferentes.</Warning>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECCION 10: HISTORIAL */}
+        {/* SECCION 10: HISTORIALES */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <ManualSection number="10" icon={<HistoryIcon fontSize="small" />} title="Historial de Cierres">
+        <ManualSection number="10" icon={<HistoryIcon fontSize="small" />} title="Historiales (Cierres / Recaudación / Gandolas)">
           <P>
-            El Historial de Cierres permite consultar todos los turnos cerrados anteriormente. Puede filtrar por fecha y revisar el detalle completo de cualquier turno pasado, incluyendo lecturas, Biblia, Cuadre PV y productos vendidos.
+            La sección de Historiales permite consultar toda la información histórica de la estación. Consta de tres pestañas organizadas por tema: Cierres (turnos cerrados), Recaudación (propinas por operador) y Gandolas (recepciones de combustible). Cada pestaña tiene filtros de fecha para buscar registros específicos.
           </P>
 
-          <Sub>Consultar un Turno Anterior</Sub>
-          <Step num={1}>Use los selectores de fecha para filtrar los turnos por rango de fechas.</Step>
-          <Step num={2}>La tabla muestra todos los turnos cerrados dentro del rango seleccionado, con la fecha, el turno (diurno/nocturno), el supervisor y los litros totales.</Step>
-          <Step num={3}>Haga clic en "Ver Detalle" para abrir el reporte completo del turno en un díalogo a pantalla completa.</Step>
-          <Step num={4}>Dentro del detalle puede ver todas las secciones: Lecturas, Biblia, Cuadre PV, Inventario y Gastos.</Step>
-          <Step num={5}>También puede generar un PDF del turno desde el detalle.</Step>
+          <Sub>Filtros de Fecha</Sub>
+          <P>Todas las pestañas comparten los mismos filtros de fecha en la parte superior:</P>
+          <Step num={1}><strong>Fecha Desde:</strong> Seleccione la fecha inicial del rango que desea consultar.</Step>
+          <Step num={2}><strong>Fecha Hasta:</strong> Seleccione la fecha final del rango. Si deja ambos campos vacíos, se mostrarán todos los registros disponibles.</Step>
+          <Step num={3}>Los filtros se aplican inmediatamente al cambiar las fechas. Un indicador muestra "(filtrado)" cuando los filtros están activos.</Step>
+          <Step num={4}>Use el botón de limpiar filtros (icono de escoba) para mostrar todos los registros nuevamente.</Step>
 
-          <Tip>El historial guarda los últimos 500 turnos cerrados. Si necesita un turno más antiguo, contacte al administrador del sistema.</Tip>
+          <Sub>Pestaña 1: Cierres</Sub>
+          <P>
+            Esta pestaña muestra todos los turnos cerrados como tarjetas con un resumen rápido de cada uno. Cada tarjeta incluye la fecha, el tipo de turno (1TO Diurno o 2TO Nocturno), las tasas, litros vendidos, totales en Bs. y USD, el monto total de PV (punto de venta), los operadores que participaron y la hora de cierre.
+          </P>
+          <Step num={1}>Desplace hacia abajo para ver las tarjetas de turnos cerrados.</Step>
+          <Step num={2}>Para turnos nocturnos, si hay múltiples turnos del mismo día, el sistema muestra los litros totales del día completo.</Step>
+          <Step num={3}>Haga clic en "Ver Informe" para abrir el reporte completo del turno. Se abre un diálogo a pantalla completa con todas las secciones: Lecturas, Biblia, Cuadre PV, Inventario, Productos y Gastos.</Step>
+          <Step num={4}>Dentro del informe, puede generar un PDF completo del turno haciendo clic en el botón "Generar PDF" en la esquina superior derecha.</Step>
+          <Step num={5}>Si no hay turnos cerrados, aparece un mensaje indicando que no hay datos disponibles o que no se encontraron turnos con los filtros seleccionados.</Step>
+
+          <Sub>Pestaña 2: Recaudación</Sub>
+          <P>
+            Esta pestaña muestra la recaudación por operador e isla. La recaudación es el porcentaje de la propina en Bs. que el operador debe entregar. Se calcula con la siguiente fórmula: Recaudación = redondear a 10 (Propina Bs. × Porcentaje de Recaudación). El porcentaje se configura en la sección de Configuración del admin (por defecto 10%). La tabla muestra:
+          </P>
+          <Step num={1}><strong>Fecha y día de la semana:</strong> Fecha del turno y abreviatura del día.</Step>
+          <Step num={2}><strong>Turno:</strong> 1TO (diurno, verde) o 2TO (nocturno, azul).</Step>
+          <Step num={3}><strong>Isla:</strong> Isla a la que pertenece el operador.</Step>
+          <Step num={4}><strong>Operador:</strong> Nombre del operador.</Step>
+          <Step num={5}><strong>Propina $:</strong> Propina en dólares del operador.</Step>
+          <Step num={6}><strong>Propina Bs:</strong> Propina en bolívares del operador.</Step>
+          <Step num={7}><strong>% Rec.:</strong> Porcentaje de recaudación configurado.</Step>
+          <Step num={8}><strong>Recaudación Bs:</strong> Monto en bolívares que el operador debe entregar (propina × porcentaje, redondeado a 10).</Step>
+          <Step num={9}>En la parte superior se muestra un chip con el total acumulado de recaudación en Bs. de todos los registros filtrados.</Step>
+
+          <Tip>La recaudación se calcula automáticamente usando la propina registrada en el cierre de turno. Si el turno fue cerrado pero no se registró propina, el sistema la calcula en tiempo real usando la fórmula de la Biblia.</Tip>
+
+          <Sub>Pestaña 3: Gandolas</Sub>
+          <P>
+            Esta pestaña muestra el historial de todas las recepciones de gandola (descargas de combustible) cerradas. La tabla muestra los siguientes datos por recepción:
+          </P>
+          <Step num={1}><strong>Fecha y día de la semana:</strong> Fecha de la recepción.</Step>
+          <Step num={2}><strong>Hora Llegada / Hora Salida:</strong> Hora en que llegó y se fue la gandola.</Step>
+          <Step num={3}><strong>Chofer:</strong> Nombre completo del conductor de la gandola.</Step>
+          <Step num={4}><strong>CI:</strong> Cédula de identidad del conductor.</Step>
+          <Step num={5}><strong>Compartimentos:</strong> Litros recibidos en cada compartimento de la gandola (1, 2 y 3).</Step>
+          <Step num={6}><strong>Total L:</strong> Total de litros descargados en esa recepción.</Step>
+          <Step num={7}><strong>Estado:</strong> "Completada" (verde) o "En Proceso" (amarillo).</Step>
+          <Step num={8}>En la parte superior se muestra un chip con el total acumulado de litros recibidos por todas las gandolas filtradas.</Step>
+
+          <Tip>Los datos de gandolas se cargan cuando selecciona la pestaña correspondiente por primera vez. Si no aparecen recepciones, verifique que las recepciones hayan sido cerradas correctamente desde la sección de Recepción de Gandola.</Tip>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -684,15 +738,41 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}>Seleccione el reporte qué desea generar haciendo clic en la tarjeta correspondiente.</Step>
           <Step num={2}>Haga clic en "Descargar PDF" para obtener el archivo. El PDF se descarga automáticamente a su dispositivo.</Step>
           <Step num={3}>También puede hacer clic en "Imprimir" para enviarlo directamente a una impresora.</Step>
-          <Step num={4}>Para "Descargar Todo", el sistema genera un unico PDF con todos los reportes combinados, ideal para archivar el cierre completo del turno.</Step>
+          <Step num={4}>Para "Descargar Todo", el sistema genera un único PDF con todos los reportes combinados, ideal para archivar el cierre completo del turno.</Step>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECCION 12: ESTADISTICAS */}
+        {/* SECCION 12: GESTIÓN DE PRODUCTOS */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <ManualSection number="12" icon={<BarChartIcon fontSize="small" />} title="Estadisticas">
+        <ManualSection number="12" icon={<CategoryIcon fontSize="small" />} title="Gestión de Productos">
           <P>
-            La seccion de Estadisticas muestra gráficos y métricas de rendimiento del turno. Permite analizar tendencias de ventas, comparar litros vendidos por isla y revisar los ingresos a lo largo del tiempo.
+            La sección de Gestión de Productos permite administrar el catálogo completo de productos que se venden en la estación (aditivos, aceites, refrigerantes, liquido de freno, extintores, entre otros). Desde aquí puede crear nuevos productos, editar los existentes, activar/desactivar productos y gestionar sus precios.
+          </P>
+
+          <Sub>Crear un Nuevo Producto</Sub>
+          <Step num={1}>Haga clic en el botón "Agregar Producto" (o icono de más).</Step>
+          <Step num={2}>Ingrese el nombre del producto (por ejemplo: "Aditivo Chevron", "Aceite Mobil 20W-50").</Step>
+          <Step num={3}>Seleccione la categoría a la que pertenece (Aceites, Aditivos, Refrigerantes, Otros, etc.).</Step>
+          <Step num={4}>Ingrese el precio en USD del producto.</Step>
+          <Step num={5}>El producto se guarda automáticamente y queda disponible para seleccionar en el Cierre de Turno.</Step>
+
+          <Sub>Editar o Desactivar un Producto</Sub>
+          <Step num={1}>Cada producto aparece como una tarjeta con su nombre, categoria, precio y un interruptor de activación.</Step>
+          <Step num={2}>Para editar un producto, haga clic en el botón de editar (icono de lápiz) y modifique los campos necesarios.</Step>
+          <Step num={3}>Para desactivar un producto (que no aparezca como opción en el Cierre de Turno), use el interruptor de activación. Un producto desactivado sigue existiendo en la base de datos pero no se muestra en las listas desplegables.</Step>
+          <Step num={4}>Para reactivar un producto desactivado, simplemente vuelva a activar el interruptor.</Step>
+
+          <Warning>Si elimina un producto que ya fue vendido en turnos anteriores, los registros históricos del Cierre de Turno seguirán mostrando ese producto. No elimine productos que ya tienen historial de ventas.</Warning>
+
+          <Tip>Los productos aparecen organizados por categoria. El orden de las categorías se define en la configuración del sistema. Los productos activos son los únicos que se muestran en el listado desplegable al registrar ventas en el Cierre de Turno.</Tip>
+        </ManualSection>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* SECCION 13: ESTADISTICAS */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <ManualSection number="13" icon={<BarChartIcon fontSize="small" />} title="Estadísticas">
+          <P>
+            La sección de Estadísticas muestra gráficos y métricas de rendimiento del turno. Permite analizar tendencias de ventas, comparar litros vendidos por isla y revisar los ingresos a lo largo del tiempo.
           </P>
 
           <Sub>Métricas Principales</Sub>
@@ -700,21 +780,21 @@ export default function UserManual({ open, onClose }) {
           <Step num={2}><strong>Litros Vendidos:</strong> Total de litros despachados en el periodo.</Step>
           <Step num={3}><strong>Ingresos:</strong> Total de ingresos en USD (suma de cortes, PV, vales, transferencias).</Step>
           <Step num={4}><strong>Propinas:</strong> Total de propinas y el promedio por turno.</Step>
-          <Step num={5}><strong>Recepciónes de Gandola:</strong> Cantidad de descargas de combustible y total de litros recibidos.</Step>
+          <Step num={5}><strong>Recepciones de Gandola:</strong> Cantidad de descargas de combustible y total de litros recibidos.</Step>
 
           <Sub>Filtros de Periodo</Sub>
-          <P>Puede filtrar las estadisticas por: Hoy, Esta Semana, Este Mes, o Todos. Los gráficos se actualizan automáticamente al cambiar el filtro.</P>
+          <P>Puede filtrar las estadísticas por: Hoy, Esta Semana, Este Mes, o Todos. Los gráficos se actualizan automáticamente al cambiar el filtro.</P>
 
           <Sub>Gráficos Disponibles</Sub>
-          <P>El sistema muestra gráficos de barras (litros por isla), circulares (distribución de turnos), de líneas (tendencia de litros e ingresos) y de area. Todos los gráficos son interactivos y muestran detalles al pasar el cursor sobre los datos.</P>
+          <P>El sistema muestra gráficos de barras (litros por isla), circulares (distribución de turnos), de líneas (tendencia de litros e ingresos) y de área. Todos los gráficos son interactivos y muestran detalles al pasar el cursor sobre los datos.</P>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
         {/* SECCION 13: CUENTA Y SEGURIDAD */}
         {/* ═══════════════════════════════════════════════════════ */}
-        <ManualSection number="13" icon={<LockResetIcon fontSize="small" />} title="Cuenta y Seguridad">
+        <ManualSection number="14" icon={<LockResetIcon fontSize="small" />} title="Cuenta y Seguridad">
           <P>
-            Desde el menú de usuario (icono de avatar en la esquina superior derecha) puede acceder a opciones de seguridad y gestion de su cuenta.
+            Desde el menú de usuario (icono de avatar en la esquina superior derecha) puede acceder a opciones de seguridad y gestion de su cuenta. Esta sección también incluye información sobre los indicadores de conexión del sistema.
           </P>
 
           <Sub>Cambiar Contraseña</Sub>
@@ -722,7 +802,7 @@ export default function UserManual({ open, onClose }) {
           <Step num={2}>Seleccione "Cambiar Contraseña" del menú desplegable.</Step>
           <Step num={3}>Ingrese su contraseña actual.</Step>
           <Step num={4}>Ingrese la nueva contraseña (mínimo 6 caracteres).</Step>
-          <Step num={5}>Confirme la nueva contraseña escribiendola nuevamente.</Step>
+          <Step num={5}>Confirme la nueva contraseña escribiéndola nuevamente.</Step>
           <Step num={6}>Haga clic en "Cambiar Contraseña" para aplicar el cambio.</Step>
 
           <Warning>La nueva contraseña debe ser diferente a la actual y tener al menos 6 caracteres. Por seguridad, se le solicitara ingresar su sesión nuevamente si han pasado varios días desde el último inicio de sesión.</Warning>
@@ -730,7 +810,7 @@ export default function UserManual({ open, onClose }) {
           <Sub>Cerrar Sesión</Sub>
           <Step num={1}>Haga clic en su avatar en la barra superior.</Step>
           <Step num={2}>Seleccione "Cerrar Sesión" del menú desplegable.</Step>
-          <Step num={3}>El sistema cerrara la sesión y lo redigira a la pantalla de login. Todos los datos no guardados se perderan.</Step>
+          <Step num={3}>El sistema cerrará la sesión y lo redirigirá a la pantalla de login. Todos los datos no guardados se perderán.</Step>
 
           <Success>Al cerrar sesión, el sistema deshabilita automáticamente la conexión a la base de datos en la nube. Esto protege sus datos y evita que otro usuario acceda a su información sin autenticarse.</Success>
 
@@ -739,7 +819,56 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}><strong>Icono de nube verde (CloudSync):</strong> Conexión activa. Todos los datos se sincronizan con la base de datos en tiempo real.</Step>
           <Step num={2}><strong>Chip "Offline" amarillo:</strong> Sin conexión a internet. Los datos se guardan localmente y se sincronizaran automáticamente cuando se restablezca la conexión.</Step>
 
-          <Tip>Este sistema es una PWA (Aplicacion Web Progresiva). Puede instalarla en su celular o tablet como si fuera una app nativa. En Android, use el botón "Agregar a pantalla de inicio" del navegador Chrome. En iPhone, use el botón "Compartir" y seleccione "Agregar a pantalla de inicio". Una vez instalada, la app funciona incluso sin conexión a internet.</Tip>
+          <Tip>La sesión se cierra automáticamente al cerrar el navegador o la pestaña/ventana donde se abrió la aplicación. Esto es una medida de seguridad para proteger los datos.</Tip>
+        </ManualSection>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* SECCION 15: INICIO DE SESIÓN, RECUPERACIÓN Y PWA */}
+        {/* ═════════════════════════════════════════════════════ */}
+        <Divider sx={{ my: 4 }} />
+        <ManualSection number="15" icon={<LoginIcon fontSize="small" />} title="Inicio de Sesión, Recuperación de Contraseña e Instalación PWA">
+
+          <Sub>Pantalla de Login</Sub>
+          <P>
+            Al abrir la aplicación, se muestra la pantalla de Login con el logo de la estación, el campo de correo electrónico y el campo de contraseña. El diseño muestra un banner curvado superior con el logo de PDVSA de fondo y una tarjeta central con el formulario de acceso.
+          </P>
+          <Step num={1}>Ingrese su correo electrónico (el mismo que fue registrado por el administrador).</Step>
+          <Step num={2}>Ingrese su contraseña.</Step>
+          <Step num={3}>Opcionalmente, haga clic en el icono del ojo para mostrar/ocultar la contraseña mientras la escribe.</Step>
+          <Step num={4}>Haga clic en "Iniciar Sesión". Si las credenciales son correctas, será redirigido automáticamente al Dashboard (si es supervisor) o al panel de administración (si es administrador).</Step>
+          <Step num={5}>Si ingresa credenciales incorrectas, aparecerá un mensaje de error indicando el motivo (correo incorrecto, contraseña incorrecta, usuario desactivado, demasiados intentos, etc.).</Step>
+
+          <Warning>Por seguridad, el sistema bloquea el acceso después de demasiados intentos fallidos. Si esto ocurre, debe esperar unos minutos antes de intentar nuevamente. La sesión expira al cerrar el navegador o la ventana/pestaña.</Warning>
+
+          <Sub>Recuperar Contraseña</Sub>
+          <P>
+            Si olvidó su contraseña, puede recuperarla directamente desde la pantalla de Login sin necesidad de contactar al administrador:
+          </P>
+          <Step num={1}>En la pantalla de Login, haga clic en "¿Olvidaste tu contraseña?" (enlace debajo del botón de Iniciar Sesión).</Step>
+          <Step num={2}>Ingrese su correo electrónico registrado.</Step>
+          <Step num={3}>Haga clic en "Enviar Enlace de Recuperación".</Step>
+          <Step num={4}>Revise su bandeja de entrada de correo electrónico. Recibirá un correo con un enlace para restablecer la contraseña.</Step>
+          <Step num={5}>Haga clic en el enlace y siga las instrucciones para establecer una nueva contraseña.</Step>
+          <Step num={6}>Una vez cambiada, vuelva a la pantalla de Login e ingrese con sus nuevas credenciales.</Step>
+
+          <Tip>El enlace de recuperación tiene un tiempo limitado de validez. Si no lo usa a tiempo, solicite uno nuevo desde la pantalla de Login.</Tip>
+
+          <Sub>Redirección Automática por Rol</Sub>
+          <P>Después del login, el sistema verifica automáticamente el rol del usuario y lo redirige a la pantalla correspondiente:</P>
+          <Step num={1}><strong>Supervisor:</strong> Redirigido al Dashboard de Supervisor (/) con acceso a todas las funciones operativas.</Step>
+          <Step num={2}><strong>Administrador:</strong> Redirigido al panel de Administración (/admin) con acceso a gestión de usuarios y configuración.</Step>
+
+          <Sub>Instalar la PWA como App Nativa</Sub>
+          <P>
+            Esta aplicación es una PWA (Aplicación Web Progresiva), lo que significa que puede instalarla en su dispositivo móvil como si fuera una aplicación nativa desde la tienda de apps. La instalación es gratuita y se hace directamente desde el navegador:
+          </P>
+          <Step num={1}><strong>En Android (Chrome):</strong> Cuando visite la aplicación por primera vez, aparecerá un banner inferior o un mensaje pidiendo "Agregar a pantalla de inicio". Haga clic en "Agregar". La app aparecerá en su pantalla de inicio como un icono. También puede ir al menú del navegador (tres puntos), seleccionar "Agregar a pantalla de inicio" y confirmar.</Step>
+          <Step num={2}><strong>En iPhone/iPad (Safari):</strong> Vaya al menú de compartir (icono de cuadrado con flecha hacia arriba), seleccione "Agregar a pantalla de inicio". Configure el nombre de la app (por ejemplo: "Montaña Fresca"), elija la imagen que desee como icono y haga clic en "Agregar".</Step>
+          <Step num={3}><strong>En PC:</strong> La app funciona normalmente en el navegador. No es necesario instalarla, aunque también puede instalarla desde el menú de Chrome si lo desea.</Step>
+
+          <Success>Una vez instalada, la PWA funciona como una app nativa: tiene su propio icono en la pantalla de inicio, puede funcionar sin conexión a internet (con datos guardados localmente), se abre en pantalla completa sin la barra del navegador, y recibe notificaciones. Es la forma recomendada de usar la aplicación en dispositivos móviles.</Success>
+
+          <Warning>La instalación como PWA solo funciona desde el navegador Chrome en Android o Safari en iOS. Otros navegadores pueden no soportar esta función.</Warning>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -750,11 +879,11 @@ export default function UserManual({ open, onClose }) {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <P bold>¿Que hago si se corta la luz o el internet mientras estoy haciendo un cierre?</P>
-              <P>No se preocupe. El sistema guarda los datos localmente cada 2 segundos. Cuando se restablezca la conexión, los datos se sincronizaran automáticamente con la nube. Verifique que no cierre el navegador hasta que se restaure la conexión.</P>
+              <P>No se preocupe. El sistema guarda los datos localmente cada 2 segundos. Cuando se restablezca la conexión, los datos se sincronizarán automáticamente con la nube. Verifique que no cierre el navegador hasta que se restaure la conexión.</P>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <P bold>¿Puedo tener dos turnos abiertos al mismo tiempo?</P>
-              <P>No. El sistema solo permite un turno activo. Si intenta crear un turno nuevo mientras hay uno en progreso, debera cerrar el turno actual primero.</P>
+              <P>No. El sistema solo permite un turno activo. Si intenta crear un turno nuevo mientras hay uno en progreso, deberá cerrar el turno actual primero.</P>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <P bold>¿Las lecturas iniciales se pasan automáticamente del turno anterior?</P>
@@ -770,7 +899,7 @@ export default function UserManual({ open, onClose }) {
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <P bold>¿Puedo usar la app sin conexión a internet?</P>
-              <P>Si. La aplicacion es una PWA y funciona sin conexión. Los datos se guardan localmente y se sincronizan cuando recupera internet. Sin embargo, necesitas conexión para iniciar sesión por primera vez y para crear un nuevo turno.</P>
+              <P>Si. La aplicación es una PWA y funciona sin conexión. Los datos se guardan localmente y se sincronizan cuando recupera internet. Sin embargo, necesitas conexión para iniciar sesión por primera vez y para crear un nuevo turno.</P>
             </Paper>
           </Box>
         </ManualSection>
@@ -886,7 +1015,7 @@ function generateManualPDF(stationName) {
   y = 25;
 
   addTitle('1. Dashboard (Pantalla Principal)');
-  addText('El Dashboard es la primera pantalla al iniciar sesión. Muestra un resumen del sistema, permite crear turnos y acceder rapidamente a las funciones principales.');
+  addText('El Dashboard es la primera pantalla al iniciar sesión. Muestra un resumen del sistema, permite crear turnos y acceder rápidamente a las funciones principales.');
   addSubtitle('Crear un Turno');
   addStep(1, 'Seleccione el turno supervisor (1TS o 2TS) desde las tarjetas en el Dashboard.');
   addStep(2, 'El sistema crea el turno automáticamente con lecturas iniciales heredadas del turno anterior cerrado.');
@@ -904,7 +1033,7 @@ function generateManualPDF(stationName) {
   addTip('Las lecturas deben ser valores exactos de la tabla de calibración (incrementos de 0.5 cm).');
 
   addTitle('3. Gastos del Turno');
-  addText('Registra gastos en Bolivares (Bs.) durante el turno. Se convierten automáticamente a USD para la Biblia.');
+  addText('Registra gastos en Bolívares (Bs.) durante el turno. Se convierten automáticamente a USD para la Biblia.');
   addStep(1, 'Ingrese el monto en Bs. y una descripción breve del gasto.');
   addStep(2, 'El gasto se guarda automáticamente. Para eliminar, haga clic en el botón de papelera.');
 
@@ -924,9 +1053,9 @@ function generateManualPDF(stationName) {
 
   checkPage(40);
   addTitle('5. Cierre de Turno');
-  addText('Seccion mas critica del sistema. Registra cortes, PV, vales, transferencias y productos vendidos por cada isla.');
+  addText('Sección más crítica del sistema. Registra cortes, PV, vales, transferencias y productos vendidos por cada isla.');
   addSubtitle('Cortes en Efectivo');
-  addStep(1, 'Cortes en Bs.: Ingrese cada corte recibido en bolivares. Maximo configurable (por defecto 12).');
+  addStep(1, 'Cortes en Bs.: Ingrese cada corte recibido en bolívares. Máximo configurable (por defecto 12).');
   addStep(2, 'Cortes en USD: Ingrese cada corte recibido en dólares.');
   addStep(3, 'UE (Unidades Extra): Montos adicionales que no son cortes regulares.');
   addSubtitle('Punto de Venta (PV)');
@@ -936,42 +1065,63 @@ function generateManualPDF(stationName) {
   addStep(1, 'Vales: Agregue monto (USD) y descripción de cada vale.');
   addStep(2, 'Transferencias: Agregue monto (USD) y descripción de cada transferencia.');
   addSubtitle('Productos Vendidos');
-  addStep(1, 'Seleccione producto, cantidad y metodo de pagó (PV, Bs., USD).');
+  addStep(1, 'Seleccione producto, cantidad y método de pagó (PV, Bs., USD).');
   addTip('Los cambios se guardan automáticamente cada 2 segundos. Espere el indicador verde "Guardado".');
 
   checkPage(40);
   addTitle('6. Reporte de Lectura y Recepción');
-  addText('Vista consolidada en 3 columnas: lecturas diurnas (izquierda), inventario de tanques (centro) y lecturas nocturnas (derecha). Muestra lecturas de bombas, inventario de tanques en 4 momentos (inicial, antes/despues de descarga, final) y recepción de gandola.');
+  addText('Vista consolidada en 3 columnas: lecturas diurnas (izquierda), inventario de tanques (centro) y lecturas nocturnas (derecha). Muestra lecturas de bombas, inventario de tanques en 4 momentos (inicial, antes/después de descarga, final) y recepción de gandola.');
 
   addTitle('7. Biblia (Resumen Financiero)');
   addText('Resumen financiero completo del turno. Calcula ingresos totales, propina del operador y balance general.');
   addSubtitle('Formula de Propina');
-  addText('Propina = Ingresos Totales - (Litros Vendidos / Precio por Litro). Si es negativa, indica un sobregiro (faltante de caja). Los gastos del turno se restan del cálculo en el Resumen.');
+  addText('Propina por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro). Si es negativa, indica un sobregiro (faltante de caja). Los gastos del turno NO se utilizan para calcular la propina del operador. La propina se calcula exclusivamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias). Los gastos aparecen en el Resumen solo como referencia informativa y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos).');
+  addSubtitle('Tarjetas Dinámicas');
+  addStep(1, 'Sobregiro (naranja): Aparece cuando hay faltante de caja. Muestra el monto en USD.');
+  addStep(2, 'Total Gastos (azul): Suma total de gastos del turno en USD.');
+  addStep(3, 'Total Dólares a Entregar (morado): Suma de cortes USD + UE$. Es el efectivo dólar a entregar.');
+  addStep(4, 'Total Bolívares a Entregar (verde): Aparece sin sobregiro. Muestra el Bs. del Resumen y su equivalente USD.');
+  addStep(5, 'Total a Tomar de Reserva (verde): Aparece con sobregiro. Sobregiro + gastos. Desglose de ambos montos.');
 
   addTitle('8. Cuadre PV (Punto de Venta)');
-  addText('Conciliacion de pagos con tarjeta por isla. Muestra montos en Bs., USD y litros equivalentes para cada PV.');
+  addText('Conciliación de pagos con tarjeta por isla. Muestra montos en Bs., USD y litros equivalentes para cada PV.');
 
   addTitle('9. Inventario');
   addText('Gestion de stock en dos niveles: almacén general e inventario por isla.');
-  addSubtitle('Operaciónes');
+  addSubtitle('Operaciones');
   addStep(1, 'Agregar Stock: Ingresa productos al almacén general.');
-  addStep(2, 'Distribuir: Envia productos del almacén a una isla especifica.');
+  addStep(2, 'Distribuir: Envía productos del almacén a una isla especifica.');
   addStep(3, 'Retornar: Devuelve productos de una isla al almacén general.');
   addStep(4, 'Editar: Modifica la cantidad de stock directamente en la tabla.');
   addTip('El sistema verifica qué haya stock suficiente antes de distribuir o retornar productos.');
 
   checkPage(40);
-  addTitle('10. Historial de Cierres');
-  addText('Consulta de turnos cerrados. Filtre por fecha, revise el detalle completo (lecturas, Biblia, Cuadre PV) y genere PDFs de turnos anteriores.');
+  addTitle('10. Historiales (Cierres / Recaudación / Gandolas)');
+  addText('Consulta de información histórica con tres pestanas: Cierres (turnos cerrados con reporte completo), Recaudación (propinas por operador e isla con porcentaje de recaudación configurado) y Gandolas (recepciones de combustible). Todas las pestanas tienen filtros de fecha (desde/hasta) para buscar registros específicos.');
+  addSubtitle('Pestana 1: Cierres');
+  addStep(1, 'Muestra tarjetas con resumen de cada turno cerrado: fecha, tipo de turno, tasas, litros, totales Bs./USD, PV, operadores y hora de cierre.');
+  addStep(2, 'Clic en "Ver Informe" abre el reporte completo (Lecturas, Biblia, Cuadre PV, Inventario, Productos, Gastos).');
+  addStep(3, 'Dentro del informe puede generar el PDF completo del turno.');
+  addSubtitle('Pestana 2: Recaudación');
+  addStep(1, 'Muestra recaudación por operador e isla. Formula: Recaudación = redondear a 10 (Propina Bs. x Porcentaje).');
+  addStep(2, 'Tabla muestra: fecha, turno, isla, operador, propina $, propina Bs., % Rec. y Recaudación Bs.');
+  addSubtitle('Pestana 3: Gandolas');
+  addStep(1, 'Muestra historial de recepciones de gandola: fecha, hora llegada/salida, chofer, CI, compartimentos, total litros y estado.');
 
   addTitle('11. Generar PDF');
   addText('Genera y descarga reportes en PDF: Cierre de Turno (vertical), Reporte Lectura (horizontal), Biblia (vertical), Cuadre PV (vertical) o Todos en un solo PDF combinado.');
 
-  addTitle('12. Estadisticas');
-  addText('Gráficos y métricas: litros vendidos por isla, tendencias diarias, ingresos, propinas y recepciónes de gandola. Filtre por periodo (hoy, semana, mes, todos).');
+  addTitle('12. Gestion de Productos');
+  addText('Administración del catálogo de productos vendidos en la estación (aditivos, aceites, refrigerantes, etc.). Permite crear, editar, activar/desactivar productos y gestionar precios.');
+  addStep(1, 'Crear: Clic en "Agregar Producto", ingrese nombre, categoria, precio USD.');
+  addStep(2, 'Editar: Clic en lápiz para modificar campos del producto.');
+  addStep(3, 'Activar/Desactivar: Use el interruptor. Productos desactivados no aparecen en el Cierre de Turno.');
+
+  addTitle('13. Estadísticas');
+  addText('Gráficos y métricas: litros vendidos por isla, tendencias diarias, ingresos, propinas y recepciones de gandola. Filtre por periodo (hoy, semana, mes, todos).');
 
   checkPage(30);
-  addTitle('13. Cuenta y Seguridad');
+  addTitle('14. Cuenta y Seguridad');
   addSubtitle('Cambiar Contraseña');
   addStep(1, 'Clic en su avatar (esquina superior derecha) > "Cambiar Contraseña".');
   addStep(2, 'Ingrese contraseña actual, nueva contraseña (min. 6 caracteres) y confirme.');
@@ -980,7 +1130,21 @@ function generateManualPDF(stationName) {
   addSubtitle('Indicador de Conexión');
   addStep(1, 'Nube verde: Conexión activa y sincronizada.');
   addStep(2, 'Chip "Offline" amarillo: Sin conexión. Los datos se guardan localmente.');
-  addTip('La app es una PWA. Puede instalarla en su celular desde el navegador (Chrome: "Agregar a pantalla de inicio"). Funciona sin conexión a internet.');
+
+  checkPage(30);
+  addTitle('15. Inicio de Sesión, Recuperación y PWA');
+  addSubtitle('Pantalla de Login');
+  addStep(1, 'Ingrese correo electrónico y contraseña del usuario registrado.');
+  addStep(2, 'Si las credenciales son correctas, el sistema redirige automáticamente según el rol (Supervisor o Admin).');
+  addSubtitle('Recuperar Contraseña');
+  addStep(1, 'En la pantalla de Login, clic en "Olvidaste tu contraseña?".');
+  addStep(2, 'Ingrese su correo electrónico y clic en "Enviar Enlace de Recuperación".');
+  addStep(3, 'Revise su correo, haga clic en el enlace y establezca la nueva contraseña.');
+  addSubtitle('Instalar la PWA');
+  addStep(1, 'Android (Chrome): Menú > "Agregar a pantalla de inicio" o banner inferior.');
+  addStep(2, 'iPhone (Safari): Menú compartir > "Agregar a pantalla de inicio".');
+  addStep(3, 'Una vez instalada, funciona como app nativa: icono propio, pantalla completa, funciona offline.');
+  addTip('La sesión expira al cerrar el navegador o la pestaña. Es una medida de seguridad configurada con browserSessionPersistence.');
 
   // ── PIES DE PAGINA ──
   const totalPages = doc.internal.getNumberOfPages();

@@ -2,11 +2,10 @@
 // Store de autenticacion y usuarios con Firebase Authentication + Firestore (perfiles)
 //
 // SEGURIDAD v2:
-//   - H5: createUser ahora delega a Netlify Function (server-side) en vez de
-//         crear usuarios directamente desde el cliente con Firebase Auth.
-//   - H6: Se deja de persistir 'user' e 'isAuthenticated' en localStorage.
-//         El rol se lee SIEMPRE desde Firestore (onAuthStateChanged) para
-//         evitar escalada de privilegios vía DevTools.
+//   - H5: createUser delega a Netlify Function (server-side).
+//   - H6: user e isAuthenticated NO se persisten en localStorage.
+//   - Session persistence: browserSessionPersistence — la sesion solo dura
+//     mientras la pestaña este abierta. Cerrar pestaña = cerrar sesion.
 
 import { create } from 'zustand';
 import {
@@ -17,6 +16,8 @@ import {
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  setPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth';
 import {
   doc,
@@ -47,8 +48,17 @@ const useStore = create(
     /**
      * Inicializar el listener de Firebase Auth (onAuthStateChanged).
      * Debe llamarse UNA vez al arrancar la app.
+     *
+     * Comportamiento de sesion:
+     *   - browserSessionPersistence: la sesion vive solo mientras la pestaña
+     *     este abierta. Cerrar la pestaña/ventana/app = sesion destruida.
+     *   - Minimizar o cambiar de pestaña = sesion sigue activa.
+     *   - Los datos (turno, config, inventario) se guardan en localStorage
+     *     via Zustand persist, por lo que al volver a loguear todo sigue intacto.
+     *
+     * Timeout de seguridad: si Firebase no responde en 10s, muestra el login.
      */
-    initAuth: () => {
+    initAuth: async () => {
       if (authListenerSetup) return;
       authListenerSetup = true;
 
@@ -57,49 +67,79 @@ const useStore = create(
         return;
       }
 
-      const auth = getFirebaseAuth();
-
-      onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          try {
-            const db = getDb();
-
-            // Asegurar que Firestore este online antes de leer el perfil.
-            try {
-              await enableNetwork(db);
-            } catch (_) {}
-
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-
-            if (userDoc.exists()) {
-              const profile = userDoc.data();
-              if (profile.active !== false) {
-                set({
-                  user: {
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    ...profile,
-                  },
-                  isAuthenticated: true,
-                  authLoading: false,
-                });
-                return;
-              }
-            }
-            // Sin perfil o inactivo: cerrar sesión
-            await signOut(auth);
-          } catch (error) {
-            if (error.message?.includes('Target ID already exists')) return;
-            console.error('Error cargando perfil del usuario:', error);
-            try { await signOut(auth); } catch (_) {}
-          }
+      // Timeout de seguridad: si onAuthStateChanged no resuelve en 10s,
+      // forzar authLoading: false para mostrar el login.
+      const authSafetyTimeout = setTimeout(() => {
+        if (get().authLoading) {
+          set({ user: null, isAuthenticated: false, authLoading: false });
         }
+      }, 10000);
+
+      try {
+        const auth = getFirebaseAuth();
+
+        // La sesion se almacena en sessionStorage (nivel pestaña).
+        // - Cerrar pestaña → sessionStorage se destruye → sesion eliminada.
+        // - Cambiar de pestaña o minimizar → la pestaña sigue viva → sesion activa.
+        // - Abrir nueva pestaña → sessionStorage nuevo → sin sesion → login.
+        await setPersistence(auth, browserSessionPersistence);
+
+        onAuthStateChanged(auth, async (firebaseUser) => {
+          // Limpiar timeout de seguridad — el callback ya fue invocado
+          clearTimeout(authSafetyTimeout);
+
+          if (firebaseUser) {
+            try {
+              const db = getDb();
+
+              // Asegurar que Firestore este online antes de leer el perfil
+              try {
+                await enableNetwork(db);
+              } catch (_) {}
+
+              // Timeout en la lectura del perfil (8 segundos).
+              // Si Firestore no responde, no se cuelga indefinidamente.
+              const userDoc = await Promise.race([
+                getDoc(doc(db, 'users', firebaseUser.uid)),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('TIMEOUT_PROFILE_FETCH')), 8000)
+                ),
+              ]);
+
+              if (userDoc.exists()) {
+                const profile = userDoc.data();
+                if (profile.active !== false) {
+                  set({
+                    user: {
+                      uid: firebaseUser.uid,
+                      email: firebaseUser.email,
+                      ...profile,
+                    },
+                    isAuthenticated: true,
+                    authLoading: false,
+                  });
+                  return;
+                }
+              }
+              // Sin perfil o inactivo: cerrar sesion
+              await signOut(auth);
+            } catch (error) {
+              if (error.message?.includes('Target ID already exists')) return;
+              // Perfil no se pudo leer (timeout, red, permisos): cerrar sesion
+              try { await signOut(auth); } catch (_) {}
+            }
+          }
+          set({ user: null, isAuthenticated: false, authLoading: false });
+        });
+      } catch (error) {
+        // Si setPersistence falla, mostrar login de todas formas
+        clearTimeout(authSafetyTimeout);
         set({ user: null, isAuthenticated: false, authLoading: false });
-      });
+      }
     },
 
     /**
-     * Iniciar sesión con email y password via Firebase Auth.
+     * Iniciar sesion con email y password via Firebase Auth.
      */
     login: async (email, password) => {
       try {
@@ -121,7 +161,7 @@ const useStore = create(
     },
 
     /**
-     * Cerrar sesión.
+     * Cerrar sesion.
      */
     logout: async () => {
       try {
@@ -141,7 +181,7 @@ const useStore = create(
         const auth = getFirebaseAuth();
         await signOut(auth);
       } catch (error) {
-        console.error('Error cerrando sesión:', error);
+        // Error no critico — el estado se limpia de todas formas
       }
       set({ user: null, isAuthenticated: false });
     },
@@ -202,16 +242,14 @@ const useStore = create(
         const snapshot = await getDocs(collection(db, 'users'));
         return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       } catch (error) {
-        console.error('Error cargando usuarios:', error);
         return [];
       }
     },
 
     /**
      * Crear un nuevo usuario via Netlify Function (server-side).
-     * FIX H5: Ya NO usa Firebase Auth directamente desde el cliente.
-     * La función del servidor valida que el llamante sea administrador
-     * y que el rol asignado sea válido (lista blanca).
+     * La funcion del servidor valida que el llamante sea administrador
+     * y que el rol asignado sea valido (lista blanca).
      */
     createUser: async (userData) => {
       try {
@@ -245,7 +283,6 @@ const useStore = create(
 
         return data;
       } catch (error) {
-        // Si el error ya tiene un mensaje amigable (de la función), usarlo
         if (error.message && !error.message.includes('Failed to fetch')) {
           throw error;
         }
@@ -273,7 +310,6 @@ const useStore = create(
           set({ user: { ...get().user, ...cleanUpdates } });
         }
       } catch (error) {
-        console.error('Error actualizando usuario:', error);
         throw error;
       }
     },
@@ -308,7 +344,6 @@ const useStore = create(
 
         return data;
       } catch (error) {
-        console.error('Error eliminando usuario:', error);
         throw error;
       }
     },
