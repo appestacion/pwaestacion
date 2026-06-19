@@ -4,31 +4,51 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+// FIX M7: Vite plugin que fuerza Content-Type: application/javascript
+// para archivos .wasm.js. Algunos servidores/proxies sirven estos archivos
+// con MIME type incorrecto (application/octet-stream o application/wasm),
+// lo que causa que importScripts() falle en el Worker de Tesseract.
+function fixWasmJsMimeType() {
+  return {
+    name: 'fix-wasm-js-mime',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        // Solo interceptar requests a archivos .wasm.js
+        const pathname = (req.url || '').split('?')[0];
+        if (pathname.endsWith('.wasm.js')) {
+          const originalSetHeader = res.setHeader.bind(res);
+          res.setHeader = function (name, value) {
+            if (
+              typeof name === 'string' &&
+              name.toLowerCase() === 'content-type'
+            ) {
+              value = 'application/javascript; charset=utf-8';
+            }
+            return originalSetHeader(name, value);
+          };
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    fixWasmJsMimeType(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icons/*.png', 'logo.svg', 'PDVSA.png', 'manifest.json'],
-      // FIX: Eliminado el manifest duplicado de aqui.
-      // Ahora solo se usa public/manifest.json como estatico,
-      // y pwaIdentity.js lo sobreescribe dinamicamente desde Firestore.
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         navigateFallback: '/index.html',
-        // FIX: Activar inmediatamente el nuevo Service Worker sin esperar a que se cierren todas las pestañas.
-        // Sin esto, el SW viejo sigue sirviendo index.html con hashes de JS antiguos,
-        // lo que produce el error MIME type "text/html" cuando el navegador pide un JS que ya no existe.
         skipWaiting: true,
-        // FIX: El nuevo SW toma control de todos los clientes inmediatamente.
-        // Sin esto, las pestañas abiertas siguen usando el SW viejo hasta recargar.
         clientsClaim: true,
-        // FIX: Eliminar caches de versiones anteriores del Service Worker.
-        // Sin esto, los precache viejos acumulan y pueden causar conflictos.
         cleanupOutdatedCaches: true,
-        // FIX: Limitar el numero de caches para evitar llenar el almacenamiento del navegador
-        // y que el navegador evicte caches de forma impredecible (lo que causa el MIME error).
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB max por archivo
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // FIX M7: Excluir archivos WASM grandes de Tesseract del precache.
+        exclude: [/tesseract\/tesseract-core-.*\.wasm(\.js)?$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -44,6 +64,11 @@ export default defineConfig({
             urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
             handler: 'NetworkFirst',
             options: { cacheName: 'firestore-cache', networkTimeoutSeconds: 10, expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 } }
+          },
+          {
+            urlPattern: /^https:\/\/tessdata\.projectnaptha\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: { cacheName: 'tesseract-lang-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 30 }, cacheableResponse: { statuses: [0, 200] } }
           }
         ]
       },
@@ -53,10 +78,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    // FIX M4: CSP para el dev server directo (npm run dev sin Netlify Dev).
-    // Permite blob: para el manifest dinámico y los recursos de Firebase/Fonts.
+    // CSP con blob: en script-src (FIX M7)
     headers: {
-      'Content-Security-Policy': "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com https://tessdata.projectnaptha.com; worker-src 'self' blob:; frame-ancestors 'none'",
     },
   },
   build: {

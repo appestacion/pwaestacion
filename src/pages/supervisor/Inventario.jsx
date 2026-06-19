@@ -232,6 +232,8 @@ export default function Inventario() {
     addGeneralStock, distributeToIsland, returnFromIsland,
     updateStockItem, updateIslandStockItem,
   } = useInventoryStore();
+  // ★ Suscripción al tracking de distribuciones del turno activo
+  const shiftDistributions = useInventoryStore((s) => s.shiftDistributions);
   const config = useConfigStore((state) => state.config);
 
   // ── Identidad de la estación (constante fija) ──
@@ -275,6 +277,17 @@ export default function Inventario() {
     loadStock();
     loadIslandStock();
   }, [loadCurrentShift, loadProducts, loadStock, loadIslandStock]);
+
+  // ★ Sincronizar el tracking de distribuciones cuando cambia el turno activo.
+  // Esto cubre el caso de recarga de página: cuando currentShift se carga desde
+  // Firestore, re-sincroniza el estado de Zustand con localStorage.
+  useEffect(() => {
+    if (currentShift?.id) {
+      useInventoryStore.getState().setActiveShiftId(currentShift.id);
+    } else {
+      useInventoryStore.getState().setActiveShiftId(null);
+    }
+  }, [currentShift?.id]);
 
   const activeProducts = useMemo(() => {
     return products
@@ -882,7 +895,39 @@ export default function Inventario() {
                                     inputProps={{ min: 0 }}
                                   />
                                 ) : (
-                                  d.islStock || ''
+                                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, justifyContent: 'flex-end' }}>
+                                    {/*
+                                      ★ Indicador "+N" de distribuciones del turno activo.
+                                      Hereda el color del estado del stock (cellSc) para mantener
+                                      coherencia visual con la columna "Quedan".
+                                      Solo se muestra si hay turno activo y el neto es > 0.
+                                    */}
+                                    {hasActiveShift && (() => {
+                                      const distQty = shiftDistributions[String(id)]?.[row.productName] || 0;
+                                      if (distQty <= 0) return null;
+                                      return (
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            color: cellSc.text,
+                                            fontWeight: 700,
+                                            fontSize: '0.75rem',
+                                            bgcolor: cellSc.cell,
+                                            border: `1px solid ${cellSc.border}`,
+                                            px: 0.5,
+                                            py: 0.1,
+                                            borderRadius: 1,
+                                            lineHeight: 1.1,
+                                            minWidth: 22,
+                                            textAlign: 'center',
+                                          }}
+                                        >
+                                          +{distQty}
+                                        </Box>
+                                      );
+                                    })()}
+                                    <Box component="span">{d.islStock || ''}</Box>
+                                  </Box>
                                 )}
                               </TableCell>
                               <TableCell sx={{

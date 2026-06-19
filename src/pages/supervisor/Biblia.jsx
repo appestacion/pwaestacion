@@ -189,6 +189,11 @@ export default function Biblia() {
             <TableRow>
               <TableCell sx={resumenSec} colSpan={2}>RESUMEN</TableCell>
             </TableRow>
+            {/* Litros Vendidos: informativo, total de litros vendidos en el turno */}
+            <TableRow>
+              <TableCell sx={lbl}>Litros Vendidos:</TableCell>
+              <TableCell sx={infoCell}>{totalLitersSold > 0 ? formatNumber(totalLitersSold, 2) + ' L' : ''}</TableCell>
+            </TableRow>
             {/* Bs: (totalBs - propinaBs) / tasa1 */}
             <TableRow>
               <TableCell sx={lbl}>Bs.:</TableCell>
@@ -433,7 +438,7 @@ export default function Biblia() {
         )}
       </Box>
 
-      {/* ═══ Tarjeta Comprobación (siempre visible, NO aparece en PDF) ═══ */}
+      {/* ═══ Tarjeta Comprobación (siempre visible, aparece en PDF) ═══ */}
       <Paper sx={{
         mt: 3,
         mx: 'auto',

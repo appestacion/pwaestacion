@@ -71,9 +71,32 @@ export default function SupervisorDashboard() {
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [snackbarError, setSnackbarError] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(null);
+  // ★ Shifts ya cerrados hoy — para deshabilitar botones proactivamente.
+  // Estructura: { 'AM': true, 'PM': true } si ya están cerrados.
+  const [closedShiftsToday, setClosedShiftsToday] = useState({});
 
   const closeRequestedRef = React.useRef(false);
   const closeCooldownRef = React.useRef(false);
+
+  // ★ Verificación proactiva al montar y cuando cambia el currentShift:
+  // consulta Firestore por turnos DIURNO y NOCTURNO ya cerrados hoy.
+  React.useEffect(() => {
+    if (!currentShift) {
+      // Solo verificar cuando no hay turno activo (pantalla de selección).
+      const checkBoth = async () => {
+        const diurno = await useCierreStore.getState().checkForDuplicateShift('DIURNO');
+        const nocturno = await useCierreStore.getState().checkForDuplicateShift('NOCTURNO');
+        setClosedShiftsToday({
+          // DIURNO corresponde a supervisor PM, NOCTURNO a supervisor AM.
+          PM: !!diurno,
+          AM: !!nocturno,
+        });
+      };
+      checkBoth();
+    } else {
+      setClosedShiftsToday({});
+    }
+  }, [currentShift]);
 
   const handleStartShift = async (supervisorShiftType) => {
     if (closeCooldownRef.current) {
@@ -107,30 +130,6 @@ export default function SupervisorDashboard() {
       return;
     }
 
-    initNewShift(supervisorShiftType, tasa1, tasa2);
-  };
-
-  const handleConfirmDuplicate = () => {
-    if (!duplicateWarning) return;
-    if (closeCooldownRef.current) {
-      setDuplicateWarning(null);
-      return;
-    }
-
-    const supervisorShiftType = duplicateWarning.type;
-    let tasa1 = config.tasa1;
-    let tasa2 = config.tasa2;
-
-    if (supervisorShiftType === 'PM' && tasa2 > 0 && tasa2 !== tasa1) {
-      tasa1 = tasa2;
-      updateConfig({ tasa1: tasa2 });
-    }
-    if (tasa1 <= 0 && tasa2 > 0) {
-      tasa1 = tasa2;
-      updateConfig({ tasa1: tasa2 });
-    }
-
-    setDuplicateWarning(null);
     initNewShift(supervisorShiftType, tasa1, tasa2);
   };
 
@@ -255,15 +254,19 @@ export default function SupervisorDashboard() {
           </Alert>
 
           <Grid container spacing={isMobile ? 2 : 3}>
-            {Object.values(SHIFT_CARDS).map((shiftCard) => (
+            {Object.values(SHIFT_CARDS).map((shiftCard) => {
+              // ★ Si este turno ya está cerrado hoy, deshabilitar.
+              const isClosedToday = !!closedShiftsToday[shiftCard.key];
+              return (
               <Grid item xs={12} sm={6} key={shiftCard.key}>
                 <Card
                   sx={{
                     height: '100%',
                     borderLeft: '4px solid',
-                    borderColor: shiftCard.color,
+                    borderColor: isClosedToday ? 'grey.400' : shiftCard.color,
+                    opacity: isClosedToday ? 0.7 : 1,
                     transition: 'all 0.2s',
-                    '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
+                    '&:hover': isClosedToday ? {} : { transform: 'translateY(-2px)', boxShadow: 4 },
                   }}
                 >
                   <CardContent
@@ -279,7 +282,7 @@ export default function SupervisorDashboard() {
                   >
                     <Typography
                       variant={isMobile ? 'h6' : 'h5'}
-                      sx={{ fontWeight: 700, color: shiftCard.color }}
+                      sx={{ fontWeight: 700, color: isClosedToday ? 'grey.500' : shiftCard.color }}
                     >
                       {shiftCard.label}
                     </Typography>
@@ -291,41 +294,59 @@ export default function SupervisorDashboard() {
                       {shiftCard.fullLabel}
                     </Typography>
 
-                    <Chip
-                      label={isMobile ? shiftCard.closesLabelMobile : shiftCard.closesLabel}
-                      icon={isMobile ? undefined : shiftCard.icon}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        fontWeight: 600,
-                        fontSize: isXs ? '0.68rem' : '0.78rem',
-                        borderColor: shiftCard.color,
-                        color: shiftCard.color,
-                        bgcolor: `${shiftCard.color}08`,
-                        mt: 1,
-                      }}
-                    />
+                    {isClosedToday ? (
+                      <Chip
+                        label="Cerrado hoy"
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: isXs ? '0.68rem' : '0.78rem',
+                          bgcolor: '#FFCDD2',
+                          color: '#B71C1C',
+                          mt: 1,
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label={isMobile ? shiftCard.closesLabelMobile : shiftCard.closesLabel}
+                        icon={isMobile ? undefined : shiftCard.icon}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: isXs ? '0.68rem' : '0.78rem',
+                          borderColor: shiftCard.color,
+                          color: shiftCard.color,
+                          bgcolor: `${shiftCard.color}08`,
+                          mt: 1,
+                        }}
+                      />
+                    )}
 
                     <Button
                       variant="contained"
                       size={isMobile ? 'medium' : 'large'}
                       startIcon={<PlayArrowIcon />}
                       onClick={() => handleStartShift(shiftCard.key)}
+                      disabled={isClosedToday}
                       sx={{
                         mt: 1,
                         px: isMobile ? 3 : 4,
                         width: '100%',
                         maxWidth: 320,
-                        bgcolor: shiftCard.color,
-                        '&:hover': { bgcolor: shiftCard.color, filter: 'brightness(0.9)' },
+                        bgcolor: isClosedToday ? 'grey.400' : shiftCard.color,
+                        '&:hover': isClosedToday
+                          ? {}
+                          : { bgcolor: shiftCard.color, filter: 'brightness(0.9)' },
                       }}
                     >
-                      Iniciar {shiftCard.label}
+                      {isClosedToday ? 'No disponible' : `Iniciar ${shiftCard.label}`}
                     </Button>
                   </CardContent>
                 </Card>
               </Grid>
-            ))}
+              );
+            })}
           </Grid>
         </>
         )
@@ -585,31 +606,27 @@ export default function SupervisorDashboard() {
           sx: { borderRadius: 3, p: 1 },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.2rem', color: '#E65100' }}>
-          Turno ya registrado
+        <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.2rem', color: '#C62828' }}>
+          Turno ya cerrado
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            No puedes iniciar este turno porque ya fue cerrado hoy.
+          </Alert>
+          <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mb: 1 }}>
             Ya existe un turno <strong>{duplicateWarning?.operatorType === 'DIURNO' ? 'Diurno' : 'Nocturno'}</strong> cerrado para la fecha <strong>{duplicateWarning?.date}</strong>.
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-            Deseas iniciar un nuevo turno de todos modos? Esto creara un turno adicional para la misma fecha.
+            Si necesitas registrar ventas adicionales, abre el turno cerrado en <strong>Historiales</strong> y edita los datos desde alli. No se permite crear un turno duplicado para el mismo dia y tipo.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', gap: 1, pb: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={() => setDuplicateWarning(null)}
-            sx={{ minWidth: 100, fontWeight: 600 }}
-          >
-            Cancelar
-          </Button>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
           <Button
             variant="contained"
-            onClick={handleConfirmDuplicate}
-            sx={{ minWidth: 100, fontWeight: 600, bgcolor: '#E65100', '&:hover': { bgcolor: '#BF360C' } }}
+            onClick={() => setDuplicateWarning(null)}
+            sx={{ minWidth: 120, fontWeight: 600, bgcolor: '#C62828', '&:hover': { bgcolor: '#B71C1C' } }}
           >
-            Si, Iniciar
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>

@@ -28,10 +28,12 @@ import CurrencyInput from '../../components/common/CurrencyInput.jsx';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
+import { useInventoryStore } from '../../store/useInventoryStore.js';
+import { enqueueSnackbar } from 'notistack';
 import { calculateBiblia } from '../../lib/calculations.js';
 import { formatBs, formatUSD, formatNumber, roundDownTo10 } from '../../lib/formatters.js';
 import { bsToUsd, usdToBs } from '../../lib/conversions.js';
-import { CATEGORY_ORDER } from '../../config/constants.js';
+import { CATEGORY_ORDER, ISLAND_LABELS } from '../../config/constants.js';
 
 const PAYMENT_METHODS = [
   { value: 'punto_de_venta', label: 'Punto de Venta' },
@@ -60,6 +62,9 @@ export default function CierreTurno() {
   } = useCierreStore();
   const { products, loadProducts } = useProductStore();
   const config = useConfigStore((s) => s.config) || {};
+  // ★ Acceso al inventario por isla para validar stock antes de agregar venta.
+  const islandStock = useInventoryStore((s) => s.islandStock);
+  const getIslandStockItem = useInventoryStore((s) => s.getIslandStockItem);
   const maxCortes = config.maxCortes || 12;
   const precioLitroUSD = config.precioLitroUSD || 0.50;
   const porcentajeRecaudacion = config.porcentajeRecaudacion != null ? config.porcentajeRecaudacion / 100 : 0.10;
@@ -176,6 +181,33 @@ export default function CierreTurno() {
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
 
+    // ★ VALIDACIÓN DE STOCK: Antes de agregar, verificar que haya suficiente
+    // stock en la isla para el producto. Se descuenta lo que ya se agregó en
+    // este turno (porque el stock real solo se descuenta al cerrar el turno).
+    const existingIsland = currentShift?.islands.find((i) => i.islandId === islandId);
+    const yaAgregadoTurno = (existingIsland?.productsSold ?? [])
+      .filter((p) => p.productName === selectedProduct)
+      .reduce((s, p) => s + (parseInt(p.quantity, 10) || 0), 0);
+    const stockIsland = parseInt(getIslandStockItem(selectedProduct, islandId), 10) || 0;
+    const disponible = stockIsland - yaAgregadoTurno;
+
+    if (disponible <= 0) {
+      enqueueSnackbar({
+        message: `No hay stock de "${selectedProduct}" en ${ISLAND_LABELS[islandId] || 'Isla ' + islandId}. Stock actual: ${stockIsland}.`,
+        variant: 'error',
+        autoHideDuration: 5000,
+      });
+      return;
+    }
+    if (productQty > disponible) {
+      enqueueSnackbar({
+        message: `Stock insuficiente de "${selectedProduct}". Disponible: ${disponible} (stock: ${stockIsland}, ya agregado en este turno: ${yaAgregadoTurno}).`,
+        variant: 'error',
+        autoHideDuration: 6000,
+      });
+      return;
+    }
+
     if (selectedPaymentMethod === 'combinado') {
       // Validar que el monto total de pagos combinados coincida con el precio del producto
       if (Math.abs(combinedAssignedUSD - selectedProductTotalUSD) > 0.01) {
@@ -195,12 +227,11 @@ export default function CierreTurno() {
         paymentBreakdown: breakdown,
       });
     } else {
-      const existing = currentShift?.islands.find((i) => i.islandId === islandId);
-      const already = existing?.productsSold.find(
+      const already = existingIsland?.productsSold.find(
         (p) => p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
       );
       if (already) {
-        const newProducts = (existing?.productsSold ?? []).map((p) =>
+        const newProducts = (existingIsland?.productsSold ?? []).map((p) =>
           p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
             ? { ...p, quantity: p.quantity + productQty }
             : p
@@ -760,11 +791,16 @@ export default function CierreTurno() {
                     onChange={(e) => setSelectedProduct(e.target.value)}
                     sx={{ minWidth: 200 }}
                   >
-                    {activeProducts.map((p) => (
-                      <MenuItem key={p.id} value={p.name}>
-                        {p.name} (${p.priceUSD.toFixed(2)})
-                      </MenuItem>
-                    ))}
+                    {activeProducts.map((p) => {
+                      // ★ Mostrar stock disponible en el menú por isla.
+                      const stockVal = parseInt(getIslandStockItem(p.name, iid), 10) || 0;
+                      return (
+                        <MenuItem key={p.id} value={p.name} disabled={stockVal <= 0}>
+                          {p.name} (${p.priceUSD.toFixed(2)}) — Stock: {stockVal}
+                          {stockVal <= 0 ? ' (agotado)' : ''}
+                        </MenuItem>
+                      );
+                    })}
                   </TextField>
                   <TextField
                     size="small"
@@ -805,6 +841,38 @@ export default function CierreTurno() {
                     Agregar
                   </Button>
                 </Box>
+
+                {/* ★ Indicador de stock disponible para el producto seleccionado en esta isla */}
+                {selectedProduct && (() => {
+                  const stockVal = parseInt(getIslandStockItem(selectedProduct, iid), 10) || 0;
+                  const yaAgregado = (currentShift?.islands.find((i) => i.islandId === iid)?.productsSold ?? [])
+                    .filter((p) => p.productName === selectedProduct)
+                    .reduce((s, p) => s + (parseInt(p.quantity, 10) || 0), 0);
+                  const disp = stockVal - yaAgregado;
+                  const sinStock = disp <= 0;
+                  const pocoStock = disp > 0 && disp <= 3;
+                  return (
+                    <Paper
+                      sx={{
+                        p: 1.5,
+                        mb: 2,
+                        borderRadius: 1.5,
+                        bgcolor: sinStock ? '#FFEBEE' : pocoStock ? '#FFF8E1' : '#E8F5E9',
+                        border: '1px solid',
+                        borderColor: sinStock ? '#EF5350' : pocoStock ? '#FFB74D' : '#81C784',
+                      }}
+                    >
+                      <Typography variant="body2" sx={{
+                        fontWeight: 700,
+                        color: sinStock ? '#B71C1C' : pocoStock ? '#E65100' : '#2E7D32',
+                      }}>
+                        {sinStock
+                          ? `Sin stock disponible de "${selectedProduct}" en ${ISLAND_LABELS[iid] || 'Isla ' + iid}.`
+                          : `Stock disponible de "${selectedProduct}": ${disp} unidad${disp === 1 ? '' : 'es'} (stock: ${stockVal}, ya agregado: ${yaAgregado}).`}
+                      </Typography>
+                    </Paper>
+                  );
+                })()}
 
                 {/* Preview del monto en Bs para Punto de Venta o Efectivo Bolivares */}
                 {selectedProduct && selectedPaymentMethod !== 'combinado' && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs') && (() => {

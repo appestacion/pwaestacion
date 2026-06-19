@@ -42,6 +42,8 @@ import ReporteLecturaRecepcion from './pages/supervisor/ReporteLecturaRecepcion.
 import Estadisticas from './pages/supervisor/Estadisticas.jsx';
 import HistorialCierres from './pages/HistorialCierres.jsx';
 import GastosPagos from './pages/supervisor/GastosPagos.jsx';
+import CalculoPropinaAlmuerzo from './pages/supervisor/CalculoPropinaAlmuerzo.jsx';
+import EstimacionLitrosVendidos from './pages/supervisor/EstimacionLitrosVendidos.jsx';
 
 function AppInitializer({ children }) {
   const initAuth = useStore((state) => state.initAuth);
@@ -60,26 +62,22 @@ function AppInitializer({ children }) {
   const config = useConfigStore((state) => state.config);
   const firestoreDataLoaded = useRef(false);
 
-  // Actualizar identidad PWA siempre (identidad hardcodeada para Montaña Fresca)
   useEffect(() => {
     updatePWAIdentity();
   }, [config.stationLogo]);
 
-  // Fase 1: Inicializaciones que NO requieren autenticacion
   useEffect(() => {
     initNetwork();
     initAuth();
     loadConfig();
   }, [initNetwork, initAuth, loadConfig]);
 
-  // FIX: Reintentar conexion a Firestore despues del login
   useEffect(() => {
     if (isAuthenticated && !authLoading && !configFirestoreActive) {
       loadConfig();
     }
   }, [isAuthenticated, authLoading, configFirestoreActive, loadConfig]);
 
-  // Fase 2: Cargar datos de Firestore que requieren autenticacion
   useEffect(() => {
     if (!isAuthenticated) {
       firestoreDataLoaded.current = false;
@@ -110,7 +108,6 @@ function AppInitializer({ children }) {
     }
   }, [authLoading, isAuthenticated, loadProducts, loadStock, loadIslandStock, loadCurrentShift, loadCurrentReception]);
 
-  // Solo mostrar spinner si la config no ha terminado de cargar
   if (configLoading) {
     return (
       <Box
@@ -140,7 +137,6 @@ export default function App() {
             <InstallPWA />
             <Routes>
               <Route path="/login" element={<Login />} />
-              {/* Rutas de administrador: solo rol 'administrador' */}
               <Route element={<ProtectedRoute roles={['administrador']} />}>
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
@@ -148,7 +144,6 @@ export default function App() {
                   <Route path="configuracion" element={<Configuracion />} />
                 </Route>
               </Route>
-              {/* Rutas de supervisor: administrador Y supervisor pueden acceder */}
               <Route element={<ProtectedRoute roles={['administrador', 'supervisor']} />}>
                 <Route element={<SupervisorLayout />}>
                   <Route index element={<SupervisorDashboard />} />
@@ -164,6 +159,8 @@ export default function App() {
                   <Route path="estadisticas" element={<Estadisticas />} />
                   <Route path="historial-cierres" element={<HistorialCierres />} />
                   <Route path="gastos" element={<GastosPagos />} />
+                  <Route path="propina-almuerzo" element={<CalculoPropinaAlmuerzo />} />
+                  <Route path="estimacion-litros" element={<EstimacionLitrosVendidos />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

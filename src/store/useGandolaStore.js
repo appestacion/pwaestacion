@@ -211,16 +211,22 @@ const useGandolaStore = create((set, get) => ({
     }
   },
 
+  // FIX: closeReception ahora escribe en Firestore PRIMERO.
+  // El estado local se limpia de forma natural cuando el onSnapshot listener
+  // detecta que el documento ya no tiene status 'en_proceso' (la query
+  // 'where status == en_proceso' deja de devolverlo).
+  // Si Firestore falla, los datos locales se mantienen intactos para reintentar.
   closeReception: async () => {
     const { currentReception } = get();
     if (!currentReception) return;
-    const closed = {
+
+    // Marcar localmente como "cerrando" para bloquear la UI
+    const closing = {
       ...currentReception,
       status: 'completada',
       closedAt: new Date().toISOString(),
     };
-
-    set({ currentReception: null });
+    set({ currentReception: closing });
 
     if (isFirebaseConfigured() && currentReception.id) {
       try {
@@ -228,10 +234,15 @@ const useGandolaStore = create((set, get) => ({
         await updateDoc(doc(db, 'gandolaReceptions', currentReception.id), {
           status: 'completada',
           closedAt: new Date().toISOString(),
-          tankReadings: closed.tankReadings,
+          tankReadings: closing.tankReadings,
         });
+        // Éxito: el onSnapshot listener detectará que status ya no es 'en_proceso'
+        // y limpiará currentReception a null de forma natural.
       } catch (error) {
         console.error('Error cerrando recepcion en Firestore:', error);
+        // FIX: Si falla, restaurar el estado local para que el usuario pueda reintentar.
+        set({ currentReception: currentReception });
+        throw error;
       }
     }
   },

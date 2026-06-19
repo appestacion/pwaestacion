@@ -1,6 +1,7 @@
 // src/components/layout/Sidebar.jsx
 // Sidebar exclusivo para E/S Montaña Fresca.
-import React from 'react';
+// Incluye sección colapsable "Funciones Express" para herramientas aisladas.
+import React, { useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -9,6 +10,8 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import ListSubheader from '@mui/material/ListSubheader';
+import Collapse from '@mui/material/Collapse';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -28,15 +31,20 @@ import PeopleIcon from '@mui/icons-material/People';
 import CategoryIcon from '@mui/icons-material/Category';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import HistoryIcon from '@mui/icons-material/History';
 import PaymentsIcon from '@mui/icons-material/Payments';
+import LunchDiningIcon from '@mui/icons-material/LunchDining';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore.js';
 import { useConfigStore } from '../../store/useConfigStore.js';
 
 const DRAWER_WIDTH = 260;
 
+// ── Menú principal (sin funciones express) ──
 const supervisorMenuItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/recepcion-gandola', label: 'Recepción Gandola', icon: <LocalShippingIcon /> },
@@ -51,6 +59,12 @@ const supervisorMenuItems = [
   { path: '/historial-cierres', label: 'Historiales', icon: <HistoryIcon /> },
   { path: '/generar-pdf', label: 'Generar PDF', icon: <PictureAsPdfIcon /> },
   { path: '/estadisticas', label: 'Estadísticas', icon: <BarChartIcon /> },
+];
+
+// ── Funciones Express (aisladas, no afectan el turno) ──
+const expressMenuItems = [
+  { path: '/propina-almuerzo', label: 'Propina Almuerzo', icon: <LunchDiningIcon /> },
+  { path: '/estimacion-litros', label: 'Estimación Litros', icon: <PhotoCameraIcon /> },
 ];
 
 const adminMenuItems = [
@@ -68,6 +82,12 @@ export default function Sidebar() {
   const setSidebarOpen = useStore((state) => state.setSidebarOpen);
   const user = useStore((state) => state.user);
   const config = useConfigStore((state) => state.config);
+
+  // ── Estado colapsable de Funciones Express ──
+  const [expressOpen, setExpressOpen] = useState(true);
+
+  // Auto-expandir si la ruta actual es una función express
+  const isExpressRoute = expressMenuItems.some((item) => item.path === location.pathname);
 
   // Logo: prioridad imgbb > LogoMF.jpg local
   const logoSrc = config.stationLogo || '/LogoMF.jpg';
@@ -141,12 +161,14 @@ export default function Sidebar() {
       <Divider />
 
       {/* Menu segun rol */}
-      <List sx={{ flex: 1, py: 1 }}>
+      <List sx={{ flex: 1, py: 1, overflowY: 'auto' }}>
         {user?.role === 'administrador' && (
           <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
             ADMINISTRACIÓN
           </Typography>
         )}
+
+        {/* ── Items principales ── */}
         {menuItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ px: 1 }}>
             <ListItemButton
@@ -168,6 +190,88 @@ export default function Sidebar() {
             </ListItemButton>
           </ListItem>
         ))}
+
+        {/* ═══ FUNCIONES EXPRESS (solo supervisor) ═══ */}
+        {user?.role !== 'administrador' && (
+          <>
+            <Divider sx={{ my: 1, mx: 1 }} />
+
+            {/* Header colapsable */}
+            <ListItem disablePadding sx={{ px: 1 }}>
+              <ListItemButton
+                onClick={() => setExpressOpen((prev) => !prev)}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  bgcolor: isExpressRoute ? 'rgba(206, 17, 38, 0.08)' : 'transparent',
+                  '&:hover': {
+                    bgcolor: isExpressRoute ? 'rgba(206, 17, 38, 0.12)' : 'action.hover',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <BoltIcon sx={{ color: '#FF6600' }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Funciones Express"
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    color: '#FF6600',
+                  }}
+                />
+                {(expressOpen || isExpressRoute) ? (
+                  <ChevronRightIcon sx={{ fontSize: '1rem', color: '#FF6600', transform: 'rotate(90deg)', transition: 'transform 0.2s' }} />
+                ) : (
+                  <ChevronRightIcon sx={{ fontSize: '1rem', color: '#FF6600', transition: 'transform 0.2s' }} />
+                )}
+              </ListItemButton>
+            </ListItem>
+
+            {/* Sub-items colapsables */}
+            <Collapse in={expressOpen || isExpressRoute} timeout="auto" unmountOnExit={false}>
+              <List disablePadding>
+                {expressMenuItems.map((item) => (
+                  <ListItem key={item.path} disablePadding sx={{ px: 1, pl: 2 }}>
+                    <ListItemButton
+                      selected={location.pathname === item.path}
+                      onClick={() => handleNavigate(item.path)}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 0.5,
+                        pl: 3,
+                        borderLeft: '3px solid',
+                        borderColor: location.pathname === item.path ? '#FF6600' : 'transparent',
+                        '&.Mui-selected': {
+                          backgroundColor: '#FFF3E0',
+                          color: '#E65100',
+                          '& .MuiListItemIcon-root': { color: '#E65100' },
+                          '&:hover': { backgroundColor: '#FFE0B2' },
+                          borderColor: '#FF6600',
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 500 }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+
+            {/* Chip indicador cuando está colapsado */}
+            {!expressOpen && !isExpressRoute && (
+              <Box sx={{ px: 3, py: 0.5 }}>
+                <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.65rem' }}>
+                  {expressMenuItems.length} herramientas aisladas
+                </Typography>
+              </Box>
+            )}
+          </>
+        )}
       </List>
 
       <Divider />

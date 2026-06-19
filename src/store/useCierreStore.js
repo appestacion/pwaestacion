@@ -1,9 +1,13 @@
 // src/store/useCierreStore.js
 // Store de cierres de turno con Firebase Firestore en tiempo real.
 // Incluye localStorage como respaldo para herencia de lecturas.
+// ★ FIX SINCRONIZACIÓN: Al cerrar turno, se descuentan los productos
+//   vendidos del inventario por isla para que el siguiente turno
+//   encuentre el inventario actualizado.
 
 import { create } from 'zustand';
 import { useConfigStore } from './useConfigStore.js';
+import { useInventoryStore } from './useInventoryStore.js';
 import { generateId, getVenezuelaDateString, getVenezuelaDate } from '../lib/formatters.js';
 import { calcLitersSold } from '../lib/calculations.js';
 import { cmToLiters } from '../lib/conversions.js';
@@ -262,6 +266,25 @@ function applyInheritedReadings(shift, prevReadings) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ★ HELPER: Construir mapa de productos vendidos por isla
+// Agrega cantidades del mismo producto (diferentes métodos de pago)
+// ═══════════════════════════════════════════════════════════
+function buildSoldByIslandMap(islands) {
+  const soldByIsland = {};
+  islands.forEach((isl) => {
+    const iid = String(isl.islandId);
+    const products = {};
+    (isl.productsSold || []).forEach((ps) => {
+      products[ps.productName] = (products[ps.productName] || 0) + (ps.quantity || 0);
+    });
+    if (Object.keys(products).length > 0) {
+      soldByIsland[iid] = products;
+    }
+  });
+  return soldByIsland;
+}
+
+// ═══════════════════════════════════════════════════════════
 // Helper: esperar una cantidad de ms
 // ═══════════════════════════════════════════════════════════
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -352,6 +375,9 @@ const useCierreStore = create((set, get) => ({
 
     set({ currentShift: shift });
 
+    // ★ Sincronizar el tracking de distribuciones con el nuevo turno activo
+    useInventoryStore.getState().setActiveShiftId(shift.id);
+
     // Guardar a Firestore (con las lecturas ya heredadas incluidas)
     if (isFirebaseConfigured()) {
       try {
@@ -402,6 +428,9 @@ const useCierreStore = create((set, get) => ({
             const config = useConfigStore.getState().config || {};
             const shift = ensureShiftStructure(shiftData, config);
             set({ currentShift: shift, firestoreActive: true });
+
+            // ★ Sincronizar tracking de distribuciones con el turno cargado
+            useInventoryStore.getState().setActiveShiftId(shift.id);
           }
         },
         (error) => {
@@ -550,7 +579,11 @@ const useCierreStore = create((set, get) => ({
     debounceSyncToFirestore(updated);
   },
 
-  // ★ FIX BUG CRÍTICO 1 + 2 + 4 + 5: closeShift reescrito completamente.
+  // ★ FIX BUG CRÍTICO 1 + 2 + 4 + 5 + SINCRONIZACIÓN INVENTARIO:
+  // closeShift reescrito completamente.
+  // Al cerrar el turno, se descuentan los productos vendidos del
+  // inventario por isla para que el siguiente turno encuentre el
+  // inventario actualizado.
   closeShift: async () => {
     const { currentShift } = get();
     if (!currentShift) return { success: false, error: 'No hay un turno activo para cerrar.' };
@@ -610,6 +643,26 @@ const useCierreStore = create((set, get) => ({
         }
       }
 
+      // ★ SINCRONIZACIÓN INVENTARIO: Descontar productos vendidos del inventario por isla.
+      // Esto garantiza que el siguiente turno encuentre el inventario actualizado.
+      // Se ejecuta DESPUÉS de confirmar el cierre en Firestore (punto de no retorno).
+      // Si falla, el turno ya está cerrado; el inventario se puede corregir manualmente.
+      try {
+        const soldByIsland = buildSoldByIslandMap(closedShift.islands);
+
+        if (Object.keys(soldByIsland).length > 0) {
+          const { deductSoldFromIslandStock } = useInventoryStore.getState();
+          await deductSoldFromIslandStock(soldByIsland);
+          console.log('[CierreStore] ✅ Inventario por isla sincronizado tras cierre de turno.');
+        } else {
+          console.log('[CierreStore] No se vendieron productos en este turno. Inventario sin cambios.');
+        }
+      } catch (invError) {
+        // No crítico: el turno ya está cerrado correctamente.
+        // El inventario se puede corregir manualmente desde la pantalla de Inventario.
+        console.error('[CierreStore] ⚠️ Error al sincronizar inventario tras cierre (no crítico):', invError);
+      }
+
       // ★ Firestore write exitoso: guardar en localStorage como respaldo
       // (saveLastClosedShiftToLocal ya usa Math.max(final, initial) para
       //  preservar la cadena de herencia aunque finalReading sea 0)
@@ -618,6 +671,9 @@ const useCierreStore = create((set, get) => ({
 
       // ★ FIX BUG CRÍTICO 2: Limpiar el estado DESPUÉS de confirmar Firestore.
       set({ currentShift: null, closingShift: false });
+
+      // ★ Limpiar tracking de distribuciones del turno cerrado
+      useInventoryStore.getState().clearShiftDistributions(shiftId);
 
       // Limpiar flag de protección después de un margen de seguridad
       setTimeout(() => { _closingShiftId = null; }, CLOSING_GUARD_MS);

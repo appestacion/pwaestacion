@@ -40,11 +40,22 @@
 # - securetoken.googleapis.com → Firebase Auth (token refresh)
 # - apis.google.com → Google Identity Services
 # - firebasestorage.googleapis.com → Firebase Storage (imágenes subidas)
+# FIX M5: Se agregó fonts.googleapis.com y fonts.gstatic.com a connect-src
+# porque Workbox intercepta las peticiones de fuentes via FetchEvent (fetch API),
+# y fetch() está gobernado por connect-src, NO por style-src/font-src.
+# Sin esto, el SW lanza "violates Content Security Policy" en cada carga de fuente.
+# FIX M6: Tesseract.js OCR ahora usa archivos locales (public/tesseract/)
+# en vez de CDN, así NO necesita cdn.jsdelivr.net en script-src.
+# - 'wasm-unsafe-eval' → permite WebAssembly.instantiate() para el core WASM
+# - tessdata.projectnaptha.com en connect-src → datos de idioma vía fetch()
+# FIX M7: Se agregó blob: a script-src para que el worker personalizado
+# (ocr-worker.js) pueda usar importScripts() con Blob URLs generados
+# internamente al cargar los archivos .wasm.js del core de Tesseract.
 # TODO futuro: migrar 'unsafe-inline' a nonces para script-src
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com; worker-src 'self' blob:; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; manifest-src blob: 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://firebasestorage.googleapis.com https://tessdata.projectnaptha.com; worker-src 'self' blob:; frame-ancestors 'none'"
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
@@ -55,12 +66,33 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache"
-    # FIX: Tambien impedir el cache del service worker en el CDN de Netlify.
+    # FIX: Tambien impedir cache del service worker en el CDN de Netlify.
     # Si el SW se cachea en el CDN, el navegador nunca ve la nueva version.
 
 [[headers]]
   for = "/assets/*"
   [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# FIX M6: Archivos locales de Tesseract.js OCR (worker + core WASM).
+# Son estáticos y grandes (~8MB total), se cachean agresivamente.
+[[headers]]
+  for = "/tesseract/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# FIX M7: Forzar Content-Type correcto para archivos .wasm.js de Tesseract.
+# La doble extensión .wasm.js causa que algunos servidores/proxies sirvan
+# estos archivos con MIME type incorrecto (application/wasm u
+# application/octet-stream). Como tenemos X-Content-Type-Options: nosniff
+# global, el navegador RECHAZA importScripts() si el Content-Type no es
+# application/javascript. Este bloque DEBE ir DESPUÉS del /tesseract/*
+# general para que Netlify aplique esta regla más específica (la última
+# regla que coincide tiene prioridad).
+[[headers]]
+  for = "/tesseract/*.wasm.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
     Cache-Control = "public, max-age=31536000, immutable"
 
 # FIX: Tambien impedir cache del manifest para que los cambios de identidad PWA
