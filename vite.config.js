@@ -13,7 +13,6 @@ function fixWasmJsMimeType() {
     name: 'fix-wasm-js-mime',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        // Solo interceptar requests a archivos .wasm.js
         const pathname = (req.url || '').split('?')[0];
         if (pathname.endsWith('.wasm.js')) {
           const originalSetHeader = res.setHeader.bind(res);
@@ -48,7 +47,19 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // FIX M7: Excluir archivos WASM grandes de Tesseract del precache.
-        exclude: [/tesseract\/tesseract-core-.*\.wasm(\.js)?$/],
+        // ★ FIX BUILD NETLIFY: workbox-build v7 NO acepta 'exclude' en GenerateSWOptions.
+        //   La propiedad válida es 'globIgnores' (acepta los mismos patrones glob que
+        //   usa fast-glob, no RegExp). Con 'exclude' workbox lanza el error:
+        //   "[GenerateSW] 'exclude' property is not expected to be here".
+        //   Esto rompía el deploy en Netlify aunque localmente el build pasara
+        //   (local tenía workbox-build 7.4.0 cacheado; Netlify instaló 7.4.1
+        //   que valida el schema con ajv de forma más estricta).
+        globIgnores: [
+          'tesseract/tesseract-core-*.wasm',
+          'tesseract/tesseract-core-*.wasm.js',
+          '**/tesseract/tesseract-core-*.wasm',
+          '**/tesseract/tesseract-core-*.wasm.js',
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
