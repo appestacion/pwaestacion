@@ -16,6 +16,7 @@ import { useGandolaStore } from './store/useGandolaStore.js';
 import { useNetworkStore } from './store/useNetworkStore.js';
 import { updatePWAIdentity } from './services/pwaIdentity.js';
 import InstallPWA from './components/InstallPWA.jsx';
+import UpdatePrompt from './components/UpdatePrompt.jsx';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -135,6 +136,7 @@ export default function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppInitializer>
             <InstallPWA />
+            <UpdatePrompt />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<ProtectedRoute roles={['administrador']} />}>
