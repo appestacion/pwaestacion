@@ -1,111 +1,104 @@
 // src/components/UpdatePrompt.jsx
-import { useEffect, useRef, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Snackbar, Alert, Button } from '@mui/material';
 
 export default function UpdatePrompt() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const registrationRef = useRef(null);
-
-  useEffect(() => {
-    // ─────────────────────────────────────────────────────────────
-    // Solo registramos el SW en PRODUCCIÓN.
-    // En dev (npm run dev / netlify dev) no existe /sw.js (vite-plugin-pwa
-    // solo lo genera en build), y el fallback SPA sirve index.html con
-    // MIME text/html, lo que rompe el registro con SecurityError.
-    // ─────────────────────────────────────────────────────────────
-    if (!import.meta.env.PROD) {
-      console.log('[PWA] Modo desarrollo: SW no registrado (comportamiento normal).');
-      return;
-    }
-
-    if (!('serviceWorker' in navigator)) return;
-
-    let cancelled = false;
-    const notifiedWorkers = new WeakSet();
-
-    const handleInstalled = (worker) => {
-      if (worker.state !== 'installed') return;
-
-      // Si ya notificamos este worker, no hacer nada (evita logs duplicados).
-      if (notifiedWorkers.has(worker)) return;
-      notifiedWorkers.add(worker);
-
-      if (navigator.serviceWorker.controller) {
-        // Hay un SW activo controlando la página → es una actualización.
-        console.log('[PWA] Nueva versión disponible.');
-        setUpdateAvailable(true);
-      } else {
-        // No hay SW previo → primera instalación correcta.
-        console.log('[PWA] App lista para usar sin conexión.');
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      // ─────────────────────────────────────────────────────────────
+      // Chequeo periódico de actualizaciones cada hora.
+      // El navegador por defecto solo chequea cada ~24h, lo cual es
+      // demasiado lento para una app en producción con despliegues
+      // frecuentes. Esto fuerza a buscar updates cada 60 min mientras
+      // la pestaña esté abierta.
+      // ─────────────────────────────────────────────────────────────
+      if (r) {
+        const interval = setInterval(() => {
+          if (r.update) {
+            r.update().catch(() => {});
+          }
+        }, 60 * 60 * 1000);
+        // Limpiar el interval cuando el componente se desmonte.
+        return () => clearInterval(interval);
       }
-    };
-
-    const register = async () => {
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-          updateViaCache: 'none',
-        });
-        if (cancelled) return;
-        registrationRef.current = reg;
-
-        // Si al montar ya hay un SW en waiting (p.ej. update previa sin
-        // aceptar), mostramos el snackbar inmediatamente.
-        if (reg.waiting && navigator.serviceWorker.controller) {
-          console.log('[PWA] Nueva versión disponible.');
-          setUpdateAvailable(true);
-        }
-
-        // Listener único para nuevos updatefound → instalados.
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', () => {
-            handleInstalled(newWorker);
-          });
-        });
-      } catch (err) {
-        console.error('[PWA] Error registrando Service Worker:', err);
-      }
-    };
-
-    register();
-
-    // Cuando el nuevo SW toma el control (tras SKIP_WAITING), recargamos.
-    const onControllerChange = () => {
-      window.location.reload();
-    };
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-
-    return () => {
-      cancelled = true;
-      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-    };
-  }, []);
+    },
+    onRegisterError(error) {
+      console.error('[PWA] Error registrando Service Worker:', error);
+    },
+  });
 
   const handleReload = () => {
-    const reg = registrationRef.current;
-    if (reg?.waiting) {
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      // Fallback: si por algún motivo no tenemos el waiting, recargamos directo.
+    console.log('[PWA] Botón "Recargar" clickeado — iniciando actualización.');
+
+    // ─────────────────────────────────────────────────────────────
+    // Fallback duro: si después de 3 segundos la página no se ha
+    // recargado (porque controllerchange no se disparó — p.ej. el
+    // SW nuevo era idéntico al viejo o ya estaba activo), forzamos
+    // el reload manualmente.
+    // ─────────────────────────────────────────────────────────────
+    let reloaded = false;
+    const forceReload = () => {
+      if (reloaded) return;
+      reloaded = true;
+      console.warn('[PWA] Forzando reload de la página.');
       window.location.reload();
-    }
+    };
+    const fallbackTimer = setTimeout(forceReload, 3000);
+
+    // ─────────────────────────────────────────────────────────────
+    // updateServiceWorker(true) hace lo siguiente internamente:
+    //   1. postMessage({ type: 'SKIP_WAITING' }) al SW en waiting
+    //   2. Espera al evento 'controllerchange'
+    //   3. Llama a window.location.reload()
+    // ─────────────────────────────────────────────────────────────
+    updateServiceWorker(true)
+      .then(() => {
+        // Si llegamos aquí sin recargar (raro), forzamos reload.
+        clearTimeout(fallbackTimer);
+        if (!reloaded) {
+          forceReload();
+        }
+      })
+      .catch((err) => {
+        console.error('[PWA] updateServiceWorker falló:', err);
+        clearTimeout(fallbackTimer);
+        forceReload();
+      });
+  };
+
+  const handleClose = () => {
+    // Permite al usuario cerrar el snackbar sin actualizar.
+    // Volverá a aparecer en el próximo chequeo periódico.
+    setNeedRefresh(false);
   };
 
   return (
     <Snackbar
-      open={updateAvailable}
+      open={needRefresh}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      sx={{ bottom: { xs: 80, sm: 24 } }}
+      sx={{
+        bottom: { xs: 80, sm: 24 },
+        // Asegurar z-index mayor que notistack (1400) para que el
+        // botón siempre reciba clicks.
+        zIndex: 2000,
+      }}
     >
       <Alert
         severity="error"
         action={
-          <Button color="inherit" size="small" onClick={handleReload}>
+          <Button
+            color="inherit"
+            size="small"
+            onClick={handleReload}
+            sx={{ fontWeight: 700 }}
+          >
             Recargar
           </Button>
         }
+        onClose={handleClose}
       >
         Nueva versión disponible
       </Alert>

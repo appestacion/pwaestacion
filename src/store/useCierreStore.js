@@ -63,6 +63,57 @@ function getLastClosedShiftFromLocal(operatorShiftType) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// LOCALSTORAGE — Cache de turno activo para recuperación instantánea tras recarga
+// ═══════════════════════════════════════════════════════════
+// ★ FIX RECARGA MÓVIL: Antes, al recargar (F5 / reopen PWA), currentShift
+// arrancaba en null y el usuario veía "sin turno activo" durante los
+// 5-15 segundos que tarda Firebase Auth + Firestore en restaurar la sesión.
+// Ahora leemos el turno cacheado SINCRÓNICAMENTE antes del primer render,
+// igual que hace useConfigStore con la configuración. El listener de
+// Firestore actualizará (o limpiará) el cache cuando llegue el snapshot.
+const CURRENT_SHIFT_CACHE_KEY = 'mf-current-shift-cache';
+
+function getCachedCurrentShift() {
+  try {
+    const raw = localStorage.getItem(CURRENT_SHIFT_CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.id || data.status !== 'en_progreso') return null;
+    // Descartar cache mayor a 48 horas (turno muy viejo = probablemente ya cerrado)
+    const createdTime = new Date(data.createdAt || 0).getTime();
+    if (Date.now() - createdTime > 48 * 60 * 60 * 1000) return null;
+    return data;
+  } catch (e) {
+    console.warn('[CierreStore] Error leyendo cache de turno activo:', e);
+    return null;
+  }
+}
+
+function saveCurrentShiftToCache(shift) {
+  if (!shift || shift.status !== 'en_progreso') {
+    clearCurrentShiftCache();
+    return;
+  }
+  try {
+    localStorage.setItem(CURRENT_SHIFT_CACHE_KEY, JSON.stringify(shift));
+  } catch (e) {
+    console.warn('[CierreStore] No se pudo guardar turno en cache:', e);
+  }
+}
+
+function clearCurrentShiftCache() {
+  try {
+    localStorage.removeItem(CURRENT_SHIFT_CACHE_KEY);
+  } catch (e) {
+    console.warn('[CierreStore] Error limpiando cache de turno:', e);
+  }
+}
+
+// Lectura sincrónica ANTES de crear el store — esto garantiza que el
+// primer render de React ya tenga el turno cacheado disponible.
+const _cachedCurrentShift = getCachedCurrentShift();
+
+// ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 function createEmptyIsland(islandId, maxCortes = 12) {
@@ -293,7 +344,10 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // STORE
 // ═══════════════════════════════════════════════════════════
 const useCierreStore = create((set, get) => ({
-  currentShift: null,
+  // ★ FIX RECARGA MÓVIL: Arrancar con el turno cacheado (si existe) en vez
+  // de null. Esto permite que el primer render muestre el turno activo
+  // instantáneamente, sin esperar a Firebase Auth + Firestore.
+  currentShift: _cachedCurrentShift,
   shiftsHistory: [],
   firestoreActive: false,
   loadingHistory: false,
@@ -431,6 +485,18 @@ const useCierreStore = create((set, get) => ({
 
             // ★ Sincronizar tracking de distribuciones con el turno cargado
             useInventoryStore.getState().setActiveShiftId(shift.id);
+          } else {
+            // ★ FIX RECARGA MÓVIL: Si Firestore dice que no hay turno activo,
+            // limpiar el estado y el cache. Esto corrige el caso donde el
+            // turno fue cerrado desde otro dispositivo o el cache estaba
+            // desactualizado. La suscripción al store se encarga de limpiar
+            // el cache automáticamente cuando currentShift pasa a null.
+            // Solo hacemos el set si realmente hay que cambiar (evita
+            // loops innecesarios).
+            if (get().currentShift !== null) {
+              console.log('[CierreStore] No hay turno activo en Firestore — limpiando estado local.');
+              set({ currentShift: null, firestoreActive: true });
+            }
           }
         },
         (error) => {
@@ -928,7 +994,30 @@ const useCierreStore = create((set, get) => ({
     currentShiftListening = false;
     _initializingShiftId = null;
     _closingShiftId = null;
+    // ★ NOTA: No limpiamos el cache de currentShift aquí.
+    // Si el usuario solo cerró sesión (no cerró el turno), el turno sigue
+    // activo en Firestore y debe poderse mostrar al volver a loguear.
+    // El cache se limpia automáticamente cuando onSnapshot reporta
+    // snapshot.empty o cuando se llama a closeShift.
   },
 }));
+
+// ═══════════════════════════════════════════════════════════
+// ★ FIX RECARGA MÓVIL: Suscripción global al store para mantener el
+// cache de currentShift sincronizado automáticamente. Esto evita tener
+// que modificar los 13 mutators del store (updatePumpReading,
+// updateIslandField, addProductSold, etc.) — una sola suscripción
+// maneja todos los cambios.
+// ═══════════════════════════════════════════════════════════
+useCierreStore.subscribe((newState, prevState) => {
+  // Solo reaccionar si currentShift cambió (referencia distinta).
+  if (newState.currentShift === prevState.currentShift) return;
+
+  if (newState.currentShift && newState.currentShift.status === 'en_progreso') {
+    saveCurrentShiftToCache(newState.currentShift);
+  } else if (newState.currentShift === null) {
+    clearCurrentShiftCache();
+  }
+});
 
 export { useCierreStore };

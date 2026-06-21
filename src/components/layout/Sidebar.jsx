@@ -84,7 +84,7 @@ export default function Sidebar() {
   const config = useConfigStore((state) => state.config);
 
   // ── Estado colapsable de Funciones Express ──
-  const [expressOpen, setExpressOpen] = useState(true);
+  const [expressOpen, setExpressOpen] = useState(false);
 
   // Auto-expandir si la ruta actual es una función express
   const isExpressRoute = expressMenuItems.some((item) => item.path === location.pathname);
