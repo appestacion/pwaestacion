@@ -754,8 +754,8 @@ export default function ReporteCompleto({ shift, config, products }) {
                             paymentDetail = ps.paymentBreakdown
                               .filter((bd) => bd.amountUSD > 0)
                               .map((bd) => {
-                                const bdLabel = bd.method === 'punto_de_venta' ? 'PV' : bd.method === 'efectivo_bs' ? 'Ef.Bs' : bd.method === 'efectivo_usd' ? 'Ef.$' : bd.method;
-                                const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs';
+                                const bdLabel = bd.method === 'punto_de_venta' ? 'PV' : bd.method === 'efectivo_bs' ? 'Ef.Bs' : bd.method === 'efectivo_usd' ? 'Ef.$' : bd.method === 'transferencia' ? 'Transf.' : bd.method;
+                                const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs' || bd.method === 'transferencia';
                                 if (bdShowBs) {
                                   return `${bdLabel}: ${formatUSD(bd.amountUSD)} = ${formatBs(usdToBs(bd.amountUSD, tasa1))}`;
                                 }
@@ -763,12 +763,16 @@ export default function ReporteCompleto({ shift, config, products }) {
                               })
                               .join(' | ');
                           } else {
-                            const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : method === 'efectivo_usd' ? 'Ef.$' : method;
-                            const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                            const methodLabel = method === 'punto_de_venta' ? 'PV' : method === 'efectivo_bs' ? 'Ef.Bs' : method === 'efectivo_usd' ? 'Ef.$' : method === 'transferencia' ? 'Transf.' : method;
+                            const showBs = method === 'punto_de_venta' || method === 'efectivo_bs' || method === 'transferencia';
                             if (showBs) {
                               paymentDetail = `${methodLabel}: ${formatUSD(total)} = ${formatBs(usdToBs(total, tasa1))}`;
                             } else {
                               paymentDetail = `(${methodLabel})`;
+                            }
+                            // ★ Anexar titular de la transferencia al detalle del producto
+                            if (method === 'transferencia' && ps.transferenciaTitular) {
+                              paymentDetail += ` — Titular: ${ps.transferenciaTitular}`;
                             }
                           }
 

@@ -39,6 +39,7 @@ const PAYMENT_METHODS = [
   { value: 'punto_de_venta', label: 'Punto de Venta' },
   { value: 'efectivo_bs', label: 'Efectivo Bolivares' },
   { value: 'efectivo_usd', label: 'Efectivo Dolares' },
+  { value: 'transferencia', label: 'Transferencia' },
   { value: 'combinado', label: 'Pago Combinado' },
 ];
 
@@ -47,6 +48,7 @@ const COMBINED_PAYMENT_OPTIONS = [
   { value: 'punto_de_venta', label: 'Punto de Venta' },
   { value: 'efectivo_bs', label: 'Efectivo Bolivares' },
   { value: 'efectivo_usd', label: 'Efectivo Dolares' },
+  { value: 'transferencia', label: 'Transferencia' },
 ];
 
 export default function CierreTurno() {
@@ -72,6 +74,10 @@ export default function CierreTurno() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('punto_de_venta');
+  // ★ Titular de la transferencia — solo aplica cuando la forma de pago es 'transferencia'.
+  // Se persiste en el producto vendido como `transferenciaTitular` para mostrarlo en la
+  // tabla de productos, en el reporte y en el PDF.
+  const [transferenciaTitular, setTransferenciaTitular] = useState('');
 
   // Estado para pago combinado: lista de { method, amountUSD }
   const [combinedPayments, setCombinedPayments] = useState([
@@ -121,10 +127,11 @@ export default function CierreTurno() {
   }, [currentShift, precioLitroUSD]);
 
   // Calcular el total USD del producto seleccionado
+  // ★ Guardamos contra productQty === 0 (campo vacío) para evitar NaN en previews.
   const selectedProductTotalUSD = useMemo(() => {
     if (!selectedProduct) return 0;
     const prod = products.find((p) => p.name === selectedProduct);
-    return (prod?.priceUSD || 0) * productQty;
+    return (prod?.priceUSD || 0) * (productQty || 0);
   }, [selectedProduct, productQty, products]);
 
   // Calcular cuánto falta por asignar en el pago combinado
@@ -181,6 +188,18 @@ export default function CierreTurno() {
   const handleAddProduct = (islandId) => {
     if (!selectedProduct) return;
 
+    // ★ VALIDACIÓN DE CANTIDAD: No permitir agregar si el campo está vacío o es < 1.
+    // Esto permite que el usuario borre el "1" por defecto para escribir otra cantidad
+    // sin que el input se regenere automáticamente a 1 (UX incómoda).
+    if (!productQty || productQty < 1) {
+      enqueueSnackbar({
+        message: 'Ingrese una cantidad válida (mínimo 1) para el producto.',
+        variant: 'warning',
+        autoHideDuration: 3000,
+      });
+      return;
+    }
+
     // ★ VALIDACIÓN DE STOCK: Antes de agregar, verificar que haya suficiente
     // stock en la isla para el producto. Se descuenta lo que ya se agregó en
     // este turno (porque el stock real solo se descuenta al cerrar el turno).
@@ -227,6 +246,16 @@ export default function CierreTurno() {
         paymentBreakdown: breakdown,
       });
     } else {
+      // ★ Validar titular para transferencia — evitar productos sin titular asignado.
+      if (selectedPaymentMethod === 'transferencia' && !transferenciaTitular.trim()) {
+        enqueueSnackbar({
+          message: 'Ingrese el nombre del titular de la transferencia.',
+          variant: 'warning',
+          autoHideDuration: 3000,
+        });
+        return;
+      }
+
       const already = existingIsland?.productsSold.find(
         (p) => p.productName === selectedProduct && p.paymentMethod === selectedPaymentMethod
       );
@@ -242,12 +271,17 @@ export default function CierreTurno() {
           productName: selectedProduct,
           quantity: productQty,
           paymentMethod: selectedPaymentMethod,
+          // ★ Guardar titular solo cuando es transferencia (no contaminar otros métodos).
+          ...(selectedPaymentMethod === 'transferencia'
+            ? { transferenciaTitular: transferenciaTitular.trim() }
+            : {}),
         });
       }
     }
     setSelectedProduct('');
     setProductQty(1);
     setSelectedPaymentMethod('punto_de_venta');
+    setTransferenciaTitular('');
   };
 
   const handleAddVale = (islandId) => {
@@ -305,6 +339,7 @@ export default function CierreTurno() {
       case 'punto_de_venta': return 'secondary';
       case 'efectivo_bs': return 'primary';
       case 'efectivo_usd': return 'success';
+      case 'transferencia': return 'info';
       case 'combinado': return 'warning';
       default: return 'default';
     }
@@ -806,12 +841,28 @@ export default function CierreTurno() {
                     size="small"
                     label="Cantidad"
                     type="number"
-                    value={productQty}
+                    value={productQty === 0 ? '' : productQty}
                     onChange={(e) => {
-                      const v = parseInt(e.target.value);
-                      setProductQty(isNaN(v) || v < 1 ? 1 : v);
+                      // ★ FIX UX: Permitir campo vacío mientras el usuario escribe.
+                      // Antes, el handler forzaba setProductQty(1) cuando el input
+                      // quedaba vacío (parseInt('') => NaN), impidiendo borrar el "1"
+                      // por defecto para escribir otra cantidad. Ahora usamos 0 como
+                      // sentinel de "vacío" y validamos en handleAddProduct.
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setProductQty(0);
+                        return;
+                      }
+                      const v = parseInt(raw, 10);
+                      if (isNaN(v) || v < 0) {
+                        setProductQty(0);
+                        return;
+                      }
+                      setProductQty(v);
                     }}
-                    inputProps={{ min: 1 }}
+                    inputProps={{ min: 0 }}
+                    error={productQty === 0}
+                    helperText={productQty === 0 ? 'Requerido' : ''}
                     sx={{ width: 90 }}
                   />
                   <TextField
@@ -819,7 +870,13 @@ export default function CierreTurno() {
                     size="small"
                     label="Forma de Pago"
                     value={selectedPaymentMethod}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedPaymentMethod(e.target.value);
+                      // ★ Resetear titular cuando se cambia de método (limpieza de estado).
+                      if (e.target.value !== 'transferencia') {
+                        setTransferenciaTitular('');
+                      }
+                    }}
                     sx={{ minWidth: 190 }}
                   >
                     {PAYMENT_METHODS.map((m) => (
@@ -828,11 +885,26 @@ export default function CierreTurno() {
                       </MenuItem>
                     ))}
                   </TextField>
+                  {/* ★ Campo Titular de Transferencia — solo visible cuando la forma de pago es 'transferencia'. */}
+                  {selectedPaymentMethod === 'transferencia' && (
+                    <TextField
+                      size="small"
+                      label="Titular de la Transferencia"
+                      value={transferenciaTitular}
+                      onChange={(e) => setTransferenciaTitular(e.target.value)}
+                      placeholder="Nombre de quien transfiere"
+                      error={selectedPaymentMethod === 'transferencia' && !transferenciaTitular.trim()}
+                      helperText={selectedPaymentMethod === 'transferencia' && !transferenciaTitular.trim() ? 'Requerido' : ''}
+                      sx={{ minWidth: 240 }}
+                    />
+                  )}
                   <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={() => handleAddProduct(iid)}
-                    disabled={!selectedProduct || (
+                    disabled={!selectedProduct || !productQty || productQty < 1 || (
+                      selectedPaymentMethod === 'transferencia' && !transferenciaTitular.trim()
+                    ) || (
                       selectedPaymentMethod === 'combinado'
                         ? Math.abs(combinedAssignedUSD - selectedProductTotalUSD) > 0.01 || combinedAssignedUSD === 0
                         : false
@@ -874,13 +946,18 @@ export default function CierreTurno() {
                   );
                 })()}
 
-                {/* Preview del monto en Bs para Punto de Venta o Efectivo Bolivares */}
-                {selectedProduct && selectedPaymentMethod !== 'combinado' && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs') && (() => {
+                {/* Preview del monto en Bs para Punto de Venta, Efectivo Bolivares o Transferencia */}
+                {selectedProduct && selectedPaymentMethod !== 'combinado' && (selectedPaymentMethod === 'punto_de_venta' || selectedPaymentMethod === 'efectivo_bs' || selectedPaymentMethod === 'transferencia') && (() => {
                   const prod = activeProducts.find((p) => p.name === selectedProduct);
                   const priceUSD = prod?.priceUSD || 0;
                   const totalUSD = priceUSD * productQty;
                   const totalBs = usdToBs(totalUSD, tasa1);
-                  const label = selectedPaymentMethod === 'punto_de_venta' ? 'Punto de Venta' : 'Efectivo Bolivares';
+                  const labelMap = {
+                    punto_de_venta: 'Punto de Venta',
+                    efectivo_bs: 'Efectivo Bolivares',
+                    transferencia: 'Transferencia',
+                  };
+                  const label = labelMap[selectedPaymentMethod];
                   return (
                     <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#FFF3E0', borderRadius: 1.5, border: '1px solid #FFB74D' }}>
                       <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 600 }}>
@@ -975,12 +1052,7 @@ export default function CierreTurno() {
                           inputProps={{ min: 0, step: 0.01, max: selectedProductTotalUSD }}
                           sx={{ flex: 1, minWidth: 120 }}
                         />
-                        {entry.method === 'punto_de_venta' && entry.amountUSD > 0 && (
-                          <Typography variant="caption" sx={{ color: '#E65100', fontWeight: 600, whiteSpace: 'nowrap', flex: '0 0 auto' }}>
-                            = {formatBs(usdToBs(entry.amountUSD, tasa1))}
-                          </Typography>
-                        )}
-                        {entry.method === 'efectivo_bs' && entry.amountUSD > 0 && (
+                        {(entry.method === 'punto_de_venta' || entry.method === 'efectivo_bs' || entry.method === 'transferencia') && entry.amountUSD > 0 && (
                           <Typography variant="caption" sx={{ color: '#E65100', fontWeight: 600, whiteSpace: 'nowrap', flex: '0 0 auto' }}>
                             = {formatBs(usdToBs(entry.amountUSD, tasa1))}
                           </Typography>
@@ -1044,7 +1116,7 @@ export default function CierreTurno() {
                           const totalUSD = price * ps.quantity;
                           const method = ps.paymentMethod || 'punto_de_venta';
                           const isCombined = method === 'combinado';
-                          const showBs = !isCombined && (method === 'punto_de_venta' || method === 'efectivo_bs');
+                          const showBs = !isCombined && (method === 'punto_de_venta' || method === 'efectivo_bs' || method === 'transferencia');
                           const totalBs = showBs ? usdToBs(totalUSD, tasa1) : 0;
 
                           return (
@@ -1075,7 +1147,7 @@ export default function CierreTurno() {
                                         />
                                         <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                           {formatUSD(bd.amountUSD)}
-                                          {(bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs') && bd.amountUSD > 0 && (
+                                          {(bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs' || bd.method === 'transferencia') && bd.amountUSD > 0 && (
                                             <Typography component="span" variant="caption" sx={{ color: '#E65100', ml: 0.5 }}>
                                               ({formatBs(usdToBs(bd.amountUSD, tasa1))})
                                             </Typography>
@@ -1085,13 +1157,21 @@ export default function CierreTurno() {
                                     ))}
                                   </Box>
                                 ) : (
-                                  <Chip
-                                    label={getPaymentLabel(method)}
-                                    size="small"
-                                    variant="outlined"
-                                    color={getPaymentChipColor(method)}
-                                    sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                                  />
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                                    <Chip
+                                      label={getPaymentLabel(method)}
+                                      size="small"
+                                      variant="outlined"
+                                      color={getPaymentChipColor(method)}
+                                      sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                                    />
+                                    {/* ★ Mostrar titular de la transferencia debajo del chip */}
+                                    {method === 'transferencia' && ps.transferenciaTitular && (
+                                      <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#0277BD', fontStyle: 'italic', fontWeight: 600 }}>
+                                        Titular: {ps.transferenciaTitular}
+                                      </Typography>
+                                    )}
+                                  </Box>
                                 )}
                               </TableCell>
                               <TableCell align="center">

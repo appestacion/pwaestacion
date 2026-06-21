@@ -1,11 +1,28 @@
 // src/store/useStore.js
 // Store de autenticacion y usuarios con Firebase Authentication + Firestore (perfiles)
 //
-// SEGURIDAD v2:
+// SEGURIDAD v4:
 //   - H5: createUser delega a Netlify Function (server-side).
 //   - H6: user e isAuthenticated NO se persisten en localStorage.
-//   - Session persistence: browserSessionPersistence — la sesion solo dura
-//     mientras la pestaña este abierta. Cerrar pestaña = cerrar sesion.
+//   - Session persistence: browserSessionPersistence — la sesion vive
+//     en sessionStorage. Comportamiento:
+//       * F5 / recargar            → sesion persiste
+//       * Cambiar de pestaña       → sesion persiste
+//       * Cerrar pestaña/ventana   → sesion se DESTRUYE (pide login)
+//       * Cerrar PWA instalada     → sesion se DESTRUYE (pide login)
+//   - FIX anti-spinner-infinito:
+//       * TODOS los paths del callback onAuthStateChanged setean
+//         authLoading: false.
+//       * Timeout de seguridad de 6s.
+//       * Timeout de lectura de perfil de 5s.
+//   - FIX v4 — "Target ID already exists":
+//       * Cache del perfil en localStorage (mf_user_profile).
+//       * En F5, se restaura instantaneamente desde cache.
+//       * Refresco de perfil en background (no bloquea UI).
+//       * Retry automatico (1 retry, 500ms) si Firestore lanza
+//         "Target ID already exists" (bug de StrictMode + Firestore v12).
+//       * Si firebaseUser existe pero Firestore falla, NO se cierra
+//         sesion — se usa cache como fallback.
 
 import { create } from 'zustand';
 import {
@@ -38,6 +55,73 @@ import { useGandolaStore } from './useGandolaStore.js';
 // Bandera para evitar registrar el listener multiples veces
 let authListenerSetup = false;
 
+// ═══════════════════════════════════════════════════════════
+// CACHE DE PERFIL EN LOCALSTORAGE
+// Acelera el F5 y sobrevive a errores transitorios de Firestore.
+// ═══════════════════════════════════════════════════════════
+const PROFILE_CACHE_KEY = 'mf_user_profile';
+
+function getCachedProfile(uid) {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.uid === uid && parsed?.profile) return parsed.profile;
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedProfile(uid, profile) {
+  try {
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ uid, profile }));
+  } catch (e) {}
+}
+
+function clearCachedProfile() {
+  try {
+    localStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch (e) {}
+}
+
+/**
+ * Lee el perfil de usuario desde Firestore.
+ * Si Firestore lanza "Target ID already exists" (bug de StrictMode +
+ * Firestore v12 en dev), reintenta una vez despues de 500ms.
+ * Si la lectura tarda mas de 5s, lanza TIMEOUT_PROFILE_FETCH.
+ */
+async function readProfileWithRetry(uid) {
+  const db = getDb();
+
+  try {
+    await enableNetwork(db);
+  } catch (_) {}
+
+  const doRead = () =>
+    Promise.race([
+      getDoc(doc(db, 'users', uid)),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT_PROFILE_FETCH')), 5000)
+      ),
+    ]);
+
+  try {
+    const snap = await doRead();
+    return snap.exists() ? snap.data() : null;
+  } catch (error) {
+    // Bug conocido de Firestore + StrictMode: "Target ID already exists"
+    // Reintenta una vez despues de 500ms (en prod esto no ocurre).
+    if (error.message?.includes('Target ID already exists')) {
+      console.warn('[Auth] Target ID already exists. Reintentando en 500ms...');
+      await new Promise((r) => setTimeout(r, 500));
+      const snap = await doRead();
+      return snap.exists() ? snap.data() : null;
+    }
+    throw error;
+  }
+}
+
 const useStore = create(
   (set, get) => ({
     // --- Estado de autenticacion ---
@@ -50,13 +134,16 @@ const useStore = create(
      * Debe llamarse UNA vez al arrancar la app.
      *
      * Comportamiento de sesion:
-     *   - browserSessionPersistence: la sesion vive solo mientras la pestaña
-     *     este abierta. Cerrar la pestaña/ventana/app = sesion destruida.
-     *   - Minimizar o cambiar de pestaña = sesion sigue activa.
-     *   - Los datos (turno, config, inventario) se guardan en localStorage
-     *     via Zustand persist, por lo que al volver a loguear todo sigue intacto.
+     *   - browserSessionPersistence: la sesion vive en sessionStorage.
+     *     Sobrevive F5 y cambio de pestaña. Se destruye al cerrar la
+     *     pestaña/ventana o la PWA instalada.
      *
-     * Timeout de seguridad: si Firebase no responde en 10s, muestra el login.
+     * Anti-spinner-infinito:
+     *   - Timeout de seguridad de 6s.
+     *   - Todos los paths del callback setean authLoading: false.
+     *   - Cache del perfil en localStorage para F5 instantaneo.
+     *   - Retry automatico en "Target ID already exists".
+     *   - Si firebaseUser existe pero Firestore falla, se usa cache.
      */
     initAuth: async () => {
       if (authListenerSetup) return;
@@ -67,73 +154,90 @@ const useStore = create(
         return;
       }
 
-      // Timeout de seguridad: si onAuthStateChanged no resuelve en 10s,
+      // Timeout de seguridad: si onAuthStateChanged no resuelve en 6s,
       // forzar authLoading: false para mostrar el login.
       const authSafetyTimeout = setTimeout(() => {
         if (get().authLoading) {
+          console.warn('[Auth] Timeout de seguridad: Firebase no respondio en 6s. Mostrando login.');
           set({ user: null, isAuthenticated: false, authLoading: false });
         }
-      }, 10000);
+      }, 6000);
 
       try {
         const auth = getFirebaseAuth();
-
-        // La sesion se almacena en sessionStorage (nivel pestaña).
-        // - Cerrar pestaña → sessionStorage se destruye → sesion eliminada.
-        // - Cambiar de pestaña o minimizar → la pestaña sigue viva → sesion activa.
-        // - Abrir nueva pestaña → sessionStorage nuevo → sin sesion → login.
         await setPersistence(auth, browserSessionPersistence);
 
         onAuthStateChanged(auth, async (firebaseUser) => {
           // Limpiar timeout de seguridad — el callback ya fue invocado
           clearTimeout(authSafetyTimeout);
 
-          if (firebaseUser) {
-            try {
-              const db = getDb();
-
-              // Asegurar que Firestore este online antes de leer el perfil
-              try {
-                await enableNetwork(db);
-              } catch (_) {}
-
-              // Timeout en la lectura del perfil (8 segundos).
-              // Si Firestore no responde, no se cuelga indefinidamente.
-              const userDoc = await Promise.race([
-                getDoc(doc(db, 'users', firebaseUser.uid)),
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('TIMEOUT_PROFILE_FETCH')), 8000)
-                ),
-              ]);
-
-              if (userDoc.exists()) {
-                const profile = userDoc.data();
-                if (profile.active !== false) {
-                  set({
-                    user: {
-                      uid: firebaseUser.uid,
-                      email: firebaseUser.email,
-                      ...profile,
-                    },
-                    isAuthenticated: true,
-                    authLoading: false,
-                  });
-                  return;
-                }
-              }
-              // Sin perfil o inactivo: cerrar sesion
-              await signOut(auth);
-            } catch (error) {
-              if (error.message?.includes('Target ID already exists')) return;
-              // Perfil no se pudo leer (timeout, red, permisos): cerrar sesion
-              try { await signOut(auth); } catch (_) {}
-            }
+          // Si no hay usuario, ir al login
+          if (!firebaseUser) {
+            clearCachedProfile();
+            set({ user: null, isAuthenticated: false, authLoading: false });
+            return;
           }
-          set({ user: null, isAuthenticated: false, authLoading: false });
+
+          // ═══════════════════════════════════════════════════
+          // HAY sesion de Firebase Auth. Ahora cargar el perfil.
+          // ═══════════════════════════════════════════════════
+
+          // 1. Intentar cache primero (instantaneo)
+          const cachedProfile = getCachedProfile(firebaseUser.uid);
+          if (cachedProfile) {
+            // Setear usuario desde cache inmediatamente
+            set({
+              user: {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                ...cachedProfile,
+              },
+              isAuthenticated: true,
+              authLoading: false,
+            });
+            // Refrescar perfil en background (no bloquea UI)
+            refreshProfileInBackground(firebaseUser, auth, set);
+            return;
+          }
+
+          // 2. No hay cache — leer de Firestore (con retry)
+          try {
+            const profile = await readProfileWithRetry(firebaseUser.uid);
+
+            if (profile && profile.active !== false) {
+              // Perfil OK — setear y cachear
+              setCachedProfile(firebaseUser.uid, profile);
+              set({
+                user: {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  ...profile,
+                },
+                isAuthenticated: true,
+                authLoading: false,
+              });
+              return;
+            }
+
+            // Perfil inactivo o no existe — cerrar sesion
+            console.warn('[Auth] Usuario sin perfil activo. Cerrando sesion.');
+            clearCachedProfile();
+            try { await signOut(auth); } catch (_) {}
+            set({ user: null, isAuthenticated: false, authLoading: false });
+          } catch (error) {
+            console.error('[Auth] Error leyendo perfil de usuario:', error.message);
+
+            // Ultimo recurso: si Firestore falla y no hay cache,
+            // cerrar sesion. Esto solo ocurre en el primer login
+            // (no hay cache) Y Firestore no responde.
+            clearCachedProfile();
+            try { await signOut(auth); } catch (_) {}
+            set({ user: null, isAuthenticated: false, authLoading: false });
+          }
         });
       } catch (error) {
-        // Si setPersistence falla, mostrar login de todas formas
         clearTimeout(authSafetyTimeout);
+        console.error('[Auth] Error inicializando Firebase Auth:', error);
         set({ user: null, isAuthenticated: false, authLoading: false });
       }
     },
@@ -183,6 +287,7 @@ const useStore = create(
       } catch (error) {
         // Error no critico — el estado se limpia de todas formas
       }
+      clearCachedProfile();
       set({ user: null, isAuthenticated: false });
     },
 
@@ -248,8 +353,6 @@ const useStore = create(
 
     /**
      * Crear un nuevo usuario via Netlify Function (server-side).
-     * La funcion del servidor valida que el llamante sea administrador
-     * y que el rol asignado sea valido (lista blanca).
      */
     createUser: async (userData) => {
       try {
@@ -306,8 +409,13 @@ const useStore = create(
 
         await updateDoc(doc(db, 'users', id), cleanUpdates);
 
+        // Si el usuario actualizo su propio perfil, refrescar cache + state
         if (get().user?.uid === id) {
-          set({ user: { ...get().user, ...cleanUpdates } });
+          const updatedUser = { ...get().user, ...cleanUpdates };
+          // Reconstruir profile para cache (sin uid ni email)
+          const { uid, email, ...profile } = updatedUser;
+          setCachedProfile(uid, profile);
+          set({ user: updatedUser });
         }
       } catch (error) {
         throw error;
@@ -357,5 +465,40 @@ const useStore = create(
     isSupervisor: () => get().user?.role === 'supervisor',
   })
 );
+
+/**
+ * Refresca el perfil del usuario en background (no bloquea UI).
+ * Se llama despues de restaurar desde cache.
+ * - Si el perfil sigue activo, actualiza cache + state.
+ * - Si el perfil fue desactivado o eliminado, cierra sesion.
+ * - Si Firestore falla, NO hace nada (seguimos con cache).
+ */
+async function refreshProfileInBackground(firebaseUser, auth, set) {
+  try {
+    const profile = await readProfileWithRetry(firebaseUser.uid);
+
+    if (!profile || profile.active === false) {
+      // Usuario desactivado o perfil eliminado — cerrar sesion
+      console.warn('[Auth] Perfil desactivado/eliminado detectado en background. Cerrando sesion.');
+      clearCachedProfile();
+      try { await signOut(auth); } catch (_) {}
+      set({ user: null, isAuthenticated: false });
+      return;
+    }
+
+    // Perfil OK — actualizar cache + state
+    setCachedProfile(firebaseUser.uid, profile);
+    set({
+      user: {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        ...profile,
+      },
+    });
+  } catch (error) {
+    // No bloquear UI — seguimos con cache
+    console.warn('[Auth] Refresh background fallo (usando cache):', error.message);
+  }
+}
 
 export default useStore;

@@ -25,6 +25,7 @@ const PAYMENT_LABELS = {
   punto_de_venta: 'PV',
   efectivo_bs: 'Ef.Bs',
   efectivo_usd: 'Ef.$',
+  transferencia: 'Transf.',
   combinado: 'Combinado',
 };
 
@@ -289,7 +290,7 @@ export default function CuadrePV() {
                           .filter((bd) => bd.amountUSD > 0)
                           .map((bd) => {
                             const bdLabel = PAYMENT_LABELS[bd.method] || bd.method;
-                            const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs';
+                            const bdShowBs = bd.method === 'punto_de_venta' || bd.method === 'efectivo_bs' || bd.method === 'transferencia';
                             if (bdShowBs) {
                               return `${bdLabel}: ${formatUSD(bd.amountUSD)} = ${formatBs(usdToBs(bd.amountUSD, tasa1))}`;
                             }
@@ -298,11 +299,15 @@ export default function CuadrePV() {
                           .join(' | ');
                       } else {
                         const methodLabel = PAYMENT_LABELS[method] || method;
-                        const showBs = method === 'punto_de_venta' || method === 'efectivo_bs';
+                        const showBs = method === 'punto_de_venta' || method === 'efectivo_bs' || method === 'transferencia';
                         if (showBs) {
                           paymentDetail = `${methodLabel}: ${formatUSD(total)} = ${formatBs(usdToBs(total, tasa1))}`;
                         } else {
                           paymentDetail = `(${methodLabel})`;
+                        }
+                        // ★ Anexar titular de la transferencia al detalle del producto
+                        if (method === 'transferencia' && ps.transferenciaTitular) {
+                          paymentDetail += ` — Titular: ${ps.transferenciaTitular}`;
                         }
                       }
 
