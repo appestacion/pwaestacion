@@ -166,9 +166,9 @@ export default function Biblia() {
               <TableCell sx={descCell}>{data.transferenciaDescripcion || ''}</TableCell>
               <TableCell sx={dataCell}>{data.transferenciaMonto > 0 ? formatUSD(data.transferenciaMonto) : ''}</TableCell>
             </TableRow>
-            {/* Propina: Bs izquierda, USD derecha */}
+            {/* Excedente: Bs izquierda, USD derecha */}
             <TableRow>
-              <TableCell sx={lbl}>Propina:</TableCell>
+              <TableCell sx={lbl}>Excedente:</TableCell>
               <TableCell sx={dataCell}>{data.propinaBs > 0 ? formatBs(data.propinaBs) : ''}</TableCell>
               <TableCell sx={dataCell}>{data.propinaUSD > 0 ? formatUSD(data.propinaUSD) : ''}</TableCell>
             </TableRow>

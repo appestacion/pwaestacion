@@ -229,7 +229,7 @@ export default function Configuracion() {
                 value={config.porcentajeRecaudacion != null ? parseFloat(config.porcentajeRecaudacion).toFixed(1) : '10'}
                 onChange={(e) => updateConfig({ porcentajeRecaudacion: parseFloat(e.target.value) || 10 })}
                 InputProps={{ startAdornment: <span style={{ marginRight: 4 }}>%</span> }}
-                helperText="Porcentaje sobre propina Bs"
+                helperText="Porcentaje sobre excedente Bs"
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ step: '0.1', min: 0, max: 100 }}
               />

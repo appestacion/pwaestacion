@@ -1,7 +1,7 @@
 // src/pages/supervisor/CalculoPropinaAlmuerzo.jsx
 //
 // Sección AISLADA de la app — no interactúa con Firestore ni stores del turno.
-// Sirve únicamente para calcular la propina del operador que cubre
+// Sirve únicamente para calcular el excedente del operador que cubre
 // la hora de almuerzo en una isla.
 //
 // Lógica (igual que Cierre de Turno):
@@ -9,8 +9,8 @@
 //   Total PV = PV Salida USD − PV Entrada USD
 //   Ingresos Totales = Total PV + $ + Bs→USD
 //   $ x Litros = Litros Vendidos × precioLitroUSD
-//   Propina USD = Ingresos Totales − $ x Litros  (si > 0)
-//   Propina Bs  = Propina USD × tasa1  (redondeado a 10)
+//   Excedente USD = Ingresos Totales − $ x Litros  (si > 0)
+//   Excedente Bs  = Excedente USD × tasa1  (redondeado a 10)
 import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -107,7 +107,7 @@ export default function CalculoPropinaAlmuerzo() {
   // ── WhatsApp ──
   const handleSendWhatsApp = () => {
     const lines = [
-      '🍽️ *CÁLCULO PROPINA ALMUERZO*',
+      '🍽️ *CÁLCULO EXCEDENTE ALMUERZO*',
       `Isla: ${islandNumber || '—'}`,
       `Operador: ${operatorName || '—'}`,
       '',
@@ -125,8 +125,8 @@ export default function CalculoPropinaAlmuerzo() {
       `💰 Ingresos Totales: ${formatUSD(ingresosTotalUSD)}`,
       `⛽ $ por Litros: ${formatUSD(litersRef)}`,
       '',
-      `✅ *Propina USD: ${formatUSD(propinaUSD)}*`,
-      `✅ *Propina Bs: ${formatBs(propinaBs)}*`,
+      `✅ *Excedente USD: ${formatUSD(propinaUSD)}*`,
+      `✅ *Excedente Bs: ${formatBs(propinaBs)}*`,
       '',
       `Tasa: ${formatBs(tasa1)}`,
     ];
@@ -152,10 +152,10 @@ export default function CalculoPropinaAlmuerzo() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Cálculo Propina Almuerzo
+            Cálculo Excedente Almuerzo
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Calcula la propina del operador que cubre la hora de almuerzo — Tasa: {formatBs(tasa1)}
+            Calcula el excedente del operador que cubre la hora de almuerzo — Tasa: {formatBs(tasa1)}
           </Typography>
         </Box>
         <Chip
@@ -400,11 +400,11 @@ export default function CalculoPropinaAlmuerzo() {
         </CardContent>
       </Card>
 
-      {/* ═══ PROPINA DEL OPERADOR ═══ */}
+      {/* ═══ EXCEDENTE DEL OPERADOR ═══ */}
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#FFD100' }}>
-            Propina del Operador
+            Excedente del Operador
             {operatorName ? ` — ${operatorName}` : ''}
           </Typography>
           <Grid container spacing={2}>
@@ -506,7 +506,7 @@ export default function CalculoPropinaAlmuerzo() {
                 }}
               >
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                  Propina USD
+                  Excedente USD
                 </Typography>
                 <Typography
                   variant="h5"
@@ -530,7 +530,7 @@ export default function CalculoPropinaAlmuerzo() {
                 }}
               >
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                  Propina Bs
+                  Excedente Bs
                 </Typography>
                 <Typography
                   variant="h5"

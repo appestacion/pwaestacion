@@ -27,6 +27,7 @@ import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PrintIcon from '@mui/icons-material/Print';
 import { useProductStore } from '../../store/useProductStore.js';
 import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ORDER } from '../../config/constants.js';
 import { formatUSD } from '../../lib/formatters.js';
@@ -107,6 +108,157 @@ export default function Productos() {
     setDeleteDialogOpen(false);
   };
 
+  const handlePrintPriceList = () => {
+    const activeProducts = products
+      .filter((p) => p.active)
+      .sort((a, b) => {
+        const idxA = CATEGORY_ORDER.indexOf(a.category);
+        const idxB = CATEGORY_ORDER.indexOf(b.category);
+        if (idxA !== idxB) return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+        return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+      });
+
+    if (activeProducts.length === 0) {
+      enqueueSnackbar({ message: 'No hay productos activos para imprimir', variant: 'warning' });
+      return;
+    }
+
+    const now = new Date();
+    const fechaStr = now.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+
+    const rowsHtml = activeProducts
+      .map((p) => `
+        <tr>
+          <td class="nombre">${escapeHtml(p.name)}</td>
+          <td class="precio">${formatUSD(p.priceUSD)}</td>
+        </tr>
+      `)
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Precios - ${fechaStr}</title>
+<style>
+  * { box-sizing: border-box; }
+  @page { margin: 12mm 10mm; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1.15;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #1a1a1a;
+  }
+  .header h1 {
+    margin: 0 0 3px 0;
+    font-size: 26px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .header .meta {
+    font-size: 13px;
+    color: #555;
+    margin-top: 3px;
+  }
+  .header .meta span { margin: 0 6px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  table thead th {
+    background: #1a1a1a;
+    color: #fff;
+    text-align: left;
+    padding: 5px 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  table thead th.precio { text-align: right; }
+  table tbody td {
+    padding: 2px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    line-height: 1.1;
+  }
+  table tbody td.nombre { color: #1a1a1a; }
+  table tbody td.precio {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #1a1a1a;
+  }
+  table tbody tr:nth-child(even) { background-color: #fafafa; }
+  .footer {
+    margin-top: 10px;
+    padding-top: 5px;
+    border-top: 1px solid #ccc;
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+  }
+  @media print {
+    body { font-size: 15pt; line-height: 1.1; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Lista de Precios</h1>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="precio">REF</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="footer">
+    Precios referenciados en USD &middot; Documento generado el ${fechaStr} a las ${horaStr}
+  </div>
+  <script>
+    window.onload = function() {
+      window.focus();
+      window.print();
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      enqueueSnackbar({ message: 'El navegador bloqueó la ventana emergente. Permite popups para este sitio.', variant: 'error' });
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   const categories = ['aditivo', 'freno', 'aceite', 'refrigerante', 'extintor', 'otro'];
 
   return (
@@ -118,9 +270,19 @@ export default function Productos() {
             {products.filter((p) => p.active).length} productos activos de {products.length} totales
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenNew}>
-          Nuevo Producto
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            startIcon={<PrintIcon />}
+            onClick={handlePrintPriceList}
+            disabled={products.filter((p) => p.active).length === 0}
+          >
+            Imprimir Lista
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenNew}>
+            Nuevo Producto
+          </Button>
+        </Box>
       </Box>
 
       <TextField

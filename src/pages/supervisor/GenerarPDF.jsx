@@ -1,3 +1,4 @@
+//src/pages/supervisor/GenerarPDF.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -62,7 +63,7 @@ const PDF_CARDS = [
   {
     key: 'biblia',
     title: 'Biblia',
-    desc: 'Resumen financiero por isla con propinas',
+    desc: 'Resumen financiero por isla con excedentes',
     icon: MenuBookIcon,
     color: '#2E7D32',
     requiresShift: true,

@@ -94,11 +94,18 @@ export function calculateBiblia(shift, precioLitroUSD) {
     const valesMonto = Array.isArray(island.vales)
       ? island.vales.reduce((s, v) => s + (v.monto || 0), 0)
       : (island.valesMonto || 0);
+    // ★ FIX: Incluir monto en Bs. entre paréntesis después de la descripción.
+    // El monto en USD sigue mostrándose en la columna derecha (valesMonto/transferenciaMonto).
+    const tasa1 = shift.tasa1 || 0;
+    const fmtBs = (usd) => (usd * tasa1).toLocaleString('es-VE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     const valesDescripcion = Array.isArray(island.vales)
       ? island.vales.filter(v => (v.monto || 0) > 0).map(v => {
           const desc = v.descripcion || 'Sin desc';
           const monto = v.monto || 0;
-          return `${desc} ${monto}`;
+          return `${desc} (Bs. ${fmtBs(monto)})`;
         }).join(', ')
       : (island.valesDescripcion || '');
     const transferenciaMonto = Array.isArray(island.transferencias)
@@ -108,7 +115,7 @@ export function calculateBiblia(shift, precioLitroUSD) {
       ? island.transferencias.filter(t => (t.monto || 0) > 0).map(t => {
           const desc = t.descripcion || 'Sin desc';
           const monto = t.monto || 0;
-          return `${desc} ${monto}`;
+          return `${desc} (Bs. ${fmtBs(monto)})`;
         }).join(', ')
       : (island.transferenciaDescripcion || '');
 

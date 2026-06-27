@@ -42,6 +42,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
 import CloseIcon from '@mui/icons-material/Close';
+import PrintIcon from '@mui/icons-material/Print';
 import { useCierreStore } from '../../store/useCierreStore.js';
 import { useProductStore } from '../../store/useProductStore.js';
 import { useInventoryStore } from '../../store/useInventoryStore.js';
@@ -559,6 +560,164 @@ export default function Inventario() {
   const bodyCell = { fontSize: '0.85rem', p: '6px 10px', border: '1px solid #e0e0e0' };
   const resumenCell = { ...bodyCell, fontWeight: 700, bgcolor: '#37474F', color: '#fff' };
 
+  // ── Imprimir Inventario General ──
+  const handlePrintGeneralInventory = () => {
+    if (islandInventoryData.length === 0) {
+      enqueueSnackbar({ message: 'No hay productos para imprimir', variant: 'warning' });
+      return;
+    }
+
+    const now = new Date();
+    const fechaStr = now.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+
+    const rowsHtml = islandInventoryData
+      .map((r) => `
+        <tr>
+          <td class="nombre">${escapeHtml(r.productName)}</td>
+          <td class="num">${r.generalQty}</td>
+          <td class="num">${r.totalEnIslas}</td>
+        </tr>
+      `)
+      .join('');
+
+    const totalGeneral = totals.totalGeneralUnits;
+    const totalIslas = totals.totalDistributed;
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inventario General - ${fechaStr}</title>
+<style>
+  * { box-sizing: border-box; }
+  @page { margin: 12mm 10mm; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1.15;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #1a1a1a;
+  }
+  .header h1 {
+    margin: 0 0 3px 0;
+    font-size: 26px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  table thead th {
+    background: #1a1a1a;
+    color: #fff;
+    text-align: left;
+    padding: 5px 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  table thead th.num { text-align: right; }
+  table tbody td {
+    padding: 2px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    line-height: 1.1;
+  }
+  table tbody td.nombre { color: #1a1a1a; }
+  table tbody td.num {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #1a1a1a;
+  }
+  table tbody tr:nth-child(even) { background-color: #fafafa; }
+  table tfoot td {
+    padding: 4px 10px;
+    background: #1a1a1a;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    border-top: 2px solid #1a1a1a;
+  }
+  table tfoot td.num { text-align: right; }
+  .footer {
+    margin-top: 10px;
+    padding-top: 5px;
+    border-top: 1px solid #ccc;
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+  }
+  @media print {
+    body { font-size: 15pt; line-height: 1.1; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Inventario General</h1>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Cant. en Almacén</th>
+        <th class="num">En Islas</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot>
+      <tr>
+        <td>Total</td>
+        <td class="num">${totalGeneral}</td>
+        <td class="num">${totalIslas}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="footer">
+    Documento generado el ${fechaStr} a las ${horaStr}
+  </div>
+  <script>
+    window.onload = function() {
+      window.focus();
+      window.print();
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      enqueueSnackbar({ message: 'El navegador bloqueó la ventana emergente. Permite popups para este sitio.', variant: 'error' });
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   return (
     <Box>
       {/* ═══ Encabezado ═══ */}
@@ -633,6 +792,9 @@ export default function Inventario() {
             <AlertBadge count={alertGeneral.low.length} severity="warning" label="stock bajo" />
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={handlePrintGeneralInventory} disabled={islandInventoryData.length === 0}>
+              Imprimir
+            </Button>
             <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={() => setDlgGeneral(true)}>
               Agregar Stock
             </Button>

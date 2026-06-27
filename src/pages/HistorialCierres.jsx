@@ -689,8 +689,8 @@ export default function HistorialCierres() {
                 <TableCell sx={rSec}>Turno</TableCell>
                 <TableCell sx={rSec}>Isla</TableCell>
                 <TableCell sx={rSec}>Operador</TableCell>
-                <TableCell sx={{ ...rSec, bgcolor: '#1565C0' }}>Propina $</TableCell>
-                <TableCell sx={{ ...rSec, bgcolor: '#795548' }}>Propina Bs</TableCell>
+                <TableCell sx={{ ...rSec, bgcolor: '#1565C0' }}>Excedente $</TableCell>
+                <TableCell sx={{ ...rSec, bgcolor: '#795548' }}>Excedente Bs</TableCell>
                 <TableCell sx={{ ...rSec, bgcolor: '#795548' }}>% Rec.</TableCell>
                 <TableCell sx={{ ...rSec, bgcolor: '#E65100' }}>Recaudación Bs</TableCell>
               </TableRow>
@@ -725,7 +725,7 @@ export default function HistorialCierres() {
             </TableBody>
           </Table>
         </TableContainer>
-        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>Fórmula: Recaudación = redondear a 10 (Propina Bs × % Recaudación)</Typography>
+        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>Fórmula: Recaudación = redondear a 10 (Excedente Bs × % Recaudación)</Typography>
       </Box>
     );
   };

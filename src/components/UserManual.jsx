@@ -280,11 +280,11 @@ export default function UserManual({ open, onClose }) {
                 {[
                   ['1', 'Dashboard (Pantalla Principal)', 'Resumen del sistema y creación de turnos'],
                   ['2', 'Recepción de Gandola', 'Registro de descarga de combustible'],
-                  ['3', 'Gastos del Turno', 'Registro de gastos en Bolívares (NO afectan la propina del operador)'],
+                  ['3', 'Gastos del Turno', 'Registro de gastos en Bolívares (NO afectan el excedente del operador)'],
                   ['4', 'Lecturas', 'Lecturas de bombas, tanques y tasas de cambio'],
                   ['5', 'Cierre de Turno', 'Registro completo de cortes, PV, vales y productos'],
                   ['6', 'Reporte de Lectura y Recepción', 'Vista consolidada diurno/nocturno'],
-                  ['7', 'Biblia (Resumen Financiero)', 'Cálculo de propina por isla, sobregiro y balance general'],
+                  ['7', 'Biblia (Resumen Financiero)', 'Cálculo de excedente por isla, sobregiro y balance general'],
                   ['8', 'Cuadre PV (Punto de Venta)', 'Conciliación de punto de venta'],
                   ['9', 'Inventario', 'Gestion de stock general y por isla'],
                   ['10', 'Historiales (Cierres / Recaudación / Gandolas)', 'Consulta de turnos cerrados, recaudación por operador y recepciones de gandolas'],
@@ -366,7 +366,7 @@ export default function UserManual({ open, onClose }) {
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Lecturas</TableCell><TableCell>Registrar lecturas de bombas, tanques y tasas de cambio</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Cierre de Turno</TableCell><TableCell>Registrar cortes, PV, vales, transferencias y productos por isla</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Gastos</TableCell><TableCell>Registrar gastos del turno en Bolívares (agua potable, pago técnico, etc.)</TableCell></TableRow>
-                <TableRow><TableCell sx={{ fontWeight: 600 }}>Biblia</TableCell><TableCell>Resumen financiero: propina, sobregiro y balance por isla</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>Biblia</TableCell><TableCell>Resumen financiero: excedente, sobregiro y balance por isla</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Cuadre PV</TableCell><TableCell>Conciliación de pagos con punto de venta</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Inventario</TableCell><TableCell>Gestión de stock general y por isla</TableCell></TableRow>
                 <TableRow><TableCell sx={{ fontWeight: 600 }}>Recepción Gandola</TableCell><TableCell>Registro de descarga de combustible</TableCell></TableRow>
@@ -414,7 +414,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="3" icon={<PaymentsIcon fontSize="small" />} title="Gastos del Turno">
           <P>
-            Esta sección permite registrar todos los gastos incurridos durante el turno en Bolívares (Bs.). Los gastos aparecen en la Biblia (resumen financiero) como líneas individuales en el Resumen, pero es importante tener en cuenta que los gastos NO se utilizan para calcular la propina del operador. La propina se calcula únicamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias), sin descontar gastos. Los gastos se ingresan en Bs. y el sistema los convierte automáticamente a USD usando la tasa del día.
+            Esta sección permite registrar todos los gastos incurridos durante el turno en Bolívares (Bs.). Los gastos aparecen en la Biblia (resumen financiero) como líneas individuales en el Resumen, pero es importante tener en cuenta que los gastos NO se utilizan para calcular el excedente del operador. El excedente se calcula únicamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias), sin descontar gastos. Los gastos se ingresan en Bs. y el sistema los convierte automáticamente a USD usando la tasa del día.
           </P>
           <P bold>
             Ejemplos de gastos frecuentes: pago de agua potable, pago técnico (servicios de mantenimiento), pago eléctrico, reparaciones, compra de materiales menores, entre otros. Cada gasto debe registrarse con su monto y una descripción clara.
@@ -429,7 +429,7 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}>Cada gasto registrado aparece como una tarjeta con el monto y la descripción.</Step>
           <Step num={2}>Haga clic en el botón rojo de eliminar (icono de papelera) para quitar el gasto de la lista.</Step>
 
-          <Tip>Los gastos aparecen en la Biblia como líneas individuales en la sección Resumen, solo como referencia informativa. Los gastos NO se descuentan del total de ingresos para calcular la propina. La propina de cada operador se calcula exclusivamente con sus ingresos (Bs., USD, Punto, Vales y Transferencias) contra el valor de referencia de los litros vendidos.</Tip>
+          <Tip>Los gastos aparecen en la Biblia como líneas individuales en la sección Resumen, solo como referencia informativa. Los gastos NO se descuentan del total de ingresos para calcular el excedente. El excedente de cada operador se calcula exclusivamente con sus ingresos (Bs., USD, Punto, Vales y Transferencias) contra el valor de referencia de los litros vendidos.</Tip>
         </ManualSection>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -471,7 +471,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="5" icon={<ReceiptLongIcon fontSize="small" />} title="Cierre de Turno">
           <P>
-            Esta es la sección más completa y critica del sistema. Aquí se registran todos los datos financieros del turno por cada isla: los cortes en efectivo (Bs. y USD), los pagos con punto de venta (PV), los vales, las transferencias y los productos vendidos. El cierre de turno debe ser meticuloso ya que afecta directamente la Biblia (cálculo de propina) y los reportes generados.
+            Esta es la sección más completa y critica del sistema. Aquí se registran todos los datos financieros del turno por cada isla: los cortes en efectivo (Bs. y USD), los pagos con punto de venta (PV), los vales, las transferencias y los productos vendidos. El cierre de turno debe ser meticuloso ya que afecta directamente la Biblia (cálculo de excedente) y los reportes generados.
           </P>
 
           <Sub>Navegación por Pestañas</Sub>
@@ -536,36 +536,36 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="7" icon={<BookIcon fontSize="small" />} title="Biblia (Resumen Financiero)">
           <P>
-            La Biblia es el resumen financiero completo del turno. Calcula los ingresos totales por isla, determina la propina del operador y muestra el balance general. Es el documento más importante del cierre de turno y debe revisarse cuidadosamente antes de generar el PDF.
+            La Biblia es el resumen financiero completo del turno. Calcula los ingresos totales por isla, determina el excedente del operador y muestra el balance general. Es el documento más importante del cierre de turno y debe revisarse cuidadosamente antes de generar el PDF.
           </P>
 
           <Sub>Campos por Isla</Sub>
-          <P>Para cada isla se muestran los siguientes campos. Es importante notar que la propina se calcula por isla de forma independiente:</P>
+          <P>Para cada isla se muestran los siguientes campos. Es importante notar que el excedente se calcula por isla de forma independiente:</P>
           <Step num={1}><strong>Bs.:</strong> Total de bolívares en efectivo (suma de cortes + UE en Bs.). Se convierte a USD para el cálculo.</Step>
           <Step num={2}><strong>$ (USD):</strong> Total de dólares en efectivo (cortes), excluyendo la UE$.</Step>
           <Step num={3}><strong>Punto:</strong> Total de pagos con punto de venta en USD (de la sección PV).</Step>
           <Step num={4}><strong>UE$ (Ultima Entrega en Dólares):</strong> Efectivo adicional en dólares recibido por el operador que no corresponde a un corte estándar (si las hay).</Step>
           <Step num={5}><strong>Vale(s) - Apoyo Institucional y/o Autorizaciones Superiores:</strong> Total de vales en USD con su descripción. Corresponden a comprobantes de apoyo institucional otorgados a terceros.</Step>
           <Step num={6}><strong>Transferencia(s) - Pago de Gasolina:</strong> Total de pagos de gasolina mediante transferencias bancarias en USD con su descripción.</Step>
-          <Step num={7}><strong>Propina:</strong> Es la diferencia entre los ingresos totales de la isla y el valor de referencia de los litros vendidos (litros vendidos × precio por litro = valor de referencia en USD). Se muestra en Bs. y en USD. Los gastos del turno NO se incluyen en este cálculo; la propina es exclusivamente por isla. El precio por litro se configura en la sección de Configuración.</Step>
+          <Step num={7}><strong>Excedente:</strong> Es la diferencia entre los ingresos totales de la isla y el valor de referencia de los litros vendidos (litros vendidos × precio por litro = valor de referencia en USD). Se muestra en Bs. y en USD. Los gastos del turno NO se incluyen en este cálculo; el excedente es exclusivamente por isla. El precio por litro se configura en la sección de Configuración.</Step>
 
           <Sub>Resumen General</Sub>
           <P>
-            El Resumen consolida los datos de todas las islas y agrega los gastos del turno como líneas informativas individuales. Los gastos aparecen detallados uno por uno en la sección Resumen con su concepto y monto. Es fundamental entender que los gastos NO se restan de los ingresos para calcular la propina. La propina se calcula por isla de forma independiente usando únicamente los ingresos (Bs., USD, Punto, Vales y Transferencias), y luego se suman las propinas de todas las islas para obtener la propina total. La fórmula por isla es:
+            El Resumen consolida los datos de todas las islas y agrega los gastos del turno como líneas informativas individuales. Los gastos aparecen detallados uno por uno en la sección Resumen con su concepto y monto. Es fundamental entender que los gastos NO se restan de los ingresos para calcular el excedente. El excedente se calcula por isla de forma independiente usando únicamente los ingresos (Bs., USD, Punto, Vales y Transferencias), y luego se suman los excedentes de todas las islas para obtener el excedente total. La fórmula por isla es:
           </P>
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8F9FA', mb: 2 }}>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, textAlign: 'center' }}>
-              Propina por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro)
+              Excedente por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro)
             </Typography>
           </Paper>
-          <Warning>Los gastos del turno se muestran en el Resumen como referencia y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos). Sin embargo, los gastos NUNCA afectan el cálculo de la propina del operador. La propina se calcula limpiamente como: ingresos por isla menos el valor de referencia de los litros vendidos por esa isla.</Warning>
+          <Warning>Los gastos del turno se muestran en el Resumen como referencia y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos). Sin embargo, los gastos NUNCA afectan el cálculo del excedente del operador. El excedente se calcula limpiamente como: ingresos por isla menos el valor de referencia de los litros vendidos por esa isla.</Warning>
 
           <Sub>Sobregiro</Sub>
           <P>
-            Cuando la propina es negativa (los ingresos son menores al valor de referencia de los litros vendidos), el sistema indica un "Sobregiro". Esto significa que falta dinero. Cuando hay sobregiro, el sistema calcula el "Total a tomar de Reserva", que es la suma del sobregiro más los gastos del turno. Este monto se debe tomar de la reserva para cubrir el faltante.
+            Cuando el excedente es negativo (los ingresos son menores al valor de referencia de los litros vendidos), el sistema indica un "Sobregiro". Esto significa que falta dinero. Cuando hay sobregiro, el sistema calcula el "Total a tomar de Reserva", que es la suma del sobregiro más los gastos del turno. Este monto se debe tomar de la reserva para cubrir el faltante.
           </P>
 
-          <Warning>Si hay un sobregiro significativo, revise cuidadosamente los cortes, los valores de UE y los datos del punto de venta antes de proceder. Un sobregiro puede indicar un error en el registro o un faltante real de caja. Recuerde que los gastos NO se restan para calcular la propina; el sobregiro se determina únicamente comparando los ingresos del operador contra el valor de los litros vendidos.</Warning>
+          <Warning>Si hay un sobregiro significativo, revise cuidadosamente los cortes, los valores de UE y los datos del punto de venta antes de proceder. Un sobregiro puede indicar un error en el registro o un faltante real de caja. Recuerde que los gastos NO se restan para calcular el excedente; el sobregiro se determina únicamente comparando los ingresos del operador contra el valor de los litros vendidos.</Warning>
 
           <Sub>Tarjetas Dinámicas</Sub>
           <P>
@@ -574,7 +574,7 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}><strong>Sobregiro (naranja):</strong> Aparece únicamente cuando hay sobregiro. Muestra el monto en USD del faltante.</Step>
           <Step num={2}><strong>Total Gastos (azul):</strong> Aparece únicamente cuando hay gastos registrados. Muestra la suma total de todos los gastos del turno en USD.</Step>
           <Step num={3}><strong>Total Dólares a Entregar (morado):</strong> Muestra la suma de los cortes en USD (sin UE) más los UE$ del Resumen. Es el monto en efectivo dólar que el supervisor debe entregar.</Step>
-          <Step num={4}><strong>Total Bolívares a Entregar (verde):</strong> Aparece cuando no hay sobregiro. Muestra el monto en Bs. del Resumen (total de Bs. menos la propina en Bs.) y su equivalente en USD.</Step>
+          <Step num={4}><strong>Total Bolívares a Entregar (verde):</strong> Aparece cuando no hay sobregiro. Muestra el monto en Bs. del Resumen (total de Bs. menos el excedente en Bs.) y su equivalente en USD.</Step>
           <Step num={5}><strong>Total a Tomar de Reserva (verde, con sobregiro):</strong> Aparece únicamente cuando hay sobregiro. Es la suma del sobregiro más los gastos. Muestra el desglose de ambos montos.</Step>
 
           <Sub>Comprobación (Verificación)</Sub>
@@ -654,7 +654,7 @@ export default function UserManual({ open, onClose }) {
         {/* ═══════════════════════════════════════════════════════ */}
         <ManualSection number="10" icon={<HistoryIcon fontSize="small" />} title="Historiales (Cierres / Recaudación / Gandolas)">
           <P>
-            La sección de Historiales permite consultar toda la información histórica de la estación. Consta de tres pestañas organizadas por tema: Cierres (turnos cerrados), Recaudación (propinas por operador) y Gandolas (recepciones de combustible). Cada pestaña tiene filtros de fecha para buscar registros específicos.
+            La sección de Historiales permite consultar toda la información histórica de la estación. Consta de tres pestañas organizadas por tema: Cierres (turnos cerrados), Recaudación (excedentes por operador) y Gandolas (recepciones de combustible). Cada pestaña tiene filtros de fecha para buscar registros específicos.
           </P>
 
           <Sub>Filtros de Fecha</Sub>
@@ -676,19 +676,19 @@ export default function UserManual({ open, onClose }) {
 
           <Sub>Pestaña 2: Recaudación</Sub>
           <P>
-            Esta pestaña muestra la recaudación por operador e isla. La recaudación es el porcentaje de la propina en Bs. que el operador debe entregar. Se calcula con la siguiente fórmula: Recaudación = redondear a 10 (Propina Bs. × Porcentaje de Recaudación). El porcentaje se configura en la sección de Configuración del admin (por defecto 10%). La tabla muestra:
+            Esta pestaña muestra la recaudación por operador e isla. La recaudación es el porcentaje del excedente en Bs. que el operador debe entregar. Se calcula con la siguiente fórmula: Recaudación = redondear a 10 (Excedente Bs. × Porcentaje de Recaudación). El porcentaje se configura en la sección de Configuración del admin (por defecto 10%). La tabla muestra:
           </P>
           <Step num={1}><strong>Fecha y día de la semana:</strong> Fecha del turno y abreviatura del día.</Step>
           <Step num={2}><strong>Turno:</strong> 1TO (diurno, verde) o 2TO (nocturno, azul).</Step>
           <Step num={3}><strong>Isla:</strong> Isla a la que pertenece el operador.</Step>
           <Step num={4}><strong>Operador:</strong> Nombre del operador.</Step>
-          <Step num={5}><strong>Propina $:</strong> Propina en dólares del operador.</Step>
-          <Step num={6}><strong>Propina Bs:</strong> Propina en bolívares del operador.</Step>
+          <Step num={5}><strong>Excedente $:</strong> Excedente en dólares del operador.</Step>
+          <Step num={6}><strong>Excedente Bs:</strong> Excedente en bolívares del operador.</Step>
           <Step num={7}><strong>% Rec.:</strong> Porcentaje de recaudación configurado.</Step>
-          <Step num={8}><strong>Recaudación Bs:</strong> Monto en bolívares que el operador debe entregar (propina × porcentaje, redondeado a 10).</Step>
+          <Step num={8}><strong>Recaudación Bs:</strong> Monto en bolívares que el operador debe entregar (excedente × porcentaje, redondeado a 10).</Step>
           <Step num={9}>En la parte superior se muestra un chip con el total acumulado de recaudación en Bs. de todos los registros filtrados.</Step>
 
-          <Tip>La recaudación se calcula automáticamente usando la propina registrada en el cierre de turno. Si el turno fue cerrado pero no se registró propina, el sistema la calcula en tiempo real usando la fórmula de la Biblia.</Tip>
+          <Tip>La recaudación se calcula automáticamente usando el excedente registrado en el cierre de turno. Si el turno fue cerrado pero no se registró excedente, el sistema lo calcula en tiempo real usando la fórmula de la Biblia.</Tip>
 
           <Sub>Pestaña 3: Gandolas</Sub>
           <P>
@@ -727,7 +727,7 @@ export default function UserManual({ open, onClose }) {
               <TableBody>
                 <TableRow><TableCell>Cierre de Turno</TableCell><TableCell>Vertical</TableCell><TableCell>Cortes por isla (Bs. y USD) con totales</TableCell></TableRow>
                 <TableRow><TableCell>Reporte Lectura</TableCell><TableCell>Horizontal</TableCell><TableCell>Lecturas diurno, tanques, recepción gandola y nocturno</TableCell></TableRow>
-                <TableRow><TableCell>Biblia</TableCell><TableCell>Vertical</TableCell><TableCell>Resumen financiero, propina y sobregiro</TableCell></TableRow>
+                <TableRow><TableCell>Biblia</TableCell><TableCell>Vertical</TableCell><TableCell>Resumen financiero, excedente y sobregiro</TableCell></TableRow>
                 <TableRow><TableCell>Cuadre PV</TableCell><TableCell>Vertical</TableCell><TableCell>Punto de venta por isla con vales y transferencias</TableCell></TableRow>
                 <TableRow><TableCell>Todos (PDF Combinado)</TableCell><TableCell>Mixto</TableCell><TableCell>Todos los reportes anteriores en un solo archivo PDF</TableCell></TableRow>
               </TableBody>
@@ -779,7 +779,7 @@ export default function UserManual({ open, onClose }) {
           <Step num={1}><strong>Total de Turnos:</strong> Cantidad de turnos cerrados en el periodo seleccionado.</Step>
           <Step num={2}><strong>Litros Vendidos:</strong> Total de litros despachados en el periodo.</Step>
           <Step num={3}><strong>Ingresos:</strong> Total de ingresos en USD (suma de cortes, PV, vales, transferencias).</Step>
-          <Step num={4}><strong>Propinas:</strong> Total de propinas y el promedio por turno.</Step>
+          <Step num={4}><strong>Excedentes:</strong> Total de excedentes y el promedio por turno.</Step>
           <Step num={5}><strong>Recepciones de Gandola:</strong> Cantidad de descargas de combustible y total de litros recibidos.</Step>
 
           <Sub>Filtros de Periodo</Sub>
@@ -890,8 +890,8 @@ export default function UserManual({ open, onClose }) {
               <P>Si. Cuando crea un nuevo turno, el sistema busca el último turno cerrado del operador correspondiente y hereda sus lecturas finales como lecturas iniciales del nuevo turno. Siempre verifique que coincidan con el display del surtidor.</P>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <P bold>¿Que significa "Propina" en la Biblia?</P>
-              <P>La propina es la diferencia entre los ingresos totales del operador y el valor de referencia de los litros vendidos. Si los ingresos superan el valor de referencia, hay propina (ganancia). Si los ingresos son menores, hay sobregiro (faltante).</P>
+              <P bold>¿Que significa "Excedente" en la Biblia?</P>
+              <P>El excedente es la diferencia entre los ingresos totales del operador y el valor de referencia de los litros vendidos. Si los ingresos superan el valor de referencia, hay excedente (ganancia). Si los ingresos son menores, hay sobregiro (faltante).</P>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <P bold>¿Como se actualizan las tasas de cambio?</P>
@@ -1073,9 +1073,9 @@ function generateManualPDF(stationName) {
   addText('Vista consolidada en 3 columnas: lecturas diurnas (izquierda), inventario de tanques (centro) y lecturas nocturnas (derecha). Muestra lecturas de bombas, inventario de tanques en 4 momentos (inicial, antes/después de descarga, final) y recepción de gandola.');
 
   addTitle('7. Biblia (Resumen Financiero)');
-  addText('Resumen financiero completo del turno. Calcula ingresos totales, propina del operador y balance general.');
-  addSubtitle('Formula de Propina');
-  addText('Propina por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro). Si es negativa, indica un sobregiro (faltante de caja). Los gastos del turno NO se utilizan para calcular la propina del operador. La propina se calcula exclusivamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias). Los gastos aparecen en el Resumen solo como referencia informativa y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos).');
+  addText('Resumen financiero completo del turno. Calcula ingresos totales, excedente del operador y balance general.');
+  addSubtitle('Fórmula de Excedente');
+  addText('Excedente por Isla = Ingresos Isla - (Litros Vendidos x Precio por Litro). Si es negativo, indica un sobregiro (faltante de caja). Los gastos del turno NO se utilizan para calcular el excedente del operador. El excedente se calcula exclusivamente con los ingresos por isla (Bs., USD, Punto, Vales y Transferencias). Los gastos aparecen en el Resumen solo como referencia informativa y se incluyen en el "Total a tomar de Reserva" cuando hay sobregiro (sobregiro + gastos).');
   addSubtitle('Tarjetas Dinámicas');
   addStep(1, 'Sobregiro (naranja): Aparece cuando hay faltante de caja. Muestra el monto en USD.');
   addStep(2, 'Total Gastos (azul): Suma total de gastos del turno en USD.');
@@ -1097,14 +1097,14 @@ function generateManualPDF(stationName) {
 
   checkPage(40);
   addTitle('10. Historiales (Cierres / Recaudación / Gandolas)');
-  addText('Consulta de información histórica con tres pestanas: Cierres (turnos cerrados con reporte completo), Recaudación (propinas por operador e isla con porcentaje de recaudación configurado) y Gandolas (recepciones de combustible). Todas las pestanas tienen filtros de fecha (desde/hasta) para buscar registros específicos.');
+  addText('Consulta de información histórica con tres pestanas: Cierres (turnos cerrados con reporte completo), Recaudación (excedentes por operador e isla con porcentaje de recaudación configurado) y Gandolas (recepciones de combustible). Todas las pestanas tienen filtros de fecha (desde/hasta) para buscar registros específicos.');
   addSubtitle('Pestana 1: Cierres');
   addStep(1, 'Muestra tarjetas con resumen de cada turno cerrado: fecha, tipo de turno, tasas, litros, totales Bs./USD, PV, operadores y hora de cierre.');
   addStep(2, 'Clic en "Ver Informe" abre el reporte completo (Lecturas, Biblia, Cuadre PV, Inventario, Productos, Gastos).');
   addStep(3, 'Dentro del informe puede generar el PDF completo del turno.');
   addSubtitle('Pestana 2: Recaudación');
-  addStep(1, 'Muestra recaudación por operador e isla. Formula: Recaudación = redondear a 10 (Propina Bs. x Porcentaje).');
-  addStep(2, 'Tabla muestra: fecha, turno, isla, operador, propina $, propina Bs., % Rec. y Recaudación Bs.');
+  addStep(1, 'Muestra recaudación por operador e isla. Formula: Recaudación = redondear a 10 (Excedente Bs. x Porcentaje).');
+  addStep(2, 'Tabla muestra: fecha, turno, isla, operador, excedente $, excedente Bs., % Rec. y Recaudación Bs.');
   addSubtitle('Pestana 3: Gandolas');
   addStep(1, 'Muestra historial de recepciones de gandola: fecha, hora llegada/salida, chofer, CI, compartimentos, total litros y estado.');
 
@@ -1118,7 +1118,7 @@ function generateManualPDF(stationName) {
   addStep(3, 'Activar/Desactivar: Use el interruptor. Productos desactivados no aparecen en el Cierre de Turno.');
 
   addTitle('13. Estadísticas');
-  addText('Gráficos y métricas: litros vendidos por isla, tendencias diarias, ingresos, propinas y recepciones de gandola. Filtre por periodo (hoy, semana, mes, todos).');
+  addText('Gráficos y métricas: litros vendidos por isla, tendencias diarias, ingresos, excedentes y recepciones de gandola. Filtre por periodo (hoy, semana, mes, todos).');
 
   checkPage(30);
   addTitle('14. Cuenta y Seguridad');

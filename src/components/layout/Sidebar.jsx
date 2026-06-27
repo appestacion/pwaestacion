@@ -63,7 +63,7 @@ const supervisorMenuItems = [
 
 // ── Funciones Express (aisladas, no afectan el turno) ──
 const expressMenuItems = [
-  { path: '/propina-almuerzo', label: 'Propina Almuerzo', icon: <LunchDiningIcon /> },
+  { path: '/propina-almuerzo', label: 'Excedente Almuerzo', icon: <LunchDiningIcon /> },
   { path: '/estimacion-litros', label: 'Estimación Litros', icon: <PhotoCameraIcon /> },
 ];
 
@@ -84,6 +84,9 @@ export default function Sidebar() {
   const config = useConfigStore((state) => state.config);
 
   // ── Estado colapsable de Funciones Express ──
+  // ★ FIX: Colapsado por defecto. Se auto-expande solo si la ruta actual
+  // es una función express (isExpressRoute). El usuario puede expandirlo
+  // manualmente cuando lo necesite.
   const [expressOpen, setExpressOpen] = useState(false);
 
   // Auto-expandir si la ruta actual es una función express

@@ -226,8 +226,9 @@ export default function CuadrePV() {
                         <TableCell sx={descCell}>
                           {v.descripcion || `Vale ${idx + 1}`}
                         </TableCell>
+                        {/* ★ FIX: Mostrar primero $ y luego Bs. (consistencia con productsSold) */}
                         <TableCell sx={dataCell} colSpan={2}>
-                          {formatUSD(v.monto || 0)}
+                          {formatUSD(v.monto || 0)} = {formatBs(usdToBs(v.monto || 0, tasa1))}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -235,7 +236,7 @@ export default function CuadrePV() {
                       <TableRow>
                         <TableCell sx={tot}>Total Vales</TableCell>
                         <TableCell sx={{ ...tot, textAlign: 'center' }} colSpan={2}>
-                          {formatUSD(totalVales)}
+                          {formatUSD(totalVales)} = {formatBs(usdToBs(totalVales, tasa1))}
                         </TableCell>
                       </TableRow>
                     )}
@@ -253,8 +254,9 @@ export default function CuadrePV() {
                         <TableCell sx={descCell}>
                           {t.descripcion || `Transf. ${idx + 1}`}
                         </TableCell>
+                        {/* ★ FIX: Mostrar primero $ y luego Bs. (consistencia con productsSold) */}
                         <TableCell sx={dataCell} colSpan={2}>
-                          {formatUSD(t.monto || 0)}
+                          {formatUSD(t.monto || 0)} = {formatBs(usdToBs(t.monto || 0, tasa1))}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -262,7 +264,7 @@ export default function CuadrePV() {
                       <TableRow>
                         <TableCell sx={tot}>Total Transferencias</TableCell>
                         <TableCell sx={{ ...tot, textAlign: 'center' }} colSpan={2}>
-                          {formatUSD(totalTransf)}
+                          {formatUSD(totalTransf)} = {formatBs(usdToBs(totalTransf, tasa1))}
                         </TableCell>
                       </TableRow>
                     )}

@@ -97,7 +97,7 @@ export function getVenezuelaDateString() {
 }
 
 /**
- * Round down to nearest 10 (for propina Bs calculation)
+ * Round down to nearest 10 (for excedente Bs calculation)
  */
 export function roundDownTo10(num) {
   return Math.floor(num / 10) * 10;

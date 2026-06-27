@@ -166,7 +166,7 @@ export default function EstadisticasContent() {
     { label: 'Turnos Cerrados', value: totalTurnos, icon: <CalendarTodayIcon />, color: '#CE1126' },
     { label: 'Litros Totales', value: formatNumber(totalLitros, 0), icon: <LocalGasStationIcon />, color: '#003399' },
     { label: 'Ingresos Totales', value: formatUSD(totalIngresosUSD), icon: <AttachMoneyIcon />, color: '#00A651' },
-    { label: 'Propina Total', value: formatUSD(totalPropinaUSD), icon: <TrendingUpIcon />, color: '#FFD100' },
+    { label: 'Excedente Total', value: formatUSD(totalPropinaUSD), icon: <TrendingUpIcon />, color: '#FFD100' },
   ];
 
   return (
@@ -364,19 +364,19 @@ export default function EstadisticasContent() {
             </Card>
           )}
 
-          {/* Propina Summary */}
+          {/* Excedente Summary */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: 'warning.main' }}>
-                Resumen de Propinas
+                Resumen de Excedentes
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6} sm={4}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Propina Total USD</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Excedente Total USD</Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>{formatUSD(totalPropinaUSD)}</Typography>
                 </Grid>
                 <Grid item xs={6} sm={4}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Propina Total Bs</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>Excedente Total Bs</Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>{formatBs(totalPropinaBs)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={4}>

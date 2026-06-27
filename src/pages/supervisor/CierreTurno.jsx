@@ -707,7 +707,12 @@ export default function CierreTurno() {
                     Transferencias ($)
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Chip label={`Total: ${formatUSD(totalTransferencias)}`} color="success" size="small" />
+                    {/* ★ FIX: Mostrar total en USD y equivalente en Bs (usando tasa1) */}
+                    <Chip
+                      label={`Total: ${formatUSD(totalTransferencias)} = ${formatBs(totalTransferencias * tasa1)}`}
+                      color="success"
+                      size="small"
+                    />
                     <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => handleAddTransferencia(iid)}>
                       Agregar
                     </Button>
@@ -747,11 +752,11 @@ export default function CierreTurno() {
               </CardContent>
             </Card>
 
-            {/* ===== PROPINA DEL OPERADOR ===== */}
+            {/* ===== EXCEDENTE DEL OPERADOR ===== */}
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#FFD100' }}>
-                  Propina del Operador
+                  Excedente del Operador
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
@@ -780,7 +785,7 @@ export default function CierreTurno() {
                   <Grid item xs={6}>
                     <Paper sx={{ p: 2, bgcolor: hasReadings ? (propinaUSD > 0 ? '#E8F5E9' : '#FFEBEE') : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                        Propina USD
+                        Excedente USD
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, color: hasReadings ? (propinaUSD > 0 ? '#2E7D32' : '#D32F2F') : '#9E9E9E' }}>
                         {hasReadings ? formatUSD(propinaUSD) : '—'}
@@ -790,7 +795,7 @@ export default function CierreTurno() {
                   <Grid item xs={6}>
                     <Paper sx={{ p: 2, bgcolor: hasReadings ? (propinaBs > 0 ? '#E8F5E9' : '#FFEBEE') : '#EEEEEE', borderRadius: 2, textAlign: 'center', minHeight: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                        Propina Bs
+                        Excedente Bs
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, color: hasReadings ? (propinaBs > 0 ? '#2E7D32' : '#D32F2F') : '#9E9E9E' }}>
                         {hasReadings ? formatBs(propinaBs) : '—'}

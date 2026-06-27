@@ -129,12 +129,42 @@ export default function EstimacionLitrosVendidos() {
     return init;
   }, [islandIds, pumpsPerIsland]);
 
+  // ★ Identificador del turno actual — se usa para detectar cambios de turno
+  // y evitar mostrar lecturas iniciales stalé de un turno anterior.
+  const currentShiftId = currentShift?.id || null;
+
+  // Verifica si el localStorage pertenece al turno actual (mismo id).
+  // Si currentShift aún no carga (null), devuelve false para forzar refresh
+  // automático cuando el turno cargue.
+  const initialDataMatchesShift = (() => {
+    if (!currentShiftId) return false;
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return parsed.shiftKey === currentShiftId;
+    } catch (e) {
+      return false;
+    }
+  })();
+
   const [lecturas, setLecturas] = useState(() => {
     // Intentar restaurar desde localStorage
     try {
       const saved = localStorage.getItem(LS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+
+        // ★ FIX LECTURA INICIAL: Si el localStorage pertenece a OTRO turno
+        // (shiftKey distinto), descartar los datos previos. Así las lecturas
+        // iniciales se heredan del turno actual y no se muestran valores
+        // stalé del turno anterior.
+        if (currentShiftId && parsed.shiftKey && parsed.shiftKey !== currentShiftId) {
+          console.log('[EstimacionLitros] Turno cambió desde última sesión, descartando localStorage.');
+          localStorage.removeItem(LS_KEY);
+          return buildInitialLecturas();
+        }
+
         if (parsed.lecturas && typeof parsed.lecturas === 'object') {
           const rebuilt = buildInitialLecturas();
           for (const key of Object.keys(rebuilt)) {
@@ -157,16 +187,30 @@ export default function EstimacionLitrosVendidos() {
     return buildInitialLecturas();
   });
 
+  // ★ Ref que rastrea para qué turno ya aplicamos la auto-herencia.
+  // - Si restauramos localStorage del mismo turno (initialDataMatchesShift=true),
+  //   se inicializa con el id del turno actual (no forzar refresh).
+  // - En caso contrario (turno nuevo, localStorage vacío/stalé, o turno no cargado),
+  //   se inicializa en null para forzar el refresh cuando el turno cargue.
+  const appliedShiftIdRef = useRef(initialDataMatchesShift ? currentShiftId : null);
+
   // ★ AUTO-HERENCIA: Las lecturas iniciales se cargan automáticamente
   // desde currentShift.pumpReadings (que ya tiene initialReading pre-llenado).
-  // Solo se aplican si el valor actual es 0 (no sobrescribe datos del usuario).
+  // - Si el turno cambió (shiftChanged=true), se fuerza el refresh de TODAS
+  //   las iniciales desde el turno actual (sobrescribe valores stalé).
+  // - Si seguimos en el mismo turno, solo se aplica si el valor actual es 0
+  //   (no sobrescribe datos del usuario dentro del mismo turno).
   const hasAutoInitial = useMemo(() => {
     return (currentShift?.pumpReadings || []).some((r) => r.initialReading > 0);
   }, [currentShift?.pumpReadings]);
 
   useEffect(() => {
     if (!currentShift?.pumpReadings) return;
+    if (!currentShiftId) return;
+
     const pumpReadings = currentShift.pumpReadings;
+    const shiftChanged = appliedShiftIdRef.current !== currentShiftId;
+    appliedShiftIdRef.current = currentShiftId;
 
     setLecturas((prev) => {
       const updated = { ...prev };
@@ -178,27 +222,35 @@ export default function EstimacionLitrosVendidos() {
 
         const ir = parseInt(pr.initialReading, 10) || 0;
 
-        if (ir > 0 && updated[key].inicial === 0) {
+        if (ir > 0 && (shiftChanged || updated[key].inicial === 0)) {
           updated[key] = { ...updated[key], inicial: ir };
           applied++;
         }
       }
 
       if (applied > 0) {
-        console.log(`[EstimacionLitros] Auto-heredadas ${applied} lecturas iniciales desde el turno actual.`);
+        console.log(`[EstimacionLitros] Auto-heredadas ${applied} lecturas iniciales desde el turno actual (shiftChanged=${shiftChanged}).`);
       }
       return applied > 0 ? updated : prev;
     });
-  }, [currentShift?.pumpReadings]);
+  }, [currentShift?.pumpReadings, currentShiftId]);
 
   // ── Persistir a localStorage cada vez que cambien las lecturas o el período ──
+  // ★ Incluye shiftKey = currentShift.id para detectar cambios de turno
+  // en la próxima sesión y descartar datos stalé.
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ lecturas, fecha, desde, hasta }));
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        lecturas,
+        fecha,
+        desde,
+        hasta,
+        shiftKey: currentShiftId,
+      }));
     } catch (e) {
       console.warn('[EstimacionLitros] Error guardando localStorage:', e);
     }
-  }, [lecturas, fecha, desde, hasta]);
+  }, [lecturas, fecha, desde, hasta, currentShiftId]);
 
   // ── Actualizar campo manual ──
   const handleLecturaChange = (pumpKey, field) => (e) => {

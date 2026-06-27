@@ -159,7 +159,7 @@ export default function ReporteCompleto({ shift, config, products }) {
             <TableCell sx={dataCell}>{data.transferenciaMonto > 0 ? formatUSD(data.transferenciaMonto) : ''}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={lbl}>Propina:</TableCell>
+            <TableCell sx={lbl}>Excedente:</TableCell>
             <TableCell sx={dataCell}>{data.propinaBs > 0 ? formatBs(data.propinaBs) : ''}</TableCell>
             <TableCell sx={dataCell}>{data.propinaUSD > 0 ? formatUSD(data.propinaUSD) : ''}</TableCell>
           </TableRow>
@@ -856,8 +856,9 @@ export default function ReporteCompleto({ shift, config, products }) {
                               <TableCell sx={{ ...c, fontStyle: 'italic', fontSize: '0.65rem' }}>
                                 {v.descripcion || `Vale ${idx + 1}`}
                               </TableCell>
+                              {/* ★ FIX: Mostrar primero $ y luego Bs. (consistencia con CuadrePV.jsx) */}
                               <TableCell sx={{ ...c, textAlign: 'right', fontWeight: 600 }}>
-                                {formatUSD(v.monto || 0)}
+                                {formatUSD(v.monto || 0)} = {formatBs(usdToBs(v.monto || 0, tasa1))}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -865,7 +866,7 @@ export default function ReporteCompleto({ shift, config, products }) {
                             <TableRow>
                               <TableCell sx={{ ...tot, textAlign: 'left' }}>Total Vales</TableCell>
                               <TableCell sx={{ ...tot, textAlign: 'right' }}>
-                                {formatUSD(vales.reduce((s, v) => s + (v.monto || 0), 0))}
+                                {formatUSD(vales.reduce((s, v) => s + (v.monto || 0), 0))} = {formatBs(usdToBs(vales.reduce((s, v) => s + (v.monto || 0), 0), tasa1))}
                               </TableCell>
                             </TableRow>
                           )}
@@ -889,8 +890,9 @@ export default function ReporteCompleto({ shift, config, products }) {
                               <TableCell sx={{ ...c, fontStyle: 'italic', fontSize: '0.65rem' }}>
                                 {t.descripcion || `Transf. ${idx + 1}`}
                               </TableCell>
+                              {/* ★ FIX: Mostrar primero $ y luego Bs. (consistencia con CuadrePV.jsx) */}
                               <TableCell sx={{ ...c, textAlign: 'right', fontWeight: 600 }}>
-                                {formatUSD(t.monto || 0)}
+                                {formatUSD(t.monto || 0)} = {formatBs(usdToBs(t.monto || 0, tasa1))}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -898,7 +900,7 @@ export default function ReporteCompleto({ shift, config, products }) {
                             <TableRow>
                               <TableCell sx={{ ...tot, textAlign: 'left' }}>Total Transf.</TableCell>
                               <TableCell sx={{ ...tot, textAlign: 'right' }}>
-                                {formatUSD(transfers.reduce((s, t) => s + (t.monto || 0), 0))}
+                                {formatUSD(transfers.reduce((s, t) => s + (t.monto || 0), 0))} = {formatBs(usdToBs(transfers.reduce((s, t) => s + (t.monto || 0), 0), tasa1))}
                               </TableCell>
                             </TableRow>
                           )}

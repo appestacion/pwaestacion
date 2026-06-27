@@ -519,7 +519,7 @@ export function generateBibliaPDF(shift, biblia, totals, stationConfig, sharedDo
           { content: b.transferenciaMonto > 0 ? formatUSD(b.transferenciaMonto) : '', styles: { fontSize: 6 } },
         ],
         [
-          { content: 'Propina:', styles: { fontStyle: 'bold', fontSize: 6 } },
+          { content: 'Excedente:', styles: { fontStyle: 'bold', fontSize: 6 } },
           { content: b.propinaBs > 0 ? formatBs(b.propinaBs) : '', styles: { fontSize: 6 } },
           { content: b.propinaUSD > 0 ? formatUSD(b.propinaUSD) : '', styles: { fontSize: 6 } },
         ],
@@ -830,16 +830,19 @@ export function generateCuadrePVPDF(shift, cuadre, cuadreTotals, stationConfig, 
           { content: 'Vales', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
         ]);
         vales.forEach(function(v, i) {
+          // ★ FIX: Mostrar primero $ y luego Bs. (consistencia con CuadrePV.jsx)
+          var vMonto = v.monto || 0;
+          var vBs = usdToBs(vMonto, tasa1);
           islandBody.push([
             { content: v.descripcion || 'Vale ' + (i + 1), styles: { fontSize: 7, fontStyle: 'italic' } },
-            { content: formatUSD(v.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+            { content: formatUSD(vMonto) + ' = ' + formatBs(vBs), styles: { fontSize: 7 }, colSpan: 2 },
           ]);
         });
         if (vales.length > 1) {
           var totalV = vales.reduce(function(s, v) { return s + (v.monto || 0); }, 0);
           islandBody.push([
             { content: 'Total Vales', styles: { fontStyle: 'bold', fontSize: 7 } },
-            { content: formatUSD(totalV), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
+            { content: formatUSD(totalV) + ' = ' + formatBs(usdToBs(totalV, tasa1)), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
           ]);
         }
       }
@@ -848,16 +851,19 @@ export function generateCuadrePVPDF(shift, cuadre, cuadreTotals, stationConfig, 
           { content: 'Transferencias', colSpan: 3, styles: { fillColor: SEC_BG, textColor: 0, fontStyle: 'bold', fontSize: 7 } },
         ]);
         transferencias.forEach(function(t, i) {
+          // ★ FIX: Mostrar primero $ y luego Bs. (consistencia con CuadrePV.jsx)
+          var tMonto = t.monto || 0;
+          var tBs = usdToBs(tMonto, tasa1);
           islandBody.push([
             { content: t.descripcion || 'Transf. ' + (i + 1), styles: { fontSize: 7, fontStyle: 'italic' } },
-            { content: formatUSD(t.monto || 0), styles: { fontSize: 7 }, colSpan: 2 },
+            { content: formatUSD(tMonto) + ' = ' + formatBs(tBs), styles: { fontSize: 7 }, colSpan: 2 },
           ]);
         });
         if (transferencias.length > 1) {
           var totalT = transferencias.reduce(function(s, t) { return s + (t.monto || 0); }, 0);
           islandBody.push([
             { content: 'Total Transferencias', styles: { fontStyle: 'bold', fontSize: 7 } },
-            { content: formatUSD(totalT), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
+            { content: formatUSD(totalT) + ' = ' + formatBs(usdToBs(totalT, tasa1)), styles: { fontStyle: 'bold', fontSize: 7 }, colSpan: 2 },
           ]);
         }
       }
